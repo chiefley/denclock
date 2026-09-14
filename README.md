@@ -33,7 +33,11 @@ that they are needed.
 
 ## Repository
 
-[brief description of server/, client/, firmware/, docs/]
+- `server/` — ASP.NET Core time API; see [run and deployment instructions](server/README.md).
+- `firmware/` — embedded firmware work.
+- `docs/` — architecture and hardware documentation.
+
+The display client will be added in a later increment.
 
 ## Hardware
 
@@ -49,4 +53,3 @@ NUC name is DenClock
 ## Scope 
 
 DenClock 0.1 provides a reliable, always-on Internet-synchronized time display using a server/client architecture. Weather, LoRa communications, and remote environmental sensing are planned extensions but are not part of the initial implementation.
-
