@@ -1,12 +1,17 @@
 # Den Clock — Time Display Story
 
-Status: Planned; no client implementation exists in this repository.
-Human acceptance is required before marking this story complete.
+Status: Complete; explicitly accepted by the human developer on 2026-09-17.
 
-This preserves the original client requirements as planned behavior, not an
-implemented contract. The server owns the [current API contract](../../../server/docs/contract.md);
-the API example below is illustrative. See [client README](../../README.md)
-for prerequisites and unresolved choices.
+Implemented the server-authoritative browser clock, periodic synchronization,
+outage indication, and same-origin server hosting. Seven automated tests,
+build/publish, local HTTP checks, and documentation-link checks passed.
+Codex did not independently verify NUC/LAN browser behavior or touchscreen
+appearance; acceptance does not add new deployment-verification evidence.
+
+This preserves the original client requirements, not an implemented contract.
+The server owns the [current API contract](../../../../server/docs/contract.md);
+the API example below is illustrative. See [client README](../../../README.md)
+for operation and deployment guidance.
 
 ## 1. Purpose
 

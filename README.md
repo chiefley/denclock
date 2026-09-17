@@ -40,7 +40,7 @@ roles and human acceptance of stories.
 ## Repository
 
 - [Server](server/README.md) — implemented ASP.NET Core time API and deployment instructions.
-- [Client](client/README.md) — planned browser display and initial story.
+- [Client](client/README.md) — browser time display, run instructions, and accepted story.
 - [Sensors](firmware/sensors/README.md) — placeholder; no firmware implementation.
 - `firmware/lora-gateway/` — empty scaffold for the future LoRa/Wi-Fi gateway.
 - [Architecture](docs/ARCHITECTURE.md) — cross-component responsibilities and rationale.

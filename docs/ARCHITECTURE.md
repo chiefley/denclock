@@ -12,7 +12,7 @@ future extensions, not implemented system capabilities.
   ASP.NET Core server reports the system clock instead of independently querying NTP.
 - The server is intended to run continuously as a native Windows Service.
   It supplies UTC and civil-time offset through its [implemented API](../server/docs/contract.md).
-- The planned browser client runs on the NUC touchscreen and advances time
+- The browser client targets the NUC touchscreen and advances time
   between synchronization requests. [Client decisions](../client/docs/decisions.md)
   explain monotonic advancement and separation of synchronization/presentation.
 - A future LoRa/Wi-Fi gateway links remote sensors to the server. Gateway and
@@ -28,11 +28,14 @@ Services may start from System32.
 
 ## Current Boundaries and Open Choices
 
-The server is implemented; the client is specified but not implemented. Existing
+The server and initial browser client are implemented; the client story is
+accepted. Codex has not independently verified its NUC deployment. Existing
 source explicitly adds an all-IPv4 port-5000 listener, differing from localhost
-configuration. Browser hosting/origin and deployment choices remain unresolved
-in the [server README](../server/README.md) and [client README](../client/README.md). Network reachability does not itself establish
-browser cross-origin access.
+configuration. The server hosts the client assets and time API on the same
+origin for LAN and local viewing. Client sources stay in `client/` and are
+included in server build/publish output. This avoids a second host and CORS
+configuration for the initial display. See the [server README](../server/README.md)
+and [client README](../client/README.md) for operation and deployment limits.
 
 See [hardware](HARDWARE.md) for the recorded device/address inventory and
 [server instructions](../server/README.md) for publishing and service management.

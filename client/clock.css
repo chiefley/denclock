@@ -1,0 +1,63 @@
+:root {
+  color-scheme: dark;
+  font-family: "Segoe UI", Arial, sans-serif;
+  background: #080c12;
+  color: #f1f4f8;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.clock {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 4vw;
+  user-select: none;
+}
+
+.time {
+  display: flex;
+  align-items: baseline;
+  gap: 2.5vw;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  line-height: 1.1;
+}
+
+#hours-minutes {
+  font-size: min(22vw, 38vh);
+  font-weight: 300;
+  letter-spacing: -0.045em;
+}
+
+#seconds {
+  font-size: min(8vw, 14vh);
+  font-weight: 400;
+  color: #9caec3;
+}
+
+.date {
+  margin-top: 3vh;
+  min-height: 1.4em;
+  font-size: min(3.8vw, 6.5vh);
+  line-height: 1.4;
+  color: #b9c4d2;
+  white-space: nowrap;
+}
+
+.sync-status {
+  position: absolute;
+  bottom: 5vh;
+  font-size: min(1.8vw, 3vh);
+  color: #b8a481;
+}

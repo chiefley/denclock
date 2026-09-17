@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>DenClock</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="clock.css">
+</head>
+<body>
+  <main class="clock" aria-label="Clock">
+    <div class="time"><span id="hours-minutes">--:--</span><span id="seconds">--</span></div>
+    <div id="date" class="date"></div>
+    <div id="sync-status" class="sync-status" role="status">Waiting for time</div>
+  </main>
+  <script type="module">
+    import { config } from './config.js';
+    import { TimeClient, ClockDisplay } from './clock.js';
+
+    const timeClient = new TimeClient(config);
+    const display = new ClockDisplay(timeClient, document);
+    timeClient.start();
+    display.start();
+  </script>
+</body>
+</html>

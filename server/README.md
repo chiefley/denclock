@@ -34,9 +34,11 @@ listeners, intended deployment method, and the installed NUC runtime before the
 next deployment. Manual publishing is self-contained; the WSL helper below is
 framework-dependent and does not stop/start the service.
 
-No authentication or static client hosting is configured. Browser serving/origin
-arrangements must be chosen before implementing the pending
-[Time Display story](../client/docs/stories/001-time-display.md). Restart after
+The server serves the [browser client](../client/README.md) at `/`, with its
+four runtime assets copied into `wwwroot` during build and publish. Open
+`http://localhost:5000/` on the NUC or `http://DenClock:5000/` over the LAN.
+The client uses the same origin for `/api/time`, so no CORS policy is needed.
+No authentication is configured. Restart after
 changing the host timezone and verify Windows synchronization independently of
 the API. See [architecture and rationale](../docs/ARCHITECTURE.md).
 

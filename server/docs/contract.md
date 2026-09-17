@@ -28,12 +28,19 @@ clients should refresh it periodically, including across daylight saving changes
 `appsettings.json` also specifies `http://localhost:5000`. Do not describe this
 as a localhost-only server or assume editing `Urls` removes the code-added
 binding. Verify effective startup listeners in the deployment environment.
-No authentication, CORS policy, or static client file hosting is configured.
+No authentication or CORS policy is configured. `GET /` serves the browser
+clock from `wwwroot/index.html`; `clock.css`, `clock.js`, and `config.js` are
+also served from that directory. The server project includes these four client
+assets in build and publish output. The default client requests `/api/time`
+from the same origin.
 
 ## Evidence and Limits
 
-Checked against `Program.cs`, `appsettings.json`, and the project file during
-the documentation audit. No new runtime or NUC verification was performed.
+Checked against `Program.cs`, `appsettings.json`, and the project file.
+Local development verification confirmed HTTP 200 for the page, runtime assets,
+and time API, including the API's `no-store` header. Build and publish succeeded,
+and the published output contains the client assets. NUC/Windows deployment has
+not been reverified for this change.
 Windows Service integration uses service name `DenClock.Server`; the application
 content root is the executable directory so service startup does not depend on
 its working directory. The project targets .NET 10.

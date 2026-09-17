@@ -9,6 +9,9 @@ builder.Services.AddWindowsService(options => options.ServiceName = "DenClock.Se
 
 var app = builder.Build();
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.MapGet("/api/time", (HttpResponse response) =>
 {
     response.Headers.CacheControl = "no-store";

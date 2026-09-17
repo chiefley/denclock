@@ -1,7 +1,6 @@
 # Client Design Decisions
 
-These are the design direction recorded in the original client specification;
-they do not claim that a client has been implemented.
+These choices underpin the accepted Time Display implementation.
 
 - Use plain HTML, CSS, and JavaScript for the initial display; no framework or
   build system is required for this small increment.
@@ -14,5 +13,15 @@ they do not claim that a client has been implemented.
 - Estimate half the round-trip time for transit compensation, assuming roughly
   symmetric LAN latency. This is a simple estimate, not a precision guarantee.
 
-Hosting/origin policy and stale-sync treatment remain open; see
-[client README](../README.md) and the [story](stories/001-time-display.md).
+- Serve the four client assets from the existing ASP.NET Core server. A relative
+  API address supports both LAN and localhost viewing without a separate web
+  server, added runtime dependency, or CORS policy. Source stays in `client/`;
+  the server project copies only the runtime assets into `wwwroot` on build/publish.
+- Allow five seconds per request and retry every minute. Indicate delayed
+  synchronization after three minutes, tolerating a brief interruption without
+  distracting from the clock. Retain the last valid sample on errors.
+- Apply each successful sample directly, including offset changes. Slewing and
+  timezone prediction would add complexity beyond this initial display.
+
+See [client README](../README.md) for operation and verification, and the
+[story](stories/completed/001-time-display.md) for the requested behavior.
