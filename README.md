@@ -33,14 +33,14 @@ that they are needed.
 
 ## Start or resume here
 
-Read [project status](STATUS.md), then the relevant component's status and
+Read [project status](STATUS.md), then the relevant component's README and
 active story. See [development conventions](docs/DEVELOPMENT.md) for document
 roles and human acceptance of stories.
 
 ## Repository
 
 - [Server](server/README.md) — implemented ASP.NET Core time API and deployment instructions.
-- [Client status](client/STATUS.md) — planned browser display and initial story.
+- [Client](client/README.md) — planned browser display and initial story.
 - [Sensors](firmware/sensors/README.md) — placeholder; no firmware implementation.
 - `firmware/lora-gateway/` — empty scaffold for the future LoRa/Wi-Fi gateway.
 - [Architecture](docs/ARCHITECTURE.md) — cross-component responsibilities and rationale.

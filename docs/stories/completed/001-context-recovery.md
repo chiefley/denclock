@@ -1,6 +1,7 @@
 # Story: Establish Documentation and Context Recovery
 
-Status: Ready for human review; not accepted as complete.
+Status: Complete; human acceptance and prior commit confirmed in the supplied
+story-driven workflow instructions.
 
 ## Intent and Scope
 
@@ -25,4 +26,4 @@ script, or firmware behavior changes.
 The client specification moved from root into its first story. The server API
 contract was extracted from its README. Existing run/service commands remain.
 See root status for unresolved choices. No runtime or device verification is
-claimed by this documentation story. Human acceptance is still pending.
+claimed by this documentation story. Human acceptance is confirmed.

@@ -5,7 +5,7 @@ Human acceptance is required before marking this story complete.
 
 This preserves the original client requirements as planned behavior, not an
 implemented contract. The server owns the [current API contract](../../../server/docs/contract.md);
-the API example below is illustrative. See [client status](../../STATUS.md)
+the API example below is illustrative. See [client README](../../README.md)
 for prerequisites and unresolved choices.
 
 ## 1. Purpose

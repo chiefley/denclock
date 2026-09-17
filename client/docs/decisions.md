@@ -15,4 +15,4 @@ they do not claim that a client has been implemented.
   symmetric LAN latency. This is a simple estimate, not a precision guarantee.
 
 Hosting/origin policy and stale-sync treatment remain open; see
-[status](../STATUS.md) and the [story](stories/001-time-display.md).
+[client README](../README.md) and the [story](stories/001-time-display.md).

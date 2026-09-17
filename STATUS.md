@@ -1,38 +1,23 @@
 # DenClock Status
 
-## Current State
+The .NET 10 time server is implemented; repository history reports it deployed
+on the NUC and available on the subnet. These deployment observations have not
+been re-tested during documentation work. Existing notes report the NUC and
+touchscreen installed, Windows 11 autologon, RustDesk access, and host DenClock.
 
-The repository implements the .NET 10 time server; the browser client has a
-specification but no implementation. No gateway or sensor firmware exists.
-The existing project notes report the NUC and touchscreen installed, Windows 11
-autologon configured, RustDesk access established, and host name DenClock.
-Repository history reports the NUC time service deployed and available on the
-subnet. These deployment observations were not re-tested during this docs audit.
+The browser client is specified but unimplemented. Gateway and sensor firmware
+remain future work, with no implementation.
 
-## Active Story
+## Resume Here
 
-[Documentation and context recovery](docs/stories/001-context-recovery.md) —
-prepared for human review; completion requires human acceptance.
+- [Story-driven workflow](docs/DEVELOPMENT.md) is the enduring process reference.
+- [Workflow story](docs/stories/002-establish-story-driven-development-workflow.md)
+  is the current review item; human acceptance is pending.
+- [Time Display](client/docs/stories/001-time-display.md) remains pending and is
+  not being implemented as part of the workflow story.
 
-## Next Step
-
-Review this reconciliation and resolve the questions below. After acceptance,
-resume the [Time Display story](client/docs/stories/001-time-display.md), starting
-with the browser hosting/origin decision recorded in client status.
-
-## Known Issues / Human Decisions
-
-- Confirm the intended server listener policy: code adds all IPv4 interfaces;
-  configuration still specifies localhost. See [server status](server/STATUS.md).
-- Choose browser hosting/origin for LAN development; no CORS or static client
-  hosting is implemented in the server.
-- Confirm the intended deployment route and installed .NET runtime on the NUC;
-  manual and scripted deployment differ.
-- Client stale-sync timeout and visual indication remain to be decided.
-
-## Component References
-
-- [Server status](server/STATUS.md) and [implemented contract](server/docs/contract.md)
-- [Client status](client/STATUS.md) and [design decisions](client/docs/decisions.md)
-- [Sensor placeholder](firmware/sensors/README.md)
-- [Architecture and rationale](docs/ARCHITECTURE.md)
+See the [server README](server/README.md) for listener/deployment uncertainties,
+[client README](client/README.md) for browser hosting and display decisions,
+[architecture](docs/ARCHITECTURE.md), and [sensor placeholder](firmware/sensors/README.md).
+Active work lives directly in each `docs/stories/`; accepted work lives in its
+`completed/` subdirectory.

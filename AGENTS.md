@@ -70,7 +70,7 @@ possible future requirements.
 Before making substantial changes:
 
 1. Read `README.md`.
-2. Read root `STATUS.md`, then the relevant component README, STATUS, contract, decisions, and active story.
+2. Read root `STATUS.md`, then the relevant component README, contract, decisions, and supplied active story.
 3. Inspect the existing implementation before proposing new structure.
 4. Follow established project conventions where they exist.
 
@@ -82,30 +82,28 @@ can be easily changed as the design evolves.
 Development host: your XPS 14, VS Code/WSL
 Deployment target: Beelink NUC, Windows, 1024×600 touchscreen
 
-## Context Recovery and Story Completion
+## Story-Driven Work and Human Acceptance
 
-Read [documentation conventions](docs/DEVELOPMENT.md). Keep documentation at
-the lowest level that fully contains its subject. Component documentation
-belongs beside that component; root documents describe repository-wide matters.
+Follow [the authoritative development workflow](docs/DEVELOPMENT.md).
 
-The human developer determines when a story is complete. Do not independently
-mark it complete because implementation or checks have finished. Report it as
-ready for review until the human accepts it. Do not infer acceptance of other
-stories from acceptance of the current one.
-
-When the human indicates the current story is complete, documentation is part
-of definition of done:
-
-1. Update the relevant `STATUS.md`: current state, result/verification, active
-   story, specific next step, and known issues. If the next story is unknown,
-   say so instead of inventing scope.
-2. Mark the accepted story complete, retaining acceptance criteria and a brief
-   outcome or intentional departures. Do not create a chronological work diary.
-3. Update the implemented contract when observable behavior changes; keep
-   planned behavior in stories, not in the implemented contract.
-4. Update decisions and rationale when an important choice changes. Distinguish
-   proposed decisions from accepted decisions and record supersession clearly.
-5. Update root `STATUS.md` only for material project-wide changes.
-
-Keep status accurate during unfinished work without implying story acceptance.
-Git preserves detailed history; do not duplicate it in status or story records.
+- Story requirements originate with the human developer, usually in collaboration
+  with ChatGPT. Create a numbered Markdown story from the supplied instructions
+  before implementation, at the lowest scope that contains the work.
+- Choose the next number across that scope's active and completed stories.
+  Implement against the supplied story; do not independently start pending work.
+- Ensure each existing story scope has a `completed/` directory; do not create
+  story scopes speculatively.
+- Report implementation and verification results for human review. Only explicit
+  human acceptance permits declaring completion and moving the story to
+  `completed/`. Move rather than copy, and repair affected links.
+- Closure includes updates to affected enduring contracts and design decisions
+  when appropriate. Contracts describe implemented behavior, decisions explain
+  durable rationale, and completed stories preserve the requested work.
+- Do not maintain component STATUS files just to duplicate story-directory state.
+  Preserve useful information elsewhere before removing duplicative documents.
+  Update root status only for material project-wide changes.
+- After acceptance and closure, stage the story's changes and provide the story
+  title without its sequence prefix as the suggested commit message. Staging
+  has no message field. The human developer commits; do not commit automatically.
+- Git provides version history. Do not continually revise completed stories to
+  describe later behavior or maintain development diaries.

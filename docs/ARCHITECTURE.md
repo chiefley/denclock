@@ -22,12 +22,16 @@ future extensions, not implemented system capabilities.
 Build incrementally and avoid speculative infrastructure. Production applications
 run natively on Windows; WSL tooling is for development and deployment only.
 
+The server returns UTC plus the host offset so clients need not interpret Windows
+timezone IDs. It uses the executable directory as content root because Windows
+Services may start from System32.
+
 ## Current Boundaries and Open Choices
 
 The server is implemented; the client is specified but not implemented. Existing
 source explicitly adds an all-IPv4 port-5000 listener, differing from localhost
 configuration. Browser hosting/origin and deployment choices remain unresolved
-in [project status](../STATUS.md). Network reachability does not itself establish
+in the [server README](../server/README.md) and [client README](../client/README.md). Network reachability does not itself establish
 browser cross-origin access.
 
 See [hardware](HARDWARE.md) for the recorded device/address inventory and

@@ -21,12 +21,24 @@ Invoke-RestMethod http://localhost:5000/api/time
 Press Ctrl+C to stop. The server also runs in a console under WSL for
 development, where it reports the development host's clock and time zone.
 
-## Status and API
+## Implemented API and Operational Context
 
-See [current status](STATUS.md) and the [implemented API contract](docs/contract.md).
+See the [implemented API contract](docs/contract.md).
 The source adds an all-IPv4 listener on port 5000 while configuration names
 localhost; confirm the effective listener on the NUC. Browser cross-origin
 access is not configured.
+
+Repository history reports local testing, NUC deployment, and subnet availability;
+the documentation audits have not revalidated the running NUC. Confirm effective
+listeners, intended deployment method, and the installed NUC runtime before the
+next deployment. Manual publishing is self-contained; the WSL helper below is
+framework-dependent and does not stop/start the service.
+
+No authentication or static client hosting is configured. Browser serving/origin
+arrangements must be chosen before implementing the pending
+[Time Display story](../client/docs/stories/001-time-display.md). Restart after
+changing the host timezone and verify Windows synchronization independently of
+the API. See [architecture and rationale](../docs/ARCHITECTURE.md).
 
 ## Publish for the NUC
 
