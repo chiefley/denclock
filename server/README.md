@@ -21,34 +21,12 @@ Invoke-RestMethod http://localhost:5000/api/time
 Press Ctrl+C to stop. The server also runs in a console under WSL for
 development, where it reports the development host's clock and time zone.
 
-## Time API
+## Status and API
 
-`GET /api/time` returns HTTP 200 with JSON, for example:
-
-```json
-{
-  "utcTime": "2026-09-14T16:00:00+00:00",
-  "unixTimeMilliseconds": 1789401600000,
-  "timeZoneId": "Eastern Standard Time",
-  "utcOffsetSeconds": -14400
-}
-```
-
-Both timestamps describe the same instant sampled while handling the request.
-The time zone ID is the host's native ID (normally a Windows ID on the NUC),
-and the offset is in seconds east of UTC, including daylight saving time at
-that instant. Restart the server after changing the host's configured time zone.
-Responses use `Cache-Control: no-store` so clients obtain a fresh sample.
-
-The client should periodically fetch time and advance it between requests using
-a monotonic elapsed-time clock. This endpoint is a system-clock snapshot,
-not a precision network time protocol. The offset describes the sampled instant;
-clients should refresh it periodically, including across daylight saving changes.
-
-The default listener is local to the NUC at `http://localhost:5000`.
-Change `Urls` in the deployed `appsettings.json`, or pass `--urls` on the
-command line to override it. No authentication or cross-origin browser access
-is configured for this initial local API.
+See [current status](STATUS.md) and the [implemented API contract](docs/contract.md).
+The source adds an all-IPv4 listener on port 5000 while configuration names
+localhost; confirm the effective listener on the NUC. Browser cross-origin
+access is not configured.
 
 ## Publish for the NUC
 
@@ -101,3 +79,16 @@ Invoke-WebRequest http://localhost:5000/api/time
 Reboot the NUC and confirm that the service and endpoint are available again.
 Check Windows Settings > Time & language > Date & time for automatic time
 synchronization and the correct time zone.
+
+## Existing WSL Deployment Helper
+
+`deploy.sh` publishes a framework-dependent Windows x64 build to
+`/tmp/denclock-server-publish` and mirrors it to `/mnt/denclock/server` with
+`rsync --delete`. It requires the appropriate .NET/ASP.NET Core runtime installed
+on the NUC and a correctly mounted deployment destination. It clears the staging
+directory and removes destination files absent from the published output.
+It does not stop or restart the service.
+
+This differs from the self-contained manual procedure above. Confirm the intended
+route and service stop/start sequence before deploying. WSL is a development
+helper environment, not a production runtime requirement.

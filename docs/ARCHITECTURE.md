@@ -1,18 +1,34 @@
-Server technology: DenClock.Server is implemented in C# using .NET and ASP.NET Core. It is intended to run continuously as a Windows Service on the DenClock NUC. The server provides network APIs to the display client and, eventually, other DenClock components. Platform-independent sensor and control protocols are kept separate from the server implementation.
+# DenClock Architecture and Decisions
 
-## Initial server
+## Initial Milestone
 
-The first server is a .NET 10 ASP.NET Core minimal API in `server/`.
-It runs as a Windows Service in production and as a console application
-for development. It listens on `http://localhost:5000` by default because
-the display client runs on the same NUC.
+A reliable, always-on Internet-synchronized time display using a Windows server
+and browser client. Weather, LoRa communication, and environmental sensing are
+future extensions, not implemented system capabilities.
 
-`GET /api/time` returns UTC time, Unix milliseconds, the host time zone ID,
-and the current UTC offset. Windows is responsible for network time
-synchronization. The server reads the system clock on each request and
-disables response caching; it does not independently synchronize time or
-report synchronization health.
+## Responsibilities and Rationale
 
-The client will advance time smoothly between requests using elapsed time.
-See [server instructions](../server/README.md) for the API contract and
-Windows publishing and service installation commands.
+- The Beelink NUC runs Windows. Windows maintains network time; the .NET 10
+  ASP.NET Core server reports the system clock instead of independently querying NTP.
+- The server is intended to run continuously as a native Windows Service.
+  It supplies UTC and civil-time offset through its [implemented API](../server/docs/contract.md).
+- The planned browser client runs on the NUC touchscreen and advances time
+  between synchronization requests. [Client decisions](../client/docs/decisions.md)
+  explain monotonic advancement and separation of synchronization/presentation.
+- A future LoRa/Wi-Fi gateway links remote sensors to the server. Gateway and
+  sensor folders currently contain no firmware implementation. Shared protocols
+  should remain independent of server implementation; no wire format is specified yet.
+
+Build incrementally and avoid speculative infrastructure. Production applications
+run natively on Windows; WSL tooling is for development and deployment only.
+
+## Current Boundaries and Open Choices
+
+The server is implemented; the client is specified but not implemented. Existing
+source explicitly adds an all-IPv4 port-5000 listener, differing from localhost
+configuration. Browser hosting/origin and deployment choices remain unresolved
+in [project status](../STATUS.md). Network reachability does not itself establish
+browser cross-origin access.
+
+See [hardware](HARDWARE.md) for the recorded device/address inventory and
+[server instructions](../server/README.md) for publishing and service management.

@@ -1,8 +1,16 @@
-# Den Clock — Time Client Contract
+# Den Clock — Time Display Story
+
+Status: Planned; no client implementation exists in this repository.
+Human acceptance is required before marking this story complete.
+
+This preserves the original client requirements as planned behavior, not an
+implemented contract. The server owns the [current API contract](../../../server/docs/contract.md);
+the API example below is illustrative. See [client status](../../STATUS.md)
+for prerequisites and unresolved choices.
 
 ## 1. Purpose
 
-Rev 0.1 establishes the basic Den Clock client architecture and provides a functional, attractive time display.
+initial time-display story establishes the basic Den Clock client architecture and provides a functional, attractive time display.
 
 The purpose of this revision is to prove:
 
@@ -14,7 +22,7 @@ The purpose of this revision is to prove:
 - the browser-based display architecture;
 - the visual foundation for the eventual clock and weather display.
 
-Weather information is explicitly outside the scope of Rev 0.1.
+Weather information is explicitly outside the scope of initial time-display story.
 
 ---
 
@@ -34,7 +42,7 @@ During development, the client may run on another computer and communicate with 
 
 ## 3. Client Technology
 
-Rev 0.1 will use plain browser technologies:
+initial time-display story will use plain browser technologies:
 
 - HTML;
 - CSS;
@@ -86,7 +94,7 @@ A representative response is:
 
 Integer UTC Unix epoch time in milliseconds.
 
-This is the authoritative time value used by the Rev 0.1 client.
+This is the authoritative time value used by the initial time-display story client.
 
 #### `utcOffsetSeconds`
 
@@ -118,7 +126,7 @@ For example:
 Eastern Standard Time
 ```
 
-Rev 0.1 does not need to interpret the timezone identifier.
+initial time-display story does not need to interpret the timezone identifier.
 
 ---
 
@@ -203,7 +211,7 @@ This protects the display from host clock corrections or other changes to the co
 
 The client shall periodically resynchronize with the server.
 
-For Rev 0.1, the initial resynchronization interval will be approximately:
+For initial time-display story, the initial resynchronization interval will be approximately:
 
 ```text
 60 seconds
@@ -259,13 +267,13 @@ The client shall retain enough state to determine how long it has been since the
 
 Loss of server communication shall eventually be indicated unobtrusively so that a clock whose synchronization state is questionable is not silently presented as fully authoritative.
 
-The exact visual treatment and timeout threshold for this indication are not specified in Rev 0.1 and may be determined during development.
+The exact visual treatment and timeout threshold for this indication are not specified in initial time-display story and may be determined during development.
 
 ---
 
-## 12. Rev 0.1 Display
+## 12. Time Display
 
-The normal Rev 0.1 display contains only:
+The normal initial time-display story display contains only:
 
 - hours and minutes;
 - seconds;
@@ -307,7 +315,7 @@ Thursday, September 17
 
 ## 13. Visual Design
 
-Rev 0.1 should look like a purpose-built clock rather than a webpage or desktop application.
+initial time-display story should look like a purpose-built clock rather than a webpage or desktop application.
 
 The initial visual direction is:
 
@@ -318,7 +326,7 @@ The initial visual direction is:
 - generous negative space;
 - no visible browser chrome in production.
 
-Exact fonts, colors, sizes, spacing, and positions are intentionally **not part of the Rev 0.1 functional contract**.
+Exact fonts, colors, sizes, spacing, and positions are intentionally **not part of the initial time-display story functional contract**.
 
 These should be tuned while viewing the client on the actual 1024 × 600 display.
 
@@ -326,7 +334,7 @@ These should be tuned while viewing the client on the actual 1024 × 600 display
 
 ## 14. User Interface Exclusions
 
-The normal Rev 0.1 display shall not contain:
+The normal initial time-display story display shall not contain:
 
 - weather information;
 - menus;
@@ -396,9 +404,9 @@ It shall not communicate directly with the server or determine authoritative tim
 
 ---
 
-## 16. Rev 0.1 Success Criteria
+## 16. Acceptance Criteria
 
-Rev 0.1 is successful when:
+initial time-display story is successful when:
 
 1. The client can run on a development computer and obtain time from the NUC Time Server over the LAN.
 2. The displayed time is derived from `unixTimeMilliseconds` and `utcOffsetSeconds`.
@@ -414,7 +422,7 @@ Rev 0.1 is successful when:
 
 ## 17. Explicitly Deferred
 
-The following are deferred to revisions after 0.1:
+The following are deferred to later stories:
 
 - weather data and presentation;
 - indoor/outdoor sensor data;
@@ -426,4 +434,4 @@ The following are deferred to revisions after 0.1:
 - final production visual design;
 - production kiosk startup and recovery behavior.
 
-Rev 0.1 is deliberately limited to establishing a reliable, server-authoritative clock client.
+initial time-display story is deliberately limited to establishing a reliable, server-authoritative clock client.

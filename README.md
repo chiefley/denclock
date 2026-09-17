@@ -31,25 +31,20 @@ The architecture is intentionally being developed incrementally.
 Components and abstractions will be added when experience demonstrates
 that they are needed.
 
+## Start or resume here
+
+Read [project status](STATUS.md), then the relevant component's status and
+active story. See [development conventions](docs/DEVELOPMENT.md) for document
+roles and human acceptance of stories.
+
 ## Repository
 
-- `server/` — ASP.NET Core time API; see [run and deployment instructions](server/README.md).
-- `firmware/` — embedded firmware work.
-- `docs/` — architecture and hardware documentation.
+- [Server](server/README.md) — implemented ASP.NET Core time API and deployment instructions.
+- [Client status](client/STATUS.md) — planned browser display and initial story.
+- [Sensors](firmware/sensors/README.md) — placeholder; no firmware implementation.
+- `firmware/lora-gateway/` — empty scaffold for the future LoRa/Wi-Fi gateway.
+- [Architecture](docs/ARCHITECTURE.md) — cross-component responsibilities and rationale.
+- [Hardware](docs/HARDWARE.md) — NUC, display, and recorded network address.
 
-The display client will be added in a later increment.
-
-## Hardware
-
-See docs/HARDWARE.md.
-
-## Status
-
-NUC and Touchscreen are in place.
-Windows 11 running on the NUC set for autologon.
-Remote access to the NUC is established through RustDesk
-NUC name is DenClock
-
-## Scope 
-
-DenClock 0.1 provides a reliable, always-on Internet-synchronized time display using a server/client architecture. Weather, LoRa communications, and remote environmental sensing are planned extensions but are not part of the initial implementation.
+The initial milestone is a working Internet-synchronized time display.
+Weather, LoRa communications, and environmental sensing remain future work.
