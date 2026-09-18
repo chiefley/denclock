@@ -32,9 +32,11 @@ The server and initial browser client are implemented; the client story is
 accepted. Codex has not independently verified its NUC deployment. Existing
 source explicitly adds an all-IPv4 port-5000 listener, differing from localhost
 configuration. The server hosts the client assets and time API on the same
-origin for LAN and local viewing. Client sources stay in `client/` and are
-included in server build/publish output. This avoids a second host and CORS
-configuration for the initial display. See the [server README](../server/README.md)
+origin for production LAN and local viewing. Development serves `client/`
+directly and can select the NUC API through a generated settings module.
+The API permits configured exact development origins through CORS. Recursive
+publishing keeps client runtime files with the server, without requiring a
+separate static host. See the [server README](../server/README.md)
 and [client README](../client/README.md) for operation and deployment limits.
 
 See [hardware](HARDWARE.md) for the recorded device/address inventory and

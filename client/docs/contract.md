@@ -25,8 +25,11 @@ three minutes old and clears on success. A page reload discards the sample.
 explicit UTC date formatter. Animation frames refresh the view; frames do not
 advance a counter and the display does not request time itself.
 
-The server hosts the client assets and API on one origin. `config.js` exposes
-the server address and timing values. An empty server address uses the page's
-origin. The supported deployment needs no CORS configuration or JavaScript build.
+The production server hosts the client assets and API on one origin.
+`config.js` supplies timing values; the server-generated `client-settings.js`
+selects the API address. Production always selects the page's origin.
+Development uses `Client:TimeServerAddress` (empty means same-origin), with the
+repository launch profile selecting the NUC. Cross-origin development requires
+that API server to permit the page's exact origin. No JavaScript build is needed.
 
 See the [README](../README.md) for operation and verification limitations.

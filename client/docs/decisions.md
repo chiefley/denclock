@@ -13,10 +13,15 @@ These choices underpin the accepted Time Display implementation.
 - Estimate half the round-trip time for transit compensation, assuming roughly
   symmetric LAN latency. This is a simple estimate, not a precision guarantee.
 
-- Serve the four client assets from the existing ASP.NET Core server. A relative
-  API address supports both LAN and localhost viewing without a separate web
-  server, added runtime dependency, or CORS policy. Source stays in `client/`;
-  the server project copies only the runtime assets into `wwwroot` on build/publish.
+- Keep one ASP.NET Core host. Development serves `client/` directly so browser
+  edits need only a refresh. Build/publish recursively copies runtime files to
+  `wwwroot`, excluding development material. Generated static-asset manifests
+  are disabled because ordinary static-file middleware handles these files.
+- Supply API selection through a server-generated module. A development launch
+  profile selects the NUC; Production always supplies an empty same-origin
+  address. This prevents a development address from leaking into deployment.
+- Permit configured exact development origins on the time endpoint only, so the
+  XPS browser can use NUC time without a proxy or a second static server.
 - Allow five seconds per request and retry every minute. Indicate delayed
   synchronization after three minutes, tolerating a brief interruption without
   distracting from the clock. Retain the last valid sample on errors.

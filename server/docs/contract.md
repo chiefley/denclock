@@ -28,11 +28,17 @@ clients should refresh it periodically, including across daylight saving changes
 `appsettings.json` also specifies `http://localhost:5000`. Do not describe this
 as a localhost-only server or assume editing `Urls` removes the code-added
 binding. Verify effective startup listeners in the deployment environment.
-No authentication or CORS policy is configured. `GET /` serves the browser
-clock from `wwwroot/index.html`; `clock.css`, `clock.js`, and `config.js` are
-also served from that directory. The server project includes these four client
-assets in build and publish output. The default client requests `/api/time`
-from the same origin.
+No authentication is configured. `GET /` serves the browser clock. Development
+serves `Client:SourcePath` (default `../client` relative to the working directory)
+directly with no-store static responses. Other environments serve executable-local
+`wwwroot`. Runtime content is recursively copied there during build/publish,
+with development files excluded by the project file.
+
+`GET /client-settings.js` returns a no-store JavaScript module exporting
+`serverAddress`: `Client:TimeServerAddress` in Development, otherwise empty
+(same-origin). `/api/time` alone grants CORS to exact origins in
+`Cors:DevelopmentOrigins`, with GET allowed and no credentials. The default list
+contains `http://localhost:5000`. Unlisted origins receive no access grant.
 
 ## Evidence and Limits
 

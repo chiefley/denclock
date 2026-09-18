@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "DenClock.Development": {
+      "commandName": "Project",
+      "launchBrowser": false,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Client__TimeServerAddress": "http://192.168.50.90:5000"
+      }
+    }
+  }
+}

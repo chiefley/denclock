@@ -25,8 +25,8 @@ development, where it reports the development host's clock and time zone.
 
 See the [implemented API contract](docs/contract.md).
 The source adds an all-IPv4 listener on port 5000 while configuration names
-localhost; confirm the effective listener on the NUC. Browser cross-origin
-access is not configured.
+localhost; confirm the effective listener on the NUC. Limited development
+browser access is configured as described below.
 
 Repository history reports local testing, NUC deployment, and subnet availability;
 the documentation audits have not revalidated the running NUC. Confirm effective
@@ -35,12 +35,31 @@ next deployment. Manual publishing is self-contained; the WSL helper below is
 framework-dependent and does not stop/start the service.
 
 The server serves the [browser client](../client/README.md) at `/`, with its
-four runtime assets copied into `wwwroot` during build and publish. Open
+runtime assets copied recursively into `wwwroot` during build and publish.
+Development runs serve the client source directly; see the
+[client workflow](../client/README.md). Open
 `http://localhost:5000/` on the NUC or `http://DenClock:5000/` over the LAN.
-The client uses the same origin for `/api/time`, so no CORS policy is needed.
+The production client uses the same origin for `/api/time`, so CORS is not required.
 No authentication is configured. Restart after
 changing the host timezone and verify Windows synchronization independently of
 the API. See [architecture and rationale](../docs/ARCHITECTURE.md).
+
+## Development Browser Access (CORS)
+
+`Cors:DevelopmentOrigins` in `appsettings.json` lists exact browser origins
+(scheme, hostname, port; no trailing slash) allowed to read `GET /api/time`.
+The default is `http://localhost:5000`, the XPS browser's development URL.
+This policy applies on the NUC in Production as well as during development,
+but only to `/api/time`. It permits no credentials or arbitrary origins.
+Unapproved origins receive no CORS access header; CORS is a browser read
+restriction, not API authentication.
+
+To change the XPS browser URL, update this list on the NUC and restart its
+service. `http://127.0.0.1:5000` is a different origin from `http://localhost:5000`.
+Use an empty list to disable cross-origin grants. Standard .NET configuration
+overrides also work, e.g. `Cors__DevelopmentOrigins__0` for the first origin.
+Client API selection and edit/save/refresh instructions live in the
+[client README](../client/README.md).
 
 ## Publish for the NUC
 

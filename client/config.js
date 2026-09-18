@@ -1,7 +1,6 @@
 export const config = {
-  // Empty uses the page's server: LAN hostname during development, localhost on the NUC.
-  // An explicit origin (e.g. http://DenClock:5000) requires that server to permit CORS
-  // if it differs from the page's origin. The default deployment needs no CORS.
+  // Startup overrides this using server-generated client-settings.js.
+  // Development uses Client:TimeServerAddress; production always uses the page origin.
   serverAddress: '',
   syncIntervalMs: 60_000,
   requestTimeoutMs: 5_000,

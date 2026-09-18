@@ -11,6 +11,10 @@ Gateway and sensor firmware remain future work, with no implementation.
 
 ## Resume Here
 
+- [Client development and deployment workflow](client/docs/stories/completed/002-client-development-and-deployment-workflow.md)
+  is accepted. The developer confirmed client recovery after stopping and
+  restarting the NUC time service. See the client README for development setup.
+
 - [Story-driven workflow](docs/DEVELOPMENT.md) is the enduring process reference.
 - [Workflow story](docs/stories/002-establish-story-driven-development-workflow.md)
   is the current review item; human acceptance is pending.

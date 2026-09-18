@@ -16,9 +16,10 @@
   </main>
   <script type="module">
     import { config } from './config.js';
+    import { serverAddress } from './client-settings.js';
     import { TimeClient, ClockDisplay } from './clock.js';
 
-    const timeClient = new TimeClient(config);
+    const timeClient = new TimeClient({ ...config, serverAddress });
     const display = new ClockDisplay(timeClient, document);
     timeClient.start();
     display.start();

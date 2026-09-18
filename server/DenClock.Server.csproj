@@ -4,11 +4,14 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
+    <!-- Plain static files are served directly; no generated asset manifest is needed. -->
+    <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.12" />
-    <Content Include="../client/index.html;../client/clock.css;../client/clock.js;../client/config.js"
-             Link="wwwroot/%(Filename)%(Extension)"
+    <Content Include="../client/**/*"
+             Exclude="../client/docs/**;../client/tests/**;../client/node_modules/**;../client/.*;../client/**/.*;../client/**/.*/**;../client/**/*.md;../client/package*.json;../client/yarn.lock;../client/pnpm-lock.yaml;../client/bun.lock*;../client/**/*.test.*;../client/**/*.map"
+             Link="wwwroot/%(RecursiveDir)%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
