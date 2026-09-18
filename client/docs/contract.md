@@ -2,7 +2,10 @@
 
 The browser client displays 12-hour hours/minutes without a leading hour zero
 or AM/PM, subordinate two-digit seconds, and full weekday, month, and day.
-The normal display has no controls or other content. It targets 1024 × 600.
+The normal display has no controls. It targets 1024 × 600, with the canonical
+cabin image filling the viewport behind the clock. The decorative background
+preserves aspect ratio using centered cover scaling and cannot intercept input
+or alter the clock's layout. Background selection is static.
 
 `TimeClient` requests `/api/time` immediately and approximately every 60 seconds.
 It requires an integer Unix timestamp in the supported JavaScript date range

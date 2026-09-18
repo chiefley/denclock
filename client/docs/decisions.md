@@ -30,3 +30,8 @@ These choices underpin the accepted Time Display implementation.
 
 See [client README](../README.md) for operation and verification, and the
 [story](stories/completed/001-time-display.md) for the requested behavior.
+
+- Keep the cabin background in its own fixed decorative layer and stylesheet.
+  Cover scaling fills the display without distorting the image; disabled pointer
+  events and separate stacking keep it independent of clock layout and input.
+  Dynamic image selection remains deferred.

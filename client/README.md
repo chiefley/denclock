@@ -4,6 +4,12 @@ The browser client provides the NUC's 1024 × 600 time-and-date display using
 plain HTML, CSS, and JavaScript. The [Time Display story](docs/stories/completed/001-time-display.md)
 is implemented and accepted.
 
+The cabin background uses `images/Denclock-cabin-master.png` in a separate
+decorative layer styled by `background.css`. It fills the viewport with centered
+cropping while preserving aspect ratio; the clock remains overlaid in its
+existing position. Background selection is static. The image and stylesheet
+are included automatically by the existing recursive publish configuration.
+
 ## Run and Deploy
 
 From the repository root:
