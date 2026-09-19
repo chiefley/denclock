@@ -2,6 +2,7 @@
 #include <RadioLib.h>
 #include <Wire.h>
 #include <SSD1306Wire.h>
+#include "test_payload.h"
 
 // ------------------------------------------------------------
 // Heltec WiFi LoRa 32 V3
@@ -62,6 +63,10 @@ void setup()
 {
     Serial.begin(115200);
     delay(1000);
+
+    pinMode(Vext, OUTPUT);
+    digitalWrite(Vext, LOW);
+    delay(50);
 
     // OLED reset
     pinMode(OLED_RST, OUTPUT);
@@ -148,11 +153,25 @@ void loop()
         Serial.print(snr, 1);
         Serial.println(" dB");
 
-        showStatus(
-            packet,
-            "RSSI: " + String(rssi, 1) + " dBm",
-            "SNR:  " + String(snr, 1) + " dB"
-        );
+        TestReadings readings;
+        if (parseTestPayload(packet.c_str(), packet.length(), readings))
+        {
+            const String tempText = std::isnan(readings.temperature) ? "N/A" : String(readings.temperature, 2);
+            const String rhText = std::isnan(readings.humidity) ? "N/A" : String(readings.humidity, 2);
+            const String batteryText = String(readings.battery, 2);
+            Serial.println("Temperature: " + tempText + " C  RH: " + rhText
+                + " %  Battery: " + batteryText + " V");
+            showStatus(
+                "Temperature: " + tempText + " C",
+                "Humidity: " + rhText + " %",
+                "Battery: " + batteryText + " V"
+            );
+        }
+        else
+        {
+            Serial.println("Malformed test payload; readings not updated");
+            showStatus("INVALID TEST PAYLOAD", "See serial log", "Waiting...");
+        }
     }
     else if (state == RADIOLIB_ERR_CRC_MISMATCH)
     {

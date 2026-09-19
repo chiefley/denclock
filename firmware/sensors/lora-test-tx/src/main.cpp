@@ -2,6 +2,8 @@
 #include <RadioLib.h>
 #include <Wire.h>
 #include <SSD1306Wire.h>
+#include <Adafruit_SHT4x.h>
+#include <math.h>
 
 // ------------------------------------------------------------
 // Heltec WiFi LoRa 32 V3
@@ -38,9 +40,43 @@ SSD1306Wire display(
     OLED_SCL
 );
 
+// Header SDA2/SCK2 are assumed to be GPIO41/GPIO42 (SCK2 means I2C SCL).
+// Keep Wire (bus 0) on the OLED and use Wire1 for the external sensor.
+constexpr int SENSOR_SDA = 41;
+constexpr int SENSOR_SCL = 42;
+// Built-in battery sensing circuit: no external divider or jumper required.
+constexpr int BATTERY_ADC = 1;
+constexpr int BATTERY_ENABLE = 37; // Software output: HIGH enables measurement.
+constexpr float BATTERY_DIVIDER = 4.9f; // Onboard 390k/100k divider.
+Adafruit_SHT4x sht40;
+bool sensorReady = false;
 uint32_t packetNumber = 0;
 
+bool initializeSensor()
+{
+    if (!sht40.begin(&Wire1))
+        return false;
+    sht40.setPrecision(SHT4X_HIGH_PRECISION);
+    sht40.setHeater(SHT4X_NO_HEATER);
+    return true;
+}
+
 // ------------------------------------------------------------
+
+float readBatteryVoltage()
+{
+    digitalWrite(BATTERY_ENABLE, HIGH);
+    delay(10); // Allow the onboard switched divider to settle.
+    analogReadMilliVolts(BATTERY_ADC); // Discard the first conversion.
+    uint32_t millivolts = 0;
+    for (int i = 0; i < 16; ++i)
+    {
+        millivolts += analogReadMilliVolts(BATTERY_ADC);
+        delay(1);
+    }
+    digitalWrite(BATTERY_ENABLE, LOW);
+    return (millivolts / 16.0f) * BATTERY_DIVIDER / 1000.0f;
+}
 
 void showStatus(const String& line1,
                 const String& line2 = "",
@@ -65,6 +101,16 @@ void setup()
     Serial.begin(115200);
     delay(1000);
 
+    // Vext is active LOW; keep it powered for both the OLED and SHT40.
+    pinMode(Vext, OUTPUT);
+    digitalWrite(Vext, LOW);
+    delay(50);
+
+    pinMode(BATTERY_ENABLE, OUTPUT);
+    digitalWrite(BATTERY_ENABLE, LOW);
+    analogReadResolution(12);
+    analogSetPinAttenuation(BATTERY_ADC, ADC_0db);
+
     // OLED reset
     pinMode(OLED_RST, OUTPUT);
     digitalWrite(OLED_RST, LOW);
@@ -84,6 +130,17 @@ void setup()
     Serial.println();
     Serial.println("Den LoRa Test TX");
     Serial.println("----------------");
+
+    if (!Wire1.begin(SENSOR_SDA, SENSOR_SCL, 100000))
+    {
+        Serial.println("Sensor I2C initialization failed");
+        showStatus("SENSOR BUS FAILED", "Check GPIO41/42");
+        while (true)
+            delay(1000);
+    }
+    Wire1.setTimeOut(100);
+    sensorReady = initializeSensor();
+    Serial.println(sensorReady ? "SHT40 OK" : "SHT40 missing; will retry");
 
     // Heltec V3 SX1262 uses a TCXO.
     radio.tcxoVoltage = 1.8;
@@ -131,8 +188,26 @@ void setup()
 
 void loop()
 {
-    String packet =
-        "DEN TEST " + String(packetNumber);
+    if (!sensorReady)
+        sensorReady = initializeSensor();
+
+    sensors_event_t humidity{}, temperature{};
+    bool valid = sensorReady && sht40.getEvent(&humidity, &temperature);
+    valid = valid && isfinite(temperature.temperature)
+        && isfinite(humidity.relative_humidity)
+        && temperature.temperature >= -40 && temperature.temperature <= 125
+        && humidity.relative_humidity >= 0 && humidity.relative_humidity <= 100;
+    if (!valid)
+    {
+        sensorReady = false; // Retry initialization on the next test cycle.
+        Serial.println("SHT40 read failed; sending nan for temperature and RH");
+    }
+
+    const String tempText = valid ? String(temperature.temperature, 2) : "nan";
+    const String rhText = valid ? String(humidity.relative_humidity, 2) : "nan";
+    const String batteryText = String(readBatteryVoltage(), 2);
+    String packet = "T=" + tempText + " C RH=" + rhText
+        + " % BAT=" + batteryText + " V";
 
     Serial.print("TX: ");
     Serial.print(packet);
@@ -151,9 +226,9 @@ void loop()
         Serial.println("OK");
 
         showStatus(
-            "LoRa TX  915 MHz",
-            "Packet: " + String(packetNumber),
-            "TX OK"
+            "TX T: " + (valid ? tempText : String("N/A")) + " C",
+            "RH: " + (valid ? rhText : String("N/A")) + " %",
+            "Battery: " + batteryText + " V"
         );
     }
     else
