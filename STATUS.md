@@ -7,9 +7,15 @@ touchscreen installed, Windows 11 autologon, RustDesk access, and host DenClock.
 
 The browser time client is implemented and accepted. The server now hosts its
 assets. Codex has not independently reverified the NUC/LAN browser or touchscreen.
-Gateway and sensor firmware remain future work, with no implementation.
+The remote LoRa sensor and diagnostic gateway are implemented and accepted by
+the developer. Temperature, humidity, and battery reports work over LoRa;
+server integration, Wi-Fi/MQTT, and deep sleep remain deferred.
 
 ## Resume Here
+
+- [Remote LoRa Sensor](firmware/sensors/docs/stories/completed/002-implement-remote-lora-sensor.md)
+  is accepted. See the [firmware README](firmware/sensors/README.md) for builds
+  and bench operation.
 
 - [Client development and deployment workflow](client/docs/stories/completed/002-client-development-and-deployment-workflow.md)
   is accepted. The developer confirmed client recovery after stopping and
@@ -23,6 +29,6 @@ Gateway and sensor firmware remain future work, with no implementation.
 
 See the [server README](server/README.md) for listener/deployment uncertainties,
 [client README](client/README.md) for browser hosting and display decisions,
-[architecture](docs/ARCHITECTURE.md), and [sensor placeholder](firmware/sensors/README.md).
+[architecture](docs/ARCHITECTURE.md), and [sensor firmware](firmware/sensors/README.md).
 Active work lives directly in each `docs/stories/`; accepted work lives in its
 `completed/` subdirectory.

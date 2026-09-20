@@ -1,4 +1,81 @@
-# LoRa sensor bench tests
+# LoRa sensors and diagnostic gateway
+
+[Accepted story: Implement Remote LoRa Sensor](docs/stories/completed/002-implement-remote-lora-sensor.md).
+The developer confirmed that the implementation works as advertised.
+See the [implemented contract](docs/contract.md) for the firmware behavior.
+
+- `remote-sensor/`: Heltec V3/SX1262, SHT40 and onboard battery sensing.
+- `lora-gateway/`: serial-only acceptance receiver. Measurement interpretation
+  is temporary diagnostic code; the final gateway remains application-agnostic.
+- `common/`: shared radio settings and portable packet encoding/validation.
+- `../../docs/LoRa Protocol.md`: [wire protocol](../../docs/LoRa%20Protocol.md).
+- `../bringup/`: unchanged known-good TX/RX hardware diagnostics described below.
+
+The sensor sends node 1 reports with three two-byte TLVs in a 16-byte binary
+packet, then waits two seconds. Values are rounded to hundredths of degrees C,
+hundredths of percent RH, and millivolts, using big-endian encoding.
+Sequence starts at 0, advances for every generated/transmission-attempted report
+(including radio errors), and wraps from 65535 to 1. Sensor read failures skip
+reports and retry initialization; no fabricated or stale readings are sent.
+The first valid report after boot therefore retains sequence 0.
+
+Both projects use 915 MHz, 125 kHz bandwidth, SF9, coding rate 4/7, 10 dBm,
+eight-symbol RadioLib default preamble, 1.8 V TCXO, explicit header and CRC.
+The exact sync register bytes are D3 C7. RadioLib's
+[`setSyncWord(syncWord, controlBits)`](https://jgromes.github.io/RadioLib/class_s_x126x.html)
+uses split nibbles, so the call is `setSyncWord(0xDC, 0x37)`.
+
+The receiver rejects radio/CRC errors, unsupported message classes, reserved
+source IDs, type zero, truncated TLVs, wrong known lengths, duplicate known
+measurements, and RH above 100%. Unknown nonzero TLVs are skipped; reordered
+TLVs and reports with missing measurements are legal under the protocol. Only
+present measurements are printed after the entire packet validates. The first
+sensor always sends all three. Sync-word matching is not authentication.
+
+Hardware wiring and battery calibration assumptions match the bench tests
+below. No OLED is driven by these two projects; diagnostics use serial at 115200.
+No deep sleep or network services are implemented.
+
+## Build and acceptance
+
+From the repository root:
+
+```sh
+pio run -d firmware/sensors/remote-sensor
+pio run -d firmware/sensors/lora-gateway
+```
+
+Upload each project with `pio run -d <project> --target upload --upload-port <port>`.
+Monitor each board with `pio device monitor --port <port> --baud 115200`.
+Use the appropriate serial port on Windows or your development host.
+
+1. Start the gateway, then reset the sensor. Check node=1, seq=0, then 1, 2, 3.
+2. Compare all three RX readings against TX serial output, which includes the
+   exact 16 bytes. Warm the SHT40 and confirm changing readings reach RX.
+3. Compare battery millivolts against a meter, preferably on battery power.
+4. Disconnect the SHT40: reports stop with a TX error message. Reconnect and
+   confirm reporting resumes without stale data or an artificial sequence reset.
+5. Reset TX again and confirm sequence 0 is received.
+6. For malformed-packet bench checks, use a temporary test transmitter configured
+   with the same radio settings (do not edit the bringup programs). Send type-zero,
+   short-header, truncated-TLV, and incorrect known-length packets; confirm they
+   are discarded. Send an unknown nonzero TLV followed by known TLVs; confirm
+   known values still decode. A transmitter with the old bringup sync word
+   should produce no accepted reports.
+
+Portable tests (host C++ compiler):
+
+```sh
+g++ -std=c++11 -Wall -Wextra -Werror -pedantic firmware/sensors/tests/sensor_report_test.cpp -o /tmp/denclock-sensor-report-test
+/tmp/denclock-sensor-report-test
+```
+
+On Windows, choose a local executable output path. Tests cover a literal wire
+fixture, negative and boundary values, rollover, malformed/truncated packets,
+reserved identifiers, reordered/unknown TLVs, and rejection without partial
+output. They do not establish actual sensor readings or RF compatibility.
+
+## Preserved LoRa sensor bench tests
 
 `lora-test-tx` and `lora-test-rx` are independent PlatformIO/Arduino projects
 for Heltec WiFi LoRa 32 V3 (ESP32-S3 / SX1262). These are blocking bench
@@ -52,7 +129,8 @@ References: [Heltec battery example](https://github.com/HelTecAutomation/Heltec_
 
 ## Build and bench verification
 
-From each of `lora-test-tx` and `lora-test-rx`, run `pio run`.
+From each of `firmware/bringup/lora-test-tx` and
+`firmware/bringup/lora-test-rx`, run `pio run`.
 Use `pio run --target upload --upload-port <port>` for the corresponding board,
 then `pio device monitor --port <port> --baud 115200`. In this WSL setup,
 PlatformIO is installed at `/home/chief/.platformio/penv/bin/pio`.
@@ -75,4 +153,4 @@ It covers valid/negative/boundary readings, sensor-unavailable markers, malforme
 fields, units, truncation, trailing bytes, embedded NUL, nonfinite values, and
 range rejection. Hardware flashing and bench verification remain pending.
 
-[Active story](docs/stories/001-lora-environment-test.md)
+[Accepted bench-test story](docs/stories/completed/001-lora-environment-test.md)

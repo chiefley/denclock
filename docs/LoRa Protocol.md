@@ -67,7 +67,7 @@ Size: **8 bits**
 
 Identifies the packet as a `SENSOR_REPORT` and therefore determines the structure of the remainder of the packet.
 
-The numeric Message Class value assigned to `SENSOR_REPORT` is TBD.
+The Message Class value assigned to `SENSOR_REPORT` is `0x01`.
 
 Message Class values are global to the LoRa application protocol.
 
@@ -203,7 +203,8 @@ The initial sensor implementation reports:
 - relative humidity;
 - battery voltage.
 
-Numeric Type assignments are TBD until the TLV Type registry is established.
+The initial Type assignments are `0x01` TEMPERATURE, `0x02` RELATIVE_HUMIDITY,
+and `0x03` BATTERY_VOLTAGE, as listed in the Field Enumerations registry.
 
 ### 7.1 TEMPERATURE
 
@@ -413,7 +414,7 @@ These parameters provide network compatibility and discrimination from unrelated
 | TX Power | **10 dBm** |
 | Sync Word | **0xD3C7** |
 | CRC | Enabled |
-| Preamble Length | TBD |
+| Preamble Length | RadioLib Default |
 
 The remaining radio parameters will be selected and documented after testing the desired range and reliability.
 

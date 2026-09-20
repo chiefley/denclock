@@ -41,10 +41,11 @@ roles and human acceptance of stories.
 
 - [Server](server/README.md) — implemented ASP.NET Core time API and deployment instructions.
 - [Client](client/README.md) — browser time display, run instructions, and accepted story.
-- [Sensors](firmware/sensors/README.md) — placeholder; no firmware implementation.
+- [Sensors and diagnostic gateway](firmware/sensors/README.md) — accepted LoRa environmental reporting firmware.
 - `firmware/lora-gateway/` — empty scaffold for the future LoRa/Wi-Fi gateway.
 - [Architecture](docs/ARCHITECTURE.md) — cross-component responsibilities and rationale.
 - [Hardware](docs/HARDWARE.md) — NUC, display, and recorded network address.
 
 The initial milestone is a working Internet-synchronized time display.
-Weather, LoRa communications, and environmental sensing remain future work.
+LoRa environmental reporting is implemented and accepted on the sensor/gateway
+bench path. Weather display and integration with the DenClock server remain future work.

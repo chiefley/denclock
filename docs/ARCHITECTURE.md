@@ -3,8 +3,8 @@
 ## Initial Milestone
 
 A reliable, always-on Internet-synchronized time display using a Windows server
-and browser client. Weather, LoRa communication, and environmental sensing are
-future extensions, not implemented system capabilities.
+and browser client. LoRa environmental sensing now works as an independent
+sensor-to-diagnostic-gateway path; weather display and server integration remain future work.
 
 ## Responsibilities and Rationale
 
@@ -15,9 +15,15 @@ future extensions, not implemented system capabilities.
 - The browser client targets the NUC touchscreen and advances time
   between synchronization requests. [Client decisions](../client/docs/decisions.md)
   explain monotonic advancement and separation of synchronization/presentation.
-- A future LoRa/Wi-Fi gateway links remote sensors to the server. Gateway and
-  sensor folders currently contain no firmware implementation. Shared protocols
-  should remain independent of server implementation; no wire format is specified yet.
+- The accepted remote sensor and diagnostic receiver live under `firmware/sensors/`.
+  Their [binary LoRa protocol](LoRa%20Protocol.md) is independent of the server.
+  Shared radio settings and a portable packet codec keep both firmware projects
+  consistent and permit host-side packet tests.
+- The receiver interprets measurements only as acceptance-test scaffolding. The
+  eventual LoRa/Wi-Fi gateway will transport packets without interpreting sensor
+  measurements. Server integration and MQTT remain deferred.
+- Known-good diagnostics in `firmware/bringup/` remain independent and unchanged,
+  preserving a hardware troubleshooting baseline.
 
 Build incrementally and avoid speculative infrastructure. Production applications
 run natively on Windows; WSL tooling is for development and deployment only.
