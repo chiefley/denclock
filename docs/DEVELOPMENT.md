@@ -245,3 +245,7 @@ Git provides version history for code and documentation. Story numbering aids
 identification and ordering; completed stories preserve requested work;
 contracts preserve current implemented behavior. None should become a duplicate
 Git history or a chronological development diary.
+
+## Automated Changes
+
+Repository changes: Automated development tools must work in the existing ~/src/denclock workspace unless explicitly instructed otherwise. They should leave changes uncommitted for review. The developer reviews the diff and performs the commit and push.
