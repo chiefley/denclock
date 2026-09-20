@@ -375,14 +375,30 @@ These concerns may be specified independently without changing the `SENSOR_REPOR
 
 ---
 
+## Field Enumerations
+
+Value 0x00 is reserved and invalid for all enumerated protocol identifiers. Valid enumeration values begin at 1. Receipt of an enumeration value of zero indicates a malformed packet, uninitialized value, or implementation error.
+
+### Message Classes
+
+0x00    INVALID / RESERVED
+0x01    SENSOR_REPORT
+0x02    COMMAND          reserved for future definition
+0x03    RESPONSE         reserved for future definition
+0x04    EVENT            reserved for future definition
+
+### TLV Types
+
+0x00    INVALID / RESERVED
+0x01    TEMPERATURE
+0x02    RELATIVE_HUMIDITY
+0x03    BATTERY_VOLTAGE
+
+---
+
 ## 12. TBD
 
 The following details remain to be assigned:
-
-- numeric Message Class value for `SENSOR_REPORT`;
-- numeric TLV Type value for `TEMPERATURE`;
-- numeric TLV Type value for `RELATIVE_HUMIDITY`;
-- numeric TLV Type value for `BATTERY_VOLTAGE`;
 - registry policy for future Message Class and TLV Type assignments.
 
 The packet structure, field widths, byte order, Node ID semantics, sequence-number semantics, and initial measurement representations defined above are no longer TBD.
