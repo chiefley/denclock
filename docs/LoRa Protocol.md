@@ -396,6 +396,67 @@ Value 0x00 is reserved and invalid for all enumerated protocol identifiers. Vali
 
 ---
 
+## LoRa Radio Configuration
+
+All nodes participating in the Den Clock and Weather LoRa network shall use a common set of radio parameters.
+
+These parameters provide network compatibility and discrimination from unrelated LoRa transmissions. They do not provide cryptographic authentication or security.
+
+### Radio Parameters
+| Parameter | Value |
+|---|---:|
+| Radio | SX1262 |
+| Frequency | **915.0 MHz** |
+| Bandwidth | **125.0 kHz** |
+| Spreading Factor | **9** |
+| Coding Rate | **7** |
+| TX Power | **10 dBm** |
+| Sync Word | **0xD3C7** |
+| CRC | Enabled |
+| Preamble Length | TBD |
+
+The remaining radio parameters will be selected and documented after testing the desired range and reliability.
+
+### Network Sync Word
+
+The Den Clock and Weather LoRa network uses the private 16-bit sync word:
+
+```text
+0xD3C7
+```
+
+All transmitters and receivers on the network shall use this sync word.
+
+The value is intentionally different from standard public LoRa network settings. Its purpose is to provide **network discrimination** so that the gateway normally rejects unrelated LoRa traffic before application-level packet processing.
+
+The sync word is a network identifier, not a secret.
+
+Knowledge of the sync word does not authorize a transmitter to participate in the network and does not provide authentication, integrity protection, or encryption.
+
+### Packet Acceptance
+
+A received packet is considered a candidate application packet only if it:
+
+1. is successfully received using the configured LoRa radio parameters;
+2. matches the configured network sync word;
+3. passes the LoRa CRC check;
+4. contains a recognized, nonzero Message Class;
+5. satisfies the structural requirements of that Message Class.
+
+Failure of any of these checks causes the packet to be discarded.
+
+### Security
+
+The custom sync word and protocol validation are intended to prevent accidental processing of unrelated radio traffic.
+
+They are **not security mechanisms**.
+
+Future message classes capable of controlling equipment, such as antenna switching or tuner commands, shall use an application-level authentication mechanism appropriate for command traffic.
+
+Environmental `SENSOR_REPORT` messages do not currently require cryptographic authentication.
+
+---
+
 ## 12. TBD
 
 The following details remain to be assigned:
