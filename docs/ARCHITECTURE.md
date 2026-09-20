@@ -20,8 +20,10 @@ sensor-to-diagnostic-gateway path; weather display and server integration remain
   Shared radio settings and a portable packet codec keep both firmware projects
   consistent and permit host-side packet tests.
 - The receiver interprets measurements only as acceptance-test scaffolding. The
-  eventual LoRa/Wi-Fi gateway will transport packets without interpreting sensor
-  measurements. Server integration and MQTT remain deferred.
+  eventual LoRa/Wi-Fi gateway will transport raw packets and reception metadata
+  through MQTT. A separate LoRa Service will interpret the custom wire protocol;
+  DenClock will consume its normalized outputs. Wi-Fi/MQTT, the LoRa Service,
+  and DenClock integration remain future implementation work.
 - Known-good diagnostics in `firmware/bringup/` remain independent and unchanged,
   preserving a hardware troubleshooting baseline.
 
@@ -47,3 +49,142 @@ and [client README](../client/README.md) for operation and deployment limits.
 
 See [hardware](HARDWARE.md) for the recorded device/address inventory and
 [server instructions](../server/README.md) for publishing and service management.
+
+## Agreed LoRa Service Boundary
+
+This is the agreed architecture for subsequent work, not a description of an
+already deployed MQTT bridge or LoRa Service. The accepted sensor and serial
+diagnostic receiver remain the working bench baseline.
+
+```text
+Sensor / ham-radio nodes
+          |
+         LoRa
+          |
+Gateway firmware (radio transport)
+          |
+          | raw LoRa packet + reception metadata, over Wi-Fi
+          v
+MQTT broker (Mosquitto)
+          |
+          v
+LoRa Service (custom protocol parsing and normalization)
+          |
+          | normalized/application-friendly messages
+          v
+MQTT broker (application distribution)
+          |
+          +--> DenClock service --> Browser clients
+          |
+          +--> Future ham-radio applications
+```
+
+The two broker positions show two stages of message flow through the same
+logical MQTT distribution boundary; they do not require two brokers.
+
+- **Gateway firmware owns LoRa/radio transport.** It configures and operates the
+  radio, receives packets, and publishes the original packet bytes plus reception
+  metadata to MQTT. Metadata can include RSSI, SNR, gateway identity, and a UTC
+  reception timestamp when available. Reception time is distinct from measurement
+  time. The gateway preserves the packet without interpreting custom message
+  classes, Node IDs, sequence semantics, or sensor TLVs. Radio reception and CRC
+  checks belong here; custom-protocol validation belongs in the LoRa Service.
+  The existing receiver's diagnostic decoder does not establish a production
+  gateway responsibility.
+- **MQTT is the transport/distribution boundary.** Mosquitto distributes raw
+  gateway traffic to the LoRa Service and normalized service outputs to
+  applications. Broker persistence, sessions, and retained messages do not replace
+  environmental history. Raw transport messages and normalized application
+  messages are separate contracts; their exact topics and encoding remain TBD.
+- **LoRa Service owns the custom LoRa protocol.** It subscribes to raw gateway
+  traffic, validates and parses message-class headers and TLVs, interprets Node
+  IDs and restart/sequence semantics, and publishes normalized messages with
+  explicit measurement meaning and units. It preserves relevant source and
+  reception context so applications need not decode packet bytes. Unknown TLVs
+  and malformed packets follow the wire specification. This shared protocol
+  knowledge is independent of DenClock and future ham-radio applications.
+- **DenClock owns environmental history and presentation.** It consumes normalized
+  LoRa Service outputs, maintains application state/history, and supplies clock
+  and weather information to browsers. Friendly sensor names, display units,
+  history retention, and display behavior belong to the application. DenClock
+  does not parse the LoRa wire protocol.
+- **Future ham-radio applications consume LoRa Service outputs.** They own their
+  equipment-specific behavior and application transactions. Shared wire-protocol
+  understanding stays in the LoRa Service. Future outbound commands would be
+  encoded by that service and transported through MQTT and the gateway for radio
+  transmission; command formats, authentication, correlation, retries, and
+  delivery guarantees remain undefined.
+- **Browser clients present DenClock information.** The den touchscreen is one
+  client; other browsers can use the same service. Environmental history belongs
+  to the service rather than an individual display. Remote access belongs at the
+  web-service/network boundary.
+
+Applications own the meaning and publication policy of their retained application
+topics. Gateway firmware does not decide application persistence policy.
+
+## Deployment Independence
+
+Mosquitto, LoRa Service, and DenClock may initially coexist on the Windows NUC.
+They remain separate, independently deployable and movable services, connected
+through network MQTT endpoints rather than shared process memory, local files,
+or a shared application database. Broker addresses and connection settings must
+be configurable rather than requiring localhost.
+
+Moving Mosquitto, LoRa Service, or both to another host must leave DenClock able
+to remain on the NUC, retaining its environmental history and browser service.
+Such a move changes connection/deployment configuration, not DenClock's protocol
+implementation or application responsibilities. Co-location is a deployment
+convenience, not an ownership boundary. This does not require containers or alter
+the native Windows production requirement.
+
+## Node Behavior and Protocol Authority
+
+The [LoRa protocol](LoRa%20Protocol.md) is the authoritative wire specification.
+Its `SENSOR_REPORT` header, assigned Message Class and initial TLV values, Node ID
+rules, sequence-zero restart semantics, byte order, and radio configuration
+(including sync word `0xD3C7`) are defined; they are no longer architecture TBDs.
+
+Sleeping sensors are intended to wake and report spontaneously without a
+destination field or expected response. The accepted implementation currently
+uses a development reporting loop; deep sleep remains deferred.
+
+Powered ham-radio nodes may support command/response interactions and events.
+Message Class selects the header structure, so future commands need not share
+the sensor-report header or carry irrelevant fields in a universal envelope.
+
+A small fixed sensor-report header is followed by TLVs. Defined TLV meanings and
+representations are immutable; new meanings require new types. Parsers skip
+unknown types by length while validating packet boundaries. There is no protocol
+version field, and extensibility does not permit reinterpretation of existing
+headers or types. These rules guide the LoRa Service without putting a wire
+parser in DenClock.
+
+## Deliberately Unresolved
+
+- MQTT topics, raw packet/metadata envelope encoding, normalized message schemas,
+  QoS, retention/expiry, and reconnect/delivery behavior.
+- Command/response and event wire formats, destination addressing, authentication,
+  transaction correlation, timeouts, retries, and delivery guarantees.
+- LoRa Service implementation language, parser design, and service packaging.
+- Application storage, history retention, and retained application topic policies.
+- Security and remote-access configuration; the radio sync word provides network
+  discrimination, not authentication.
+- Registry policy for future Message Classes and TLV Types, and any additional
+  radio tuning or packet limits not specified by the protocol.
+
+Implement these incrementally as stories require them. The service boundary is
+agreed; it does not itself implement any of the deferred infrastructure.
+
+## Document Reconciliation
+
+This document is the primary architecture reference. It incorporates the still
+valid gateway, MQTT, browser, node-behavior, and TLV principles previously recorded
+in [ARCHITECTURE2.md](ARCHITECTURE2.md), while preserving the implemented clock,
+Windows hosting, and diagnostic baseline decisions above. The separate LoRa
+Service supersedes the earlier assignment of wire-payload interpretation directly
+to application services.
+
+Decision context:
+[Gateway architecture design](chatgpt-conversation://6aae93e1-8e04-83e9-bb06-8563d690bd69).
+Repository hardware references are in [HARDWARE.md](HARDWARE.md) and the
+[sensor README](../firmware/sensors/README.md).
