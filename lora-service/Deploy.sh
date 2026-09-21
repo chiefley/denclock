@@ -3,8 +3,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PUBLISH_DIR="/tmp/lora-server-publish"
-#DEPLOY_DIR="/mnt/denclock/lora-service"
-DEPLOY_DIR="/mnt/c/temp/lora-service"
+DEPLOY_DIR="/mnt/denclock/LoRaServer"
+#DEPLOY_DIR="/mnt/c/temp/lora-service"
 
 echo "Publishing Lora.Server..."
 rm -rf "$PUBLISH_DIR"

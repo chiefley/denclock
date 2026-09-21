@@ -109,14 +109,35 @@ g++ -std=c++11 -Wall -Wextra -Werror -pedantic firmware/sensors/tests/gateway_pr
 The C++ fixture matches the .NET fixture and checks exact frame bytes and opaque
 forwarding. These tests do not mock hardware.
 
-To create a standalone Windows console deployment:
+To create a framework-dependent Windows x64 deployment:
 
 ```powershell
-dotnet publish lora-service/LoRa.Service.csproj -c Release -r win-x64 --self-contained true -o artifacts/lora-service
+dotnet publish lora-service/LoRa.Service.csproj -c Release -r win-x64 --self-contained false -o artifacts/lora-service
 ```
 
-Copy the whole published directory to the Windows host, then run
-`LoRa.Service.exe` interactively. This story does not install a Windows Service.
-[Generic Host hosting](https://learn.microsoft.com/en-us/dotnet/core/extensions/workers)
-keeps the protocol/worker code separate from a future Windows Service lifetime
-adapter; no Windows APIs occur in application logic.
+Copy the whole published directory to the Windows host. The NUC needs the .NET 10
+x64 runtime installed; this publish does not bundle it. Run `LoRa.Service.exe`
+interactively or use your existing scripts to install and start it as a service.
+
+## Windows Service hosting
+
+[Support Windows Service Hosting](docs/stories/completed/001-support-windows-service-hosting.md)
+is verified and accepted by the developer. `AddWindowsService()` activates the Windows
+Service lifetime when the service manager launches the executable; direct execution
+retains the console lifetime. Service stop requests cancel the worker and close
+its listener/connections. Configuration remains relative to the executable directory,
+including when Windows starts the service from System32. No appsettings change is
+required to enable service hosting.
+
+Continue using the existing publish/install/start scripts, with the registered
+binary path pointing to the published `LoRa.Service.exe`. Stop the installed service
+before replacing its files. Verify start, decoded gateway reports, stop, and restart
+on the NUC; do not run a console copy on the same listener port simultaneously.
+
+Windows Service hosting adds Windows Application Event Log output. Its default
+threshold is Warning; to see Information-level connection and sensor reports, set
+`Logging:EventLog:LogLevel:Default` to `Information` in the deployed appsettings.json.
+Check Event Viewer → Windows Logs → Application for startup failures. An account
+without permission to create an Event Log source may need administrator setup of
+the source before logging works. Console logging remains available interactively.
+See [Microsoft's Windows Service hosting documentation](https://learn.microsoft.com/en-us/dotnet/core/extensions/windows-service).

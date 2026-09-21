@@ -15,6 +15,9 @@ verified and accepted by the developer.
 
 ## Resume Here
 
+- [Support Windows Service Hosting](lora-service/docs/stories/completed/001-support-windows-service-hosting.md)
+  is verified and accepted by the developer for Windows Service hosting on the NUC.
+
 - [Remote Sensor Deep-Sleep Operation](firmware/sensors/docs/stories/completed/003-remote-sensor-deep-sleep-operation.md)
   is verified and accepted; see the sensor README for operation and checks.
 

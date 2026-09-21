@@ -1,7 +1,10 @@
 # LoRa Service receive contract
 
 The independent .NET 10 worker listens on a configurable IP address and TCP port
-(default `0.0.0.0:5210`). It supports interactive execution and graceful shutdown.
+(default `0.0.0.0:5210`). It supports interactive execution and Windows Service hosting with graceful shutdown.
+The host selects the Windows Service lifetime when launched by the Windows service
+manager. Configuration loads from the executable directory. Deployment is
+framework-dependent and requires the .NET 10 runtime on the Windows host.
 There is no dependency on the DenClock server and no MQTT interface yet.
 
 Each TCP connection has independent framing and Gateway ID state. The first

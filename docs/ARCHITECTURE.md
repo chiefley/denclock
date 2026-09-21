@@ -129,8 +129,9 @@ through network endpoints rather than shared process memory, local files,
 or a shared application database. Gateway-to-service transport is TCP; future
 service-to-application distribution is MQTT. Addresses and ports are configurable
 rather than requiring localhost. The independent .NET 10 Generic Host worker
-runs interactively now; Windows Service installation remains deferred. Hosting
-can change without introducing Windows-specific APIs into protocol logic.
+supports console and Windows Service lifetimes; NUC service execution is verified
+and accepted by the developer. Windows hosting integration stays in the host bootstrap, outside
+protocol logic. Framework-dependent publishing uses the installed .NET 10 runtime.
 
 Moving Mosquitto, LoRa Service, or both to another host must leave DenClock able
 to remain on the NUC, retaining its environmental history and browser service.
@@ -169,7 +170,6 @@ parser in DenClock.
   QoS, retention/expiry, and reconnect/delivery behavior.
 - Command/response and event wire formats, destination addressing, authentication,
   transaction correlation, timeouts, retries, and delivery guarantees.
-- LoRa Service Windows Service packaging and installation.
 - Application storage, history retention, and retained application topic policies.
 - Security and remote-access configuration; the radio sync word provides network
   discrimination, not authentication.
