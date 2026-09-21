@@ -3,8 +3,9 @@
 ## Initial Milestone
 
 A reliable, always-on Internet-synchronized time display using a Windows server
-and browser client. LoRa environmental sensing now works as an independent
-sensor-to-diagnostic-gateway path; weather display and server integration remain future work.
+and browser client. LoRa environmental sensing has an accepted sensor and
+diagnostic gateway baseline. The new independent gateway-to-LoRa-Service TCP path is
+tested and accepted by the developer; DenClock integration remains future work.
 
 ## Responsibilities and Rationale
 
@@ -20,10 +21,11 @@ sensor-to-diagnostic-gateway path; weather display and server integration remain
   Shared radio settings and a portable packet codec keep both firmware projects
   consistent and permit host-side packet tests.
 - The receiver interprets measurements only as acceptance-test scaffolding. The
-  eventual LoRa/Wi-Fi gateway will transport raw packets and reception metadata
-  through MQTT. A separate LoRa Service will interpret the custom wire protocol;
-  DenClock will consume its normalized outputs. Wi-Fi/MQTT, the LoRa Service,
-  and DenClock integration remain future implementation work.
+  production LoRa/Wi-Fi gateway transports raw packets and RSSI/SNR directly to
+  the separate [LoRa Service](../lora-service/README.md) using the
+  [Gateway Protocol](Gateway%20Protocol.md) over persistent TCP. The LoRa Service
+  timestamps and interprets the custom wire protocol. MQTT and DenClock
+  integration remain future work; the DenClock time server is not involved.
 - Known-good diagnostics in `firmware/bringup/` remain independent and unchanged,
   preserving a hardware troubleshooting baseline.
 
@@ -52,9 +54,10 @@ See [hardware](HARDWARE.md) for the recorded device/address inventory and
 
 ## Agreed LoRa Service Boundary
 
-This is the agreed architecture for subsequent work, not a description of an
-already deployed MQTT bridge or LoRa Service. The accepted sensor and serial
-diagnostic receiver remain the working bench baseline.
+The receive path through the LoRa Service is implemented in
+[story 004](stories/completed/004-end-to-end-lora-receive-path.md), accepted after developer testing and verification.
+The MQTT/application path below is future work. The accepted serial diagnostic
+receiver remains selectable as a separate firmware build.
 
 ```text
 Sensor / ham-radio nodes
@@ -63,12 +66,10 @@ Sensor / ham-radio nodes
           |
 Gateway firmware (radio transport)
           |
-          | raw LoRa packet + reception metadata, over Wi-Fi
+          | Gateway Protocol / persistent TCP over Wi-Fi
+          | raw LoRa packet + RSSI + SNR
           v
-MQTT broker (Mosquitto)
-          |
-          v
-LoRa Service (custom protocol parsing and normalization)
+LoRa Service (UTC timestamp, custom protocol parsing and normalization)
           |
           | normalized/application-friendly messages
           v
@@ -79,26 +80,24 @@ MQTT broker (application distribution)
           +--> Future ham-radio applications
 ```
 
-The two broker positions show two stages of message flow through the same
-logical MQTT distribution boundary; they do not require two brokers.
+MQTT belongs after the LoRa Service. The gateway never communicates with MQTT.
 
 - **Gateway firmware owns LoRa/radio transport.** It configures and operates the
-  radio, receives packets, and publishes the original packet bytes plus reception
-  metadata to MQTT. Metadata can include RSSI, SNR, gateway identity, and a UTC
-  reception timestamp when available. Reception time is distinct from measurement
-  time. The gateway preserves the packet without interpreting custom message
+  radio, receives packets, and forwards original packet bytes plus RSSI/SNR over
+  TCP. HELLO identifies the gateway once per connection. The gateway does not
+  timestamp packets. The gateway preserves the packet without interpreting custom message
   classes, Node IDs, sequence semantics, or sensor TLVs. Radio reception and CRC
   checks belong here; custom-protocol validation belongs in the LoRa Service.
   The existing receiver's diagnostic decoder does not establish a production
   gateway responsibility.
-- **MQTT is the transport/distribution boundary.** Mosquitto distributes raw
-  gateway traffic to the LoRa Service and normalized service outputs to
-  applications. Broker persistence, sessions, and retained messages do not replace
-  environmental history. Raw transport messages and normalized application
-  messages are separate contracts; their exact topics and encoding remain TBD.
-- **LoRa Service owns the custom LoRa protocol.** It subscribes to raw gateway
-  traffic, validates and parses message-class headers and TLVs, interprets Node
-  IDs and restart/sequence semantics, and publishes normalized messages with
+- **MQTT is the future application distribution boundary.** Mosquitto will
+  distribute normalized LoRa Service outputs to applications. Broker persistence,
+  sessions, and retained messages do not replace environmental history. MQTT
+  topics and application encoding remain TBD; the gateway TCP framing is defined.
+- **LoRa Service owns the custom LoRa protocol.** It accepts gateway TCP
+  connections, assigns UTC reception timestamps, validates and parses
+  message-class headers and TLVs, and interprets Node IDs and sequence numbers.
+  Currently it logs decoded measurements; eventually it will publish messages with
   explicit measurement meaning and units. It preserves relevant source and
   reception context so applications need not decode packet bytes. Unknown TLVs
   and malformed packets follow the wire specification. This shared protocol
@@ -111,7 +110,7 @@ logical MQTT distribution boundary; they do not require two brokers.
 - **Future ham-radio applications consume LoRa Service outputs.** They own their
   equipment-specific behavior and application transactions. Shared wire-protocol
   understanding stays in the LoRa Service. Future outbound commands would be
-  encoded by that service and transported through MQTT and the gateway for radio
+  encoded by that service and transported through the Gateway Protocol for radio
   transmission; command formats, authentication, correlation, retries, and
   delivery guarantees remain undefined.
 - **Browser clients present DenClock information.** The den touchscreen is one
@@ -126,9 +125,12 @@ topics. Gateway firmware does not decide application persistence policy.
 
 Mosquitto, LoRa Service, and DenClock may initially coexist on the Windows NUC.
 They remain separate, independently deployable and movable services, connected
-through network MQTT endpoints rather than shared process memory, local files,
-or a shared application database. Broker addresses and connection settings must
-be configurable rather than requiring localhost.
+through network endpoints rather than shared process memory, local files,
+or a shared application database. Gateway-to-service transport is TCP; future
+service-to-application distribution is MQTT. Addresses and ports are configurable
+rather than requiring localhost. The independent .NET 10 Generic Host worker
+runs interactively now; Windows Service installation remains deferred. Hosting
+can change without introducing Windows-specific APIs into protocol logic.
 
 Moving Mosquitto, LoRa Service, or both to another host must leave DenClock able
 to remain on the NUC, retaining its environmental history and browser service.
@@ -161,11 +163,11 @@ parser in DenClock.
 
 ## Deliberately Unresolved
 
-- MQTT topics, raw packet/metadata envelope encoding, normalized message schemas,
+- MQTT topics, normalized message schemas,
   QoS, retention/expiry, and reconnect/delivery behavior.
 - Command/response and event wire formats, destination addressing, authentication,
   transaction correlation, timeouts, retries, and delivery guarantees.
-- LoRa Service implementation language, parser design, and service packaging.
+- LoRa Service Windows Service packaging and installation.
 - Application storage, history retention, and retained application topic policies.
 - Security and remote-access configuration; the radio sync word provides network
   discrimination, not authentication.
@@ -182,7 +184,11 @@ valid gateway, MQTT, browser, node-behavior, and TLV principles previously recor
 in [ARCHITECTURE2.md](ARCHITECTURE2.md), while preserving the implemented clock,
 Windows hosting, and diagnostic baseline decisions above. The separate LoRa
 Service supersedes the earlier assignment of wire-payload interpretation directly
-to application services.
+to application services. The Gateway Protocol and LoRa Service specifications
+supersede the earlier gateway-to-MQTT transport and gateway timestamp suggestions.
+Using direct framed TCP keeps the gateway independent of both the LoRa application
+protocol and the future MQTT schema. The service assigns reception time so the
+gateway needs no synchronized clock.
 
 Decision context:
 [Gateway architecture design](chatgpt-conversation://6aae93e1-8e04-83e9-bb06-8563d690bd69).

@@ -5,7 +5,7 @@ The architecture notes formerly maintained here have been reconciled into
 
 That document preserves the valid gateway/MQTT, browser, node-behavior, and TLV
 principles, alongside the existing clock and Windows hosting decisions. It records
-the agreed Gateway → MQTT → LoRa Service → applications boundary and independent
+the agreed Gateway → TCP → LoRa Service → MQTT → applications boundary and independent
 deployment of Mosquitto, LoRa Service, and DenClock.
 
 For the finalized sensor packet definitions and radio configuration, see

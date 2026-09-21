@@ -4,7 +4,8 @@
 
 This document defines the application-level packet protocol carried over the Den Clock and Weather LoRa network.
 
-The LoRa/Wi-Fi gateway transports these packets between LoRa and MQTT. MQTT topics, MQTT encoding, retention, application storage, and other IP-side concerns are outside the scope of this protocol.
+The LoRa/Wi-Fi gateway transports these packets between LoRa and the LoRa Service
+using the [Gateway Protocol](Gateway%20Protocol.md) over TCP. MQTT topics, MQTT encoding, retention, application storage, and other IP-side concerns are outside the scope of this protocol.
 
 The first byte of every LoRa application packet is the **Message Class**. The Message Class determines the structure and interpretation of the remainder of the packet.
 
@@ -41,7 +42,9 @@ A `SENSOR_REPORT`:
 
 The sensor does not need to maintain wall-clock time.
 
-The LoRa/Wi-Fi gateway may associate a UTC reception timestamp, RSSI, SNR, and other radio or transport metadata with the received packet when forwarding it to MQTT. Such information is gateway metadata and is not part of the `SENSOR_REPORT` packet.
+The gateway forwards RSSI and SNR with the raw packet. The LoRa Service assigns
+the UTC reception timestamp when it receives the Gateway Protocol RX_PACKET.
+This transport metadata is not part of the `SENSOR_REPORT` packet.
 
 ---
 
@@ -336,17 +339,19 @@ Changes that would alter the interpretation or layout of the existing `SENSOR_RE
 
 ## 10. Gateway Metadata
 
-Information known by the gateway as a consequence of receiving a LoRa packet is not added to the LoRa packet itself.
+Reception metadata is not added to the LoRa packet itself.
 
 Examples include:
 
-- UTC reception timestamp;
+- UTC reception timestamp assigned by the LoRa Service;
 - RSSI;
 - SNR;
 - gateway identity;
 - radio parameters.
 
-The gateway may attach such information when publishing the received packet to MQTT.
+The Gateway Protocol carries RSSI/SNR and associates the Gateway ID with the
+TCP connection. The LoRa Service adds the UTC reception timestamp. MQTT is a
+future application-facing boundary after the LoRa Service.
 
 The gateway does not interpret sensor TLVs in order to perform this function.
 
@@ -444,7 +449,9 @@ A received packet is considered a candidate application packet only if it:
 4. contains a recognized, nonzero Message Class;
 5. satisfies the structural requirements of that Message Class.
 
-Failure of any of these checks causes the packet to be discarded.
+Failure of any of these checks causes the packet to be discarded. Radio checks
+1–3 belong to the gateway; application-protocol checks 4–5 belong to the LoRa
+Service. The production gateway does not inspect application Message Classes.
 
 ### Security
 

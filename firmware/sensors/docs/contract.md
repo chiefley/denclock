@@ -1,4 +1,4 @@
-# Sensor and diagnostic gateway contract
+# Sensor and gateway contract
 
 The Heltec WiFi LoRa 32 V3 sensor uses an SHT40 on Wire1 (GPIO41/42)
 and the onboard switched battery divider (GPIO37 enable, GPIO1 ADC).
@@ -25,14 +25,38 @@ Both projects configure SX1262 at 915 MHz, bandwidth 125 kHz, SF9, coding rate
 4/7, TX power 10 dBm, sync word 0xD3C7, CRC enabled, eight-symbol preamble
 (the pinned RadioLib default), and 1.8 V TCXO.
 
-The serial diagnostic gateway validates a complete received packet before
+The selectable `diagnostic` build of the gateway validates a complete received packet before
 printing node, sequence, RSSI, SNR, and present measurements at 115200 baud.
 It rejects radio/CRC errors, unsupported message classes, reserved source IDs,
 type zero, truncated TLVs, wrong known measurement lengths, duplicate known
 measurements, and humidity above 100%. It accepts reordered TLVs, skips unknown
 nonzero TLVs, and permits missing measurements as the protocol specifies.
 
-Measurement interpretation is diagnostic scaffolding. The final gateway is
-intended to remain application-agnostic. No deep sleep, Wi-Fi, MQTT, server
-integration, or command handling is implemented. Sync-word matching provides
-network discrimination, not authentication.
+## Production gateway transport
+
+The default gateway build is application-agnostic. It receives radio/CRC-valid
+packets and forwards the exact bytes over persistent TCP to the separately
+configured LoRa Service. It does not inspect Message Class, Node ID, sequence,
+or TLVs, and does not timestamp or convert packets to JSON.
+
+The gateway connects to configured Wi-Fi and initiates TCP to the service.
+It sends HELLO with Gateway ID 1 after every successful connection. RX_PACKET
+contains signed-byte RSSI in dBm, signed-byte SNR in quarter-dB units, and the
+unchanged radio bytes. Signal values are rounded to the nearest wire unit;
+unrepresentable metadata causes a logged discard rather than numeric wrap.
+Partial TCP writes finish before another frame is sent; failed writes close the
+connection so later data cannot be appended to an incomplete frame.
+
+Wi-Fi/TCP connections are retried with a five-second retry interval. Radio
+reception is interrupt-signaled so the normal loop can maintain networking
+without waiting for a blocking receive timeout. Network operations can still
+cause packet loss; there is no application queue or persistent buffer. Packets
+received without an available service connection are discarded.
+
+Local credentials/endpoint values belong in the ignored `include/config.local.h`
+next to its checked-in example. Missing configuration logs a diagnostic and
+leaves forwarding disabled. The `diagnostic` environment has no Wi-Fi dependency
+and retains the original sensor decoder source unchanged.
+
+No deep sleep, MQTT, DenClock integration, or command handling is implemented.
+Sync-word matching provides network discrimination, not authentication.

@@ -1,12 +1,16 @@
-# LoRa sensors and diagnostic gateway
+# LoRa sensors and gateway
 
 [Accepted story: Implement Remote LoRa Sensor](docs/stories/completed/002-implement-remote-lora-sensor.md).
 The developer confirmed that the implementation works as advertised.
 See the [implemented contract](docs/contract.md) for the firmware behavior.
+The accepted [end-to-end receive story](../../docs/stories/completed/004-end-to-end-lora-receive-path.md)
+adds gateway Wi-Fi/TCP transport to the separate LoRa Service. The developer
+confirmed testing and verification. Follow the [LoRa Service setup and test instructions](../../lora-service/README.md)
+for the production path.
 
 - `remote-sensor/`: Heltec V3/SX1262, SHT40 and onboard battery sensing.
-- `lora-gateway/`: serial-only acceptance receiver. Measurement interpretation
-  is temporary diagnostic code; the final gateway remains application-agnostic.
+- `lora-gateway/`: application-agnostic Wi-Fi/TCP transport by default. The
+  `diagnostic` PlatformIO environment preserves the accepted serial-only decoder.
 - `common/`: shared radio settings and portable packet encoding/validation.
 - `../../docs/LoRa Protocol.md`: [wire protocol](../../docs/LoRa%20Protocol.md).
 - `../bringup/`: unchanged known-good TX/RX hardware diagnostics described below.
@@ -25,7 +29,7 @@ The exact sync register bytes are D3 C7. RadioLib's
 [`setSyncWord(syncWord, controlBits)`](https://jgromes.github.io/RadioLib/class_s_x126x.html)
 uses split nibbles, so the call is `setSyncWord(0xDC, 0x37)`.
 
-The receiver rejects radio/CRC errors, unsupported message classes, reserved
+The preserved `diagnostic` receiver rejects radio/CRC errors, unsupported message classes, reserved
 source IDs, type zero, truncated TLVs, wrong known lengths, duplicate known
 measurements, and RH above 100%. Unknown nonzero TLVs are skipped; reordered
 TLVs and reports with missing measurements are legal under the protocol. Only
@@ -34,18 +38,28 @@ sensor always sends all three. Sync-word matching is not authentication.
 
 Hardware wiring and battery calibration assumptions match the bench tests
 below. No OLED is driven by these two projects; diagnostics use serial at 115200.
-No deep sleep or network services are implemented.
+Deep sleep remains deferred. Production gateway networking forwards raw packets
+to the independent LoRa Service; the DenClock time server is not involved.
+Copy `lora-gateway/include/config.example.h` to ignored `config.local.h` in the
+same directory and set Wi-Fi and service endpoint values before building the
+production gateway. An unconfigured build logs a message and discards packets.
+The gateway sends HELLO (ID 1) after every TCP connect, retries connections at
+five-second intervals, and discards reports while disconnected without queuing.
+RSSI is rounded to the nearest dBm; SNR to the nearest quarter dB. Metadata that
+cannot fit the protocol signed bytes is logged and the packet discarded rather
+than wrapped or assigned an invented saturation value. Raw LoRa bytes are opaque.
 
-## Build and acceptance
+## Preserved sensor/diagnostic build and bench test
 
-From the repository root:
+For the original serial-only acceptance path, from the repository root:
 
 ```sh
 pio run -d firmware/sensors/remote-sensor
-pio run -d firmware/sensors/lora-gateway
+pio run -d firmware/sensors/lora-gateway -e diagnostic
 ```
 
-Upload each project with `pio run -d <project> --target upload --upload-port <port>`.
+Upload the sensor with `pio run -d <project> --target upload --upload-port <port>`.
+For the diagnostic gateway, add `-e diagnostic`; omitting it selects production TCP transport.
 Monitor each board with `pio device monitor --port <port> --baud 115200`.
 Use the appropriate serial port on Windows or your development host.
 

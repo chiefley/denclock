@@ -8,10 +8,15 @@ touchscreen installed, Windows 11 autologon, RustDesk access, and host DenClock.
 The browser time client is implemented and accepted. The server now hosts its
 assets. Codex has not independently reverified the NUC/LAN browser or touchscreen.
 The remote LoRa sensor and diagnostic gateway are implemented and accepted by
-the developer. Temperature, humidity, and battery reports work over LoRa;
-server integration, Wi-Fi/MQTT, and deep sleep remain deferred.
+the developer. Temperature, humidity, and battery reports work over LoRa.
+The independent gateway-to-LoRa-Service Wi-Fi/TCP receive path is now implemented
+and accepted by the developer after testing and verification. MQTT, DenClock integration, and deep sleep remain deferred.
 
 ## Resume Here
+
+- [End-to-End LoRa Receive Path](docs/stories/completed/004-end-to-end-lora-receive-path.md)
+  is tested, verified, and accepted. See the [LoRa Service README](lora-service/README.md) for
+  independent console startup, gateway configuration, and hardware acceptance.
 
 - [Remote LoRa Sensor](firmware/sensors/docs/stories/completed/002-implement-remote-lora-sensor.md)
   is accepted. See the [firmware README](firmware/sensors/README.md) for builds
@@ -22,8 +27,8 @@ server integration, Wi-Fi/MQTT, and deep sleep remain deferred.
   restarting the NUC time service. See the client README for development setup.
 
 - [Story-driven workflow](docs/DEVELOPMENT.md) is the enduring process reference.
-- [Workflow story](docs/stories/002-establish-story-driven-development-workflow.md)
-  is the current review item; human acceptance is pending.
+- [Workflow story](docs/stories/completed/002-establish-story-driven-development-workflow.md)
+  is accepted.
 - [Time Display](client/docs/stories/completed/001-time-display.md) is accepted;
   run and deployment-verification instructions are in the client README.
 
