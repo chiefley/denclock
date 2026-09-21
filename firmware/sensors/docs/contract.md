@@ -16,8 +16,19 @@ Values are rounded to the nearest wire unit.
 Sequence starts at 0 after reset, advances for each generated report even when
 transmission fails, and wraps from 65535 to 1. Invalid or unavailable SHT40
 readings cause a skipped report and initialization retry, without consuming a
-sequence. The loop waits two seconds after transmission or a failed reading;
-sampling and transmission add to that development interval.
+sequence. The next sequence is RTC-retained across timer deep-sleep wakes, with
+no per-report flash writes. Non-timer wake or a true reset starts again at 0.
+Each wake normally attempts one report, then sleeps for five seconds; sampling
+and transmission add to that development interval. Initialization/read failures
+also sleep and retry on the next wake.
+
+After blocking transmission, the SX1262 is commanded into cold sleep, SPI and
+Wire1 stop, I2C pins become inputs without pull-ups, Vext switches off, and the
+battery divider remains disabled. GPIO holds preserve peripheral power controls
+and radio NSS/reset through ESP32 deep sleep. The sensor must be wired to Vext
+as documented; always-powered wiring cannot be switched off by this firmware.
+The radio and sensor are initialized again on wake. Radio sleep failures are
+logged; the ESP32 still sleeps and retries on wake.
 
 ## Radio and reception
 
@@ -58,5 +69,5 @@ next to its checked-in example. Missing configuration logs a diagnostic and
 leaves forwarding disabled. The `diagnostic` environment has no Wi-Fi dependency
 and retains the original sensor decoder source unchanged.
 
-No deep sleep, MQTT, DenClock integration, or command handling is implemented.
+No MQTT, DenClock integration, or command handling is implemented.
 Sync-word matching provides network discrimination, not authentication.

@@ -10,9 +10,13 @@ assets. Codex has not independently reverified the NUC/LAN browser or touchscree
 The remote LoRa sensor and diagnostic gateway are implemented and accepted by
 the developer. Temperature, humidity, and battery reports work over LoRa.
 The independent gateway-to-LoRa-Service Wi-Fi/TCP receive path is now implemented
-and accepted by the developer after testing and verification. MQTT, DenClock integration, and deep sleep remain deferred.
+and accepted by the developer after testing and verification. MQTT and DenClock integration remain deferred. Remote-sensor deep sleep is
+verified and accepted by the developer.
 
 ## Resume Here
+
+- [Remote Sensor Deep-Sleep Operation](firmware/sensors/docs/stories/completed/003-remote-sensor-deep-sleep-operation.md)
+  is verified and accepted; see the sensor README for operation and checks.
 
 - [End-to-End LoRa Receive Path](docs/stories/completed/004-end-to-end-lora-receive-path.md)
   is tested, verified, and accepted. See the [LoRa Service README](lora-service/README.md) for

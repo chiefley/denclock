@@ -147,8 +147,10 @@ rules, sequence-zero restart semantics, byte order, and radio configuration
 (including sync word `0xD3C7`) are defined; they are no longer architecture TBDs.
 
 Sleeping sensors are intended to wake and report spontaneously without a
-destination field or expected response. The accepted implementation currently
-uses a development reporting loop; deep sleep remains deferred.
+destination field or expected response. The sensor now uses five-second timer deep sleep between reports, verified
+and accepted by the developer. RTC memory preserves sequence continuity without flash
+writes; Vext removes SHT40 power and the radio enters cold sleep before the
+ESP32 sleeps. See the [sensor README](../firmware/sensors/README.md).
 
 Powered ham-radio nodes may support command/response interactions and events.
 Message Class selects the header structure, so future commands need not share

@@ -16,12 +16,13 @@ for the production path.
 - `../bringup/`: unchanged known-good TX/RX hardware diagnostics described below.
 
 The sensor sends node 1 reports with three two-byte TLVs in a 16-byte binary
-packet, then waits two seconds. Values are rounded to hundredths of degrees C,
+packet, then enters timer-driven deep sleep for five seconds. Values are rounded to hundredths of degrees C,
 hundredths of percent RH, and millivolts, using big-endian encoding.
 Sequence starts at 0, advances for every generated/transmission-attempted report
 (including radio errors), and wraps from 65535 to 1. Sensor read failures skip
 reports and retry initialization; no fabricated or stale readings are sent.
-The first valid report after boot therefore retains sequence 0.
+RTC memory retains the next sequence across timer wakes; a true reset or power-up
+starts at 0. Failed readings retry on the next wake without consuming a sequence.
 
 Both projects use 915 MHz, 125 kHz bandwidth, SF9, coding rate 4/7, 10 dBm,
 eight-symbol RadioLib default preamble, 1.8 V TCXO, explicit header and CRC.
@@ -38,7 +39,8 @@ sensor always sends all three. Sync-word matching is not authentication.
 
 Hardware wiring and battery calibration assumptions match the bench tests
 below. No OLED is driven by these two projects; diagnostics use serial at 115200.
-Deep sleep remains deferred. Production gateway networking forwards raw packets
+The [deep-sleep story](docs/stories/completed/003-remote-sensor-deep-sleep-operation.md)
+is verified and accepted by the developer. Production gateway networking forwards raw packets
 to the independent LoRa Service; the DenClock time server is not involved.
 Copy `lora-gateway/include/config.example.h` to ignored `config.local.h` in the
 same directory and set Wi-Fi and service endpoint values before building the
@@ -49,7 +51,43 @@ RSSI is rounded to the nearest dBm; SNR to the nearest quarter dB. Metadata that
 cannot fit the protocol signed bytes is logged and the packet discarded rather
 than wrapped or assigned an invented saturation value. Raw LoRa bytes are opaque.
 
-## Preserved sensor/diagnostic build and bench test
+## Remote sensor deep-sleep operation
+
+Each wake powers Vext, initializes SHT40 and SX1262, measures, and attempts one
+report. `DevelopmentSleepUs` in `remote-sensor/src/main.cpp` sets the five-second
+sleep interval; initialization and transmission add to the report-to-report time.
+There is no one-second startup delay or serial-attachment wait. Initialization,
+measurement, and transmission failures also lead to sleep and retry next wake.
+
+After blocking transmission completes or fails, the radio enters cold sleep
+(`sleep(false)`) and SPI stops. Wire1 stops, SDA/SCL become inputs without internal
+pull-ups, Vext goes HIGH (off), and battery measurement enable stays LOW. GPIO
+holds preserve these states and keep radio NSS/reset HIGH through deep sleep.
+Holds are released on wake before reinitialization. RTC memory preserves only the
+next sequence; there are no per-report flash writes. These choices follow
+[ESP32-S3 GPIO hold requirements](https://docs.espressif.com/projects/esp-idf/en/v5.2/esp32s3/api-reference/peripherals/gpio.html)
+and the pinned RadioLib blocking transmit/cold-sleep implementation.
+
+This assumes the documented SHT40 VIN-to-Vext wiring. A sensor wired to permanent
+3.3 V will remain powered; external I2C pull-ups to an always-on supply can also
+back-power it. Verify the actual wiring and Vext voltage during the hardware test.
+Board regulator/charger and other residual current have not been characterized.
+A radio sleep error is logged and requires hardware investigation; firmware still
+sleeps the ESP32 and retries initialization on the next wake.
+
+For acceptance, use the existing gateway and LoRa Service without modification:
+
+1. Reset/power the sensor and confirm sequence 0 followed by 1, 2, 3 across wakes.
+2. Confirm one report per wake with fresh readings and roughly five seconds of
+   sleep plus awake time between reports; inspect wake/reset and TX diagnostics.
+3. Confirm Vext switches off between cycles and reporting recovers when the
+   SHT40 is disconnected and reconnected, without resetting the sequence.
+4. Power-cycle and press reset separately; each must restart at sequence 0.
+5. Where practical, measure current to confirm the low-current interval; serial
+   output alone does not establish radio or sensor sleep current. USB serial may
+   disconnect during deep sleep; battery operation is the relevant power test.
+
+## Sensor/diagnostic build and bench test
 
 For the original serial-only acceptance path, from the repository root:
 
