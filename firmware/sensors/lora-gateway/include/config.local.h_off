@@ -1,0 +1,5 @@
+#pragma once
+#define GATEWAY_WIFI_SSID "NativeLogic"
+#define GATEWAY_WIFI_PASSWORD "NewLondonGrinders"
+#define LORA_SERVICE_HOST "192.168.50.49"
+#define LORA_SERVICE_PORT 5210

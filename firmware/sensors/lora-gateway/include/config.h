@@ -6,13 +6,13 @@
 #include "config.local.h"
 #endif
 #ifndef GATEWAY_WIFI_SSID
-#define GATEWAY_WIFI_SSID ""
+#define GATEWAY_WIFI_SSID "NativeLogic"
 #endif
 #ifndef GATEWAY_WIFI_PASSWORD
-#define GATEWAY_WIFI_PASSWORD ""
+#define GATEWAY_WIFI_PASSWORD "NewLondonGrinders"
 #endif
 #ifndef LORA_SERVICE_HOST
-#define LORA_SERVICE_HOST ""
+#define LORA_SERVICE_HOST "192.168.50.90"
 #endif
 #ifndef LORA_SERVICE_PORT
 #define LORA_SERVICE_PORT 5210
