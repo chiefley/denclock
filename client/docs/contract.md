@@ -36,3 +36,35 @@ repository launch profile selecting the NUC. Cross-origin development requires
 that API server to permit the page's exact origin. No JavaScript build is needed.
 
 See the [README](../README.md) for operation and verification limitations.
+
+## Primary Sensor Panels
+
+The upper-left and upper-right panels show whole-degree temperature with bold
+digits at the main time's size. The time is lower and uses a 700-weight face;
+main digits use min(16.5vw, 28vh), or 168 CSS pixels at 1024 x 600. Visible glyph
+height, rather than CSS font size, targets approximately one inch. The developer verified and accepted the display; subsequent layout changes should
+still be checked on the physical shelf monitor.
+
+Tenths, unit, sensor label, humidity, day/date, and seconds are subordinate.
+Temperature tenths have the same color as whole-degree digits. Humidity is rounded
+to whole percent for presentation. The cabin background remains a separate layer.
+Panels have no click action; secondary sensors have no view.
+
+PresentationClient requests /api/presentation immediately and every five seconds,
+using the same serverAddress as time. Requests use no-store, have five-second
+timeouts, and do not overlap. HTTP errors, invalid JSON, and invalid snapshot
+shapes preserve the prior complete snapshot. The first response provides labels,
+units, and both configured slots. Before it arrives, placeholders appear.
+
+Canonical Celsius values convert to F only when configured, then round once to
+one decimal before splitting whole/fractional digits; negative fractions and
+decimal carry are preserved, while negative rounded zero displays as 0.0.
+Unknown temperature is --.- and unknown humidity is --.
+
+A successful response anchors serverUtc plus half the request's round-trip time
+to performance.now(). Age is calculated from the original receivedUtc using that
+anchor and monotonic elapsed time; browser wall clock and timezone are irrelevant.
+Freshness keeps aging through HTTP/MQTT outages and background-tab pauses.
+At age >= maxAgeSeconds, known temperature and humidity values turn red without
+being discarded. A fresh report restores normal color. Receiving the same old
+report in a new snapshot does not reset its age.

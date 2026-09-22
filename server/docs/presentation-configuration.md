@@ -1,6 +1,6 @@
 # DenClock Presentation Configuration
 
-Status: Agreed specification; not yet implemented.
+Status: Implemented in story 008; verified and accepted by the developer.
 
 ## Purpose
 
@@ -165,3 +165,21 @@ Time moves lower on the page and becomes bolder and somewhat smaller than the ex
 - Arbitrary layout coordinates or configurable typography.
 - Measurement history, charts, alarms, or equipment control.
 - Changes to the LoRa protocol or MQTT measurement units.
+
+## Implemented Validation Details
+
+Duplicate JSON properties are rejected. Internal names must be one literal MQTT
+topic level (no slash, wildcard, or NUL). Extra configuration properties are
+ignored; the required field names remain exact and case-sensitive.
+
+Reports require an explicit UTC timestamp ending in Z or +00:00. Invalid or future
+timestamps are rejected, leaving the prior observation to age normally. Equal
+or older timestamps do not replace newer observations. A timestamp equal to the
+last accepted timestamp is treated as a duplicate regardless of sequence.
+
+Temperature requires canonical C units and a finite numeric value. Humidity
+requires percent units and a finite value from 0 to 100. Invalid measurements
+are independently unavailable in an otherwise valid report.
+
+The default file assigns porch to Outside in upperRight, selects F, and sets
+maxAgeSeconds to 60. No den sensor identity is assumed.

@@ -5,7 +5,7 @@
 A reliable, always-on Internet-synchronized time display using a Windows server
 and browser client. LoRa environmental sensing has an accepted sensor and
 diagnostic gateway baseline. The new independent gateway-to-LoRa-Service TCP path is
-tested and accepted by the developer; DenClock integration remains future work.
+tested and accepted by the developer; DenClock primary-panel integration is implemented, verified, and accepted by the developer.
 
 ## Responsibilities and Rationale
 
@@ -25,7 +25,7 @@ tested and accepted by the developer; DenClock integration remains future work.
   the separate [LoRa Service](../lora-service/README.md) using the
   [Gateway Protocol](Gateway%20Protocol.md) over persistent TCP. The LoRa Service
   timestamps and interprets the custom wire protocol. MQTT publishing and Mosquitto deployment on the NUC are verified by the developer;
-  DenClock integration remains future work; the DenClock time server is not involved.
+  DenClock primary-panel integration is implemented, verified, and accepted by the developer; DenClock consumes the semantic MQTT output without participating in LoRa decoding.
 - Known-good diagnostics in `firmware/bringup/` remain independent and unchanged,
   preserving a hardware troubleshooting baseline.
 
@@ -57,7 +57,7 @@ See [hardware](HARDWARE.md) for the recorded device/address inventory and
 The receive path through the LoRa Service is implemented in
 [story 004](stories/completed/004-end-to-end-lora-receive-path.md), accepted after developer testing and verification.
 Mapping and MQTT publishing are implemented and accepted by the developer; Mosquitto deployment and live MQTT recovery checks are verified by the developer.
-DenClock application integration remains future work. The accepted serial diagnostic
+DenClock now subscribes to MQTT and serves latest primary observations to browsers; story 008 awaits deployment and acceptance. The accepted serial diagnostic
 receiver remains selectable as a separate firmware build.
 
 ```text
@@ -198,3 +198,12 @@ Decision context:
 [Gateway architecture design](chatgpt-conversation://6aae93e1-8e04-83e9-bb06-8563d690bd69).
 Repository hardware references are in [HARDWARE.md](HARDWARE.md) and the
 [sensor README](../firmware/sensors/README.md).
+
+## Primary Presentation Boundary
+
+DenClock loads its own executable-local presentation.json and subscribes to
+semantic MQTT reports. It keeps latest observations in memory and supplies two
+primary slots through /api/presentation. Browsers poll that API, convert canonical
+Celsius to the configured display unit, and render freshness using server-derived
+UTC plus monotonic elapsed time. History remains deferred. The MQTT broker stays
+NUC-local; remote browsers use DenClock's HTTP boundary.

@@ -50,7 +50,7 @@ the API. See [architecture and rationale](../docs/ARCHITECTURE.md).
 (scheme, hostname, port; no trailing slash) allowed to read `GET /api/time`.
 The default is `http://localhost:5000`, the XPS browser's development URL.
 This policy applies on the NUC in Production as well as during development,
-but only to `/api/time`. It permits no credentials or arbitrary origins.
+but only to `/api/time` and `/api/presentation`. It permits no credentials or arbitrary origins.
 Unapproved origins receive no CORS access header; CORS is a browser read
 restriction, not API authentication.
 
@@ -125,3 +125,48 @@ It does not stop or restart the service.
 This differs from the self-contained manual procedure above. Confirm the intended
 route and service stop/start sequence before deploying. WSL is a development
 helper environment, not a production runtime requirement.
+
+## Primary Sensor Display
+
+Story 008 implements the server/browser path and is verified and accepted by
+the developer. Configuration is described in
+[the presentation specification](docs/presentation-configuration.md).
+
+Edit server/presentation.json before building/publishing. The deployed copy lives
+beside DenClock.Server.exe. Restart the server after edits; missing/invalid files
+fail startup clearly. Default: F, Outside from porch in upperRight, 60-second
+freshness. To populate upperLeft, add the actual den sensor's MQTT node name with
+displayName Den, position upperLeft, and its chosen maxAgeSeconds. Secondary
+entries are allowed but have no view in this increment.
+
+Mqtt settings in appsettings.json default to localhost:1883 and client ID
+denclock-server, distinct from lora-service. Environment overrides use Mqtt__Host,
+Mqtt__Port, and Mqtt__ClientId. The production broker is NUC-only; an XPS-local
+server cannot reach it. The established development profile therefore continues
+to serve local browser assets while fetching both APIs from the NUC. Deploy the
+updated NUC server first for real-sensor browser development. Local tests use a
+loopback peer and need no production broker. MQTT outages leave the clock and
+HTTP service operating.
+
+GET /api/presentation supplies both panels in one no-store response; its JSON
+and CORS behavior are documented in [the server contract](docs/contract.md).
+No browser MQTT connection or extra broker listener is required.
+
+Verification from the repository root (port 5000 must be free):
+
+~~~sh
+dotnet build server/DenClock.Server.csproj
+dotnet run --project server/tests/DenClock.Server.Tests.csproj
+node --test client/tests/*.test.js
+node server/tests/hosting.mjs
+node server/tests/mqtt.mjs
+~~~
+
+The executable .NET harness checks configuration and state validation. The
+hosting test checks publishing, CORS, and real-host missing/invalid config failure.
+The MQTT test uses an ephemeral loopback peer to exercise the real subscriber,
+retained state, broker restart and server restart. It never contacts the NUC.
+
+Continue full-output deployment. Confirm the installed presentation.json after
+copying, then verify real Outside readings, stop sensor reports long enough to
+observe red stale values, restore reports, and assess shelf readability.

@@ -131,3 +131,22 @@ to the NUC and succeed. Edit a local CSS declaration, save, refresh, and verify
 the change while the same server process runs. Restore the edit afterwards.
 Verify NUC stop/restart recovery with this page still open. The developer confirmed NUC service stop/restart recovery and accepted this
 workflow story.
+
+## Sensor Panels (Story 008)
+
+The updated layout puts two configured temperatures above the clock. Fahrenheit
+is selected by the shipped server presentation.json. Only porch/Outside is
+assigned initially; the left panel stays unknown until the den sensor is assigned.
+
+Sensor data comes from /api/presentation on the same configured server as time.
+The browser polls every five seconds; stale values turn red based on original
+observation time, even if requests fail. No MQTT connection is made by the browser.
+See the [configuration specification](../server/docs/presentation-configuration.md)
+and [client contract](docs/contract.md). Configuration changes require a server
+restart; CSS/layout edits retain the existing save/refresh development workflow.
+
+For human verification, inspect the display on the 1024 x 600 shelf monitor:
+confirm time and whole-degree values are readable across the room, supporting
+details are readable nearby, and the panels do not collide with the clock/date.
+Check a stale reading, unknown readings, and recovery. The developer verified and accepted story 008 after implementation. Local browser
+checks used fixtures; shelf/NUC verification was performed by the developer.

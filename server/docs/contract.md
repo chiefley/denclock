@@ -36,7 +36,7 @@ with development files excluded by the project file.
 
 `GET /client-settings.js` returns a no-store JavaScript module exporting
 `serverAddress`: `Client:TimeServerAddress` in Development, otherwise empty
-(same-origin). `/api/time` alone grants CORS to exact origins in
+(same-origin). `/api/time` and `/api/presentation` grant CORS to exact origins in
 `Cors:DevelopmentOrigins`, with GET allowed and no credentials. The default list
 contains `http://localhost:5000`. Unlisted origins receive no access grant.
 
@@ -50,3 +50,63 @@ not been reverified for this change.
 Windows Service integration uses service name `DenClock.Server`; the application
 content root is the executable directory so service startup does not depend on
 its working directory. The project targets .NET 10.
+
+## Sensor Presentation
+
+The server loads executable-local presentation.json before starting workers.
+See [presentation configuration](presentation-configuration.md) for validation
+and the startup/restart contract. The file is included in build/publish output.
+Missing/invalid configuration fails startup; an unavailable MQTT broker does not.
+
+A separate hosted MQTTnet 5.2.0.1603 subscriber uses MQTT 3.1.1, clean sessions,
+and QoS 1 on lora/sensors/+. Mqtt:Host, Mqtt:Port, and Mqtt:ClientId default to
+localhost, 1883, and denclock-server. Use unique client IDs for concurrent
+DenClock instances. Operations time out after five seconds; the worker retries
+at five-second intervals and resubscribes after reconnect.
+
+Latest configured observations are held in memory. No wire-protocol decoding,
+history, or raw-packet interpretation occurs here. Malformed envelopes and
+topic/payload identity disagreements are logged and ignored. Partial valid
+reports replace the whole observation; omitted/invalid measurements become null.
+Unknown sensors are ignored. Duplicate or older receivedUtc values do not
+refresh observations. Future timestamps are rejected. Shutdown cancels the worker.
+
+GET /api/presentation returns HTTP 200 with Cache-Control: no-store and the same
+exact-origin development CORS policy as /api/time. Example:
+
+~~~json
+{
+  "serverUtc": "2026-09-22T13:24:30+00:00",
+  "temperatureUnit": "F",
+  "slots": [
+    {
+      "position": "upperLeft",
+      "internalName": null,
+      "displayName": "",
+      "maxAgeSeconds": null,
+      "observation": null
+    },
+    {
+      "position": "upperRight",
+      "internalName": "porch",
+      "displayName": "Outside",
+      "maxAgeSeconds": 60,
+      "observation": {
+        "receivedUtc": "2026-09-22T13:24:24.66779+00:00",
+        "temperatureC": 21.86,
+        "relativeHumidity": 52.02
+      }
+    }
+  ]
+}
+~~~
+
+There are always two slots in upperLeft/upperRight order. Assigned sensors with
+no report retain their configured identity, label, and age limit but have a null
+observation. Each measurement can independently be null. No secondary view,
+battery/radio diagnostics, or broker configuration is exposed. The snapshot is
+coherent under concurrent updates; serverUtc is sampled while creating it.
+
+The browser anchors this server timestamp to monotonic elapsed time, converts
+Celsius only for presentation, and keeps aging readings between API responses.
+Server restart clears memory until MQTT supplies retained or new reports.

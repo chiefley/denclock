@@ -48,4 +48,4 @@ roles and human acceptance of stories.
 
 The initial milestone is a working Internet-synchronized time display.
 LoRa environmental reporting is implemented and accepted on the sensor/gateway
-bench path. Weather display and integration with the DenClock server remain future work.
+bench path. DenClock's primary sensor panels and MQTT subscription are implemented in story 008 and verified and accepted by the developer. Broader weather features remain future work.

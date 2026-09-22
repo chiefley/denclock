@@ -8,6 +8,11 @@
     <StaticWebAssetsEnabled>false</StaticWebAssetsEnabled>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="tests/**/*.cs" />
+    <Content Remove="tests/**" />
+    <None Remove="tests/**" />
+    <Content Update="presentation.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <PackageReference Include="MQTTnet" Version="5.2.0.1603" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.12" />
     <Content Include="../client/**/*"
              Exclude="../client/docs/**;../client/tests/**;../client/node_modules/**;../client/.*;../client/**/.*;../client/**/.*/**;../client/**/*.md;../client/package*.json;../client/yarn.lock;../client/pnpm-lock.yaml;../client/bun.lock*;../client/**/*.test.*;../client/**/*.map"

@@ -55,7 +55,8 @@ try {
   assert.equal(await readFile(join(output, 'wwwroot', asset), 'utf8'), 'export const probe = 2;');
   const published = await readdir(join(output, 'wwwroot'));
   for (const excluded of ['tests', 'docs', 'node_modules', 'package.json', 'package-lock.json', 'README.md']) assert.ok(!published.includes(excluded), excluded);
-  for (const required of ['index.html', 'clock.js', 'clock.css', 'config.js']) assert.ok(published.includes(required), required);
+  for (const required of ['index.html', 'clock.js', 'clock.css', 'config.js', 'presentation.js']) assert.ok(published.includes(required), required);
+  assert.equal(JSON.parse(await readFile(join(output, 'presentation.json'), 'utf8')).temperatureUnit, 'F');
   // Start from an unrelated working directory, as a Windows Service may do.
   await start([join(output, 'DenClock.Server.dll')], tmpdir(), { ASPNETCORE_ENVIRONMENT: 'Production', DOTNET_ENVIRONMENT: 'Production', Client__TimeServerAddress: 'http://must-not-leak.example' });
   assert.equal(await (await get('/client-settings.js')).text(), 'export const serverAddress = "";');
@@ -70,6 +71,26 @@ try {
   assert.equal(preflight.status, 204);
   assert.equal(preflight.headers.get('access-control-allow-origin'), 'http://localhost:5000');
   assert.equal((await get('/client-settings.js', { Origin: 'http://localhost:5000' })).headers.get('access-control-allow-origin'), null);
+  const presentation = await get('/api/presentation', { Origin: 'http://localhost:5000' });
+  assert.equal(presentation.headers.get('cache-control'), 'no-store');
+  assert.equal(presentation.headers.get('access-control-allow-origin'), 'http://localhost:5000');
+  const snapshot = await presentation.json();
+  assert.equal(snapshot.slots.length, 2);
+  assert.equal(snapshot.slots[0].observation, null);
+  assert.equal((await get('/api/presentation', { Origin: 'http://unapproved.example' })).headers.get('access-control-allow-origin'), null);
+  await stop();
+  // Published host validates executable-local presentation.json before listening.
+  for (const invalid of ['{}', null]) {
+    if (invalid === null) await rm(join(output, 'presentation.json'));
+    else await writeFile(join(output, 'presentation.json'), invalid);
+    const failure = spawnSync('dotnet', [join(output, 'DenClock.Server.dll')], {
+      cwd: tmpdir(), encoding: 'utf8', timeout: 10000,
+      env: { ...process.env, DOTNET_ENVIRONMENT: 'Production', ASPNETCORE_ENVIRONMENT: 'Production' },
+    });
+    assert.notEqual(failure.status, 0);
+    assert.match(failure.stdout + failure.stderr, /Presentation configuration/);
+    assert.doesNotMatch(failure.stdout, /Application started/);
+  }
   console.log('PASS: live source edits, recursive publish, exclusions, production same-origin configuration, API and restricted CORS.');
 } finally {
   await stop();

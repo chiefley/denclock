@@ -35,3 +35,14 @@ See [client README](../README.md) for operation and verification, and the
   Cover scaling fills the display without distorting the image; disabled pointer
   events and separate stacking keep it independent of clock layout and input.
   Dynamic image selection remains deferred.
+
+- Keep MQTT subscription and canonical latest observations on the server.
+  The browser polls one presentation snapshot for both panels; five-second
+  polling avoids another transport dependency for two low-rate readings.
+- Anchor freshness to server UTC and monotonic browser elapsed time so network
+  loss cannot freeze an old reading in the fresh color.
+- Convert and format temperatures only in the browser, preserving Celsius in
+  MQTT and the API. Round before splitting the whole and fractional glyphs.
+- Reserve upper-left/right positions for the strategic readings; defer secondary
+  views and panel interactions. Use one shared primary digit size for time and
+  whole-degree temperature.

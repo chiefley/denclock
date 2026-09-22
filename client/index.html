@@ -11,6 +11,16 @@
 </head>
 <body>
   <div class="display-background" aria-hidden="true"></div>
+  <section class="sensors" aria-label="Primary sensor readings">
+    <section class="sensor-panel" id="upperLeft" aria-label="Unassigned sensor">
+      <div class="temperature"><span class="temperature-whole">--</span><span class="temperature-fraction">.-</span><span class="temperature-unit"></span></div>
+      <div class="sensor-details"><div class="sensor-name"></div><div class="humidity">Humidity <span class="humidity-value">--</span></div></div>
+    </section>
+    <section class="sensor-panel" id="upperRight" aria-label="Unassigned sensor">
+      <div class="temperature"><span class="temperature-whole">--</span><span class="temperature-fraction">.-</span><span class="temperature-unit"></span></div>
+      <div class="sensor-details"><div class="sensor-name"></div><div class="humidity">Humidity <span class="humidity-value">--</span></div></div>
+    </section>
+  </section>
   <main class="clock" aria-label="Clock">
     <div class="time"><span id="hours-minutes">--:--</span><span id="seconds">--</span></div>
     <div id="date" class="date"></div>
@@ -20,11 +30,15 @@
     import { config } from './config.js';
     import { serverAddress } from './client-settings.js';
     import { TimeClient, ClockDisplay } from './clock.js';
+    import { PresentationClient, SensorDisplay } from './presentation.js';
 
     const timeClient = new TimeClient({ ...config, serverAddress });
     const display = new ClockDisplay(timeClient, document);
     timeClient.start();
     display.start();
+    const presentation = new PresentationClient({ ...config, serverAddress });
+    presentation.start();
+    new SensorDisplay(presentation, document).start();
   </script>
 </body>
 </html>

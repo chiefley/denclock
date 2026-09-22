@@ -1,0 +1,11 @@
+{
+  "temperatureUnit": "F",
+  "sensors": [
+    {
+      "internalName": "porch",
+      "displayName": "Outside",
+      "position": "upperRight",
+      "maxAgeSeconds": 60
+    }
+  ]
+}

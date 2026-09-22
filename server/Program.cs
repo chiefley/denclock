@@ -1,3 +1,5 @@
+using DenClock.Server;
+
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args,
@@ -6,6 +8,15 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 });
 
 builder.Services.AddWindowsService(options => options.ServiceName = "DenClock.Server");
+var presentation = PresentationConfiguration.Load(Path.Combine(AppContext.BaseDirectory, "presentation.json"));
+builder.Services.AddSingleton(presentation);
+builder.Services.AddSingleton<PresentationState>();
+builder.Services.AddOptions<SensorMqttOptions>().Bind(builder.Configuration.GetSection("Mqtt"))
+    .Validate(o => !string.IsNullOrWhiteSpace(o.Host), "Mqtt:Host is required.")
+    .Validate(o => o.Port is > 0 and <= 65535, "Mqtt:Port must be 1-65535.")
+    .Validate(o => !string.IsNullOrWhiteSpace(o.ClientId), "Mqtt:ClientId is required.")
+    .ValidateOnStart();
+builder.Services.AddHostedService<SensorSubscriber>();
 
 if (builder.Environment.IsDevelopment())
 {
@@ -63,6 +74,12 @@ app.MapGet("/api/time", (HttpResponse response) =>
         timeZoneId = timeZone.Id,
         utcOffsetSeconds = (int)timeZone.GetUtcOffset(utcNow).TotalSeconds
     });
+}).RequireCors("DevelopmentClient");
+
+app.MapGet("/api/presentation", (HttpResponse response, PresentationState state) =>
+{
+    response.Headers.CacheControl = "no-store";
+    return Results.Ok(state.Snapshot());
 }).RequireCors("DevelopmentClient");
 
 app.Urls.Add("http://0.0.0.0:5000");
