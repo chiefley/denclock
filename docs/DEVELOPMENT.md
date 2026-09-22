@@ -206,8 +206,7 @@ After the human approves the story as complete:
 1. Update enduring documentation affected by the implementation, including
    appropriate contracts, decision records, and operational guidance. Preserve
    the distinction between implemented behavior, requested work, and rationale.
-2. Record human acceptance and a brief result or intentional departures in the
-   story. Move it into that scope's `completed/` subdirectory, preserving the
+2. Record human acceptance, a brief implementation result, verification summary, and any intentional departures in the story before moving it to completed. Detailed implementation reports, file inventories, command output, and development notes are review material and should not be preserved in the completed story. Move the story into that scope's `completed/` subdirectory, preserving the
    sequence number and filename. Move rather than copy so it is not also listed
    as active. Repair links to the moved story and relative links inside it.
 3. Update root `STATUS.md` only when the completed work materially changes
