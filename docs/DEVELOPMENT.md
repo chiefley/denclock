@@ -37,7 +37,7 @@ The normal Den Clock development workflow is:
    - updates any enduring documentation affected by the implementation;
    - moves the story into that story directory's `completed/` subdirectory;
    - updates repository-wide status only when the completed work materially changes overall project status.
-9. After human approval and completion of the story's documentation updates, Codex stages the story's changes and saves a commit-message file containing the story title without its sequence-number prefix. Codex provides the command for committing the staged changes using that file but does not execute it.
+9. After human approval and completion of the story's documentation updates, Codex stages the story's changes and provides a ready-to-run `git commit -m "Story Title"` command using the story title without its sequence-number prefix. No separate commit-message file is required. Codex does not execute the commit.
 10. The developer reviews the staged changes and executes the commit.
 
 ## Story Location

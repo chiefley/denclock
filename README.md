@@ -43,7 +43,6 @@ roles and human acceptance of stories.
 - [Client](client/README.md) — browser time display, run instructions, and accepted story.
 - [Sensors and gateway](firmware/sensors/README.md) — accepted radio baseline and new gateway TCP transport.
 - [LoRa Service](lora-service/README.md) — independent .NET 10 receive/decoding worker, tested and accepted.
-- `firmware/lora-gateway/` — empty scaffold for the future LoRa/Wi-Fi gateway.
 - [Architecture](docs/ARCHITECTURE.md) — cross-component responsibilities and rationale.
 - [Hardware](docs/HARDWARE.md) — NUC, display, and recorded network address.
 

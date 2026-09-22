@@ -1,6 +1,6 @@
 # Establish Story-Driven Development Workflow
 
-Status: Ready for human review; explicit human acceptance is pending.
+Status: Complete; accepted by the human developer, as recorded in [project status](../../../STATUS.md).
 
 ## Purpose
 
@@ -217,21 +217,17 @@ Do not mark this story complete or move it to `completed/` until the human devel
 
 Update `docs/DEVELOPMENT.md` so that it becomes the authoritative enduring description of the Den Clock development workflow defined by this story. Do not merely refer readers to this story. The completed story records the change that established the workflow; `DEVELOPMENT.md` describes the workflow currently in force.
 
-## Implementation and Verification Report
+## Acceptance and Verification
 
-The enduring workflow is in `docs/DEVELOPMENT.md`, with corresponding agent
-instructions. Useful component status information now lives in component READMEs
-and architecture; duplicate component STATUS files were removed. The existing
-move of the accepted context-recovery story into `completed/` was preserved and
-its acceptance note corrected. Both existing story scopes have completed folders.
-The Time Display story remains pending; only its obsolete status link changed.
+Accepted by the human developer, as recorded in [project status](../../../STATUS.md).
+The enduring workflow and agent instructions were established, useful component
+status information was preserved in READMEs and architecture documentation, and
+duplicate component STATUS files were removed.
 
-Internal Markdown links, whitespace, documentation-only change scope, and
-preservation of Time Display requirements were checked successfully. No runtime
-tests were needed for this process-only change. The Git index was left untouched;
-this story remains active, unaccepted, and uncommitted.
+The implementation report recorded successful checks of internal Markdown links,
+whitespace, documentation-only scope, and preservation of Time Display requirements.
+Runtime tests were not needed for this documentation change.
 
-The commit handoff prepares both staged changes and a commit-message file
-containing the unnumbered story title after human acceptance and documentation
-closure. Codex provides the command using that file; the developer reviews the
-staged changes and executes the commit.
+The requirements above preserve the original story. The
+[current development workflow](../../DEVELOPMENT.md) governs subsequent work,
+including the commit handoff.
