@@ -11,14 +11,14 @@ The remote LoRa sensor and diagnostic gateway are implemented and accepted by
 the developer. Temperature, humidity, and battery reports work over LoRa.
 The independent gateway-to-LoRa-Service Wi-Fi/TCP receive path is now implemented
 and accepted by the developer after testing and verification. Semantic mapping and MQTT publishing are now implemented and accepted by the developer; production
-broker setup, NUC deployment of this increment, and DenClock integration remain deferred. Remote-sensor deep sleep is
+Mosquitto deployment and live-sensor MQTT publication on the NUC are now verified by the developer, including retained-state persistence and restart/reboot recovery. DenClock MQTT integration remains deferred. Remote-sensor deep sleep is
 verified and accepted by the developer.
 
 ## Resume Here
 
 - [Implement LoRa Service Semantic Mapping and MQTT Publishing](lora-service/docs/stories/completed/002-implement-semantic-mapping-and-mqtt-publishing.md)
-  is implemented and accepted by the developer, with local automated verification; broker deployment
-  and real-sensor MQTT integration are separate work.
+  is implemented and accepted by the developer. Live MQTT deployment checks are recorded in
+  [the accepted integration story](docs/stories/completed/007-deploy-mosquitto-and-verify-live-sensor-publishing.md).
 
 - [Support Windows Service Hosting](lora-service/docs/stories/completed/001-support-windows-service-hosting.md)
   is verified and accepted by the developer for Windows Service hosting on the NUC.

@@ -6,8 +6,9 @@ The host selects the Windows Service lifetime when launched by the Windows servi
 manager. Configuration loads from the executable directory. Deployment is
 framework-dependent and requires the .NET 10 runtime on the Windows host.
 There is no dependency on the DenClock server. The receive path now feeds
-configured semantic mapping and an MQTT publisher; production broker integration
-and deployment of this increment remain unverified.
+configured semantic mapping and an MQTT publisher. The developer has verified
+NUC deployment with Mosquitto, live publications, retained-state persistence,
+and service/broker restart and NUC reboot recovery.
 
 Each TCP connection has independent framing and Gateway ID state. The first
 message must be HELLO with a one-byte, nonzero ID. Later messages must be

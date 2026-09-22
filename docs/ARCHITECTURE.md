@@ -24,8 +24,8 @@ tested and accepted by the developer; DenClock integration remains future work.
   production LoRa/Wi-Fi gateway transports raw packets and RSSI/SNR directly to
   the separate [LoRa Service](../lora-service/README.md) using the
   [Gateway Protocol](Gateway%20Protocol.md) over persistent TCP. The LoRa Service
-  timestamps and interprets the custom wire protocol. MQTT publishing is implemented; production broker deployment and DenClock
-  integration remain future work; the DenClock time server is not involved.
+  timestamps and interprets the custom wire protocol. MQTT publishing and Mosquitto deployment on the NUC are verified by the developer;
+  DenClock integration remains future work; the DenClock time server is not involved.
 - Known-good diagnostics in `firmware/bringup/` remain independent and unchanged,
   preserving a hardware troubleshooting baseline.
 
@@ -56,8 +56,8 @@ See [hardware](HARDWARE.md) for the recorded device/address inventory and
 
 The receive path through the LoRa Service is implemented in
 [story 004](stories/completed/004-end-to-end-lora-receive-path.md), accepted after developer testing and verification.
-Mapping and MQTT publishing are implemented and accepted by the developer; broker deployment and
-application integration remain future work. The accepted serial diagnostic
+Mapping and MQTT publishing are implemented and accepted by the developer; Mosquitto deployment and live MQTT recovery checks are verified by the developer.
+DenClock application integration remains future work. The accepted serial diagnostic
 receiver remains selectable as a separate firmware build.
 
 ```text
@@ -95,7 +95,7 @@ MQTT belongs after the LoRa Service. The gateway never communicates with MQTT.
   [MQTT interface](MQTT-INTERFACE.md) defines the SENSOR_REPORT topic structure,
   payload, QoS, retention, and basic reconnect/delivery behavior. Sensor reports
   use `lora/sensors/{node-name}`, QoS 1, and retained messages. Retained state is
-  the last-known observation, not measurement history. Publishing is implemented; broker integration remains unverified; Mosquitto is the specified broker.
+  the last-known observation, not measurement history. Publishing is implemented; live integration with Mosquitto on the NUC is verified by the developer.
 - **LoRa Service owns the custom LoRa protocol.** It accepts gateway TCP
   connections, assigns UTC reception timestamps, validates and parses
   message-class headers and TLVs, and interprets Node IDs and sequence numbers.

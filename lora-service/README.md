@@ -7,8 +7,10 @@ the DenClock time server or a database. Broker outages leave gateway reception
 running; reports that cannot be published are discarded.
 [Story 004](../docs/stories/completed/004-end-to-end-lora-receive-path.md) is accepted after developer testing and verification
 of the receive path. [Semantic mapping and MQTT publishing](docs/stories/completed/002-implement-semantic-mapping-and-mqtt-publishing.md)
-is implemented and accepted by the developer; broker installation, NUC deployment, and real-sensor
-MQTT integration acceptance remain separate work.
+is implemented and accepted by the developer. The developer has verified live MQTT
+publication on the NUC, retained delivery and persistence, and restart/reboot recovery.
+See [deployment verification](../docs/stories/completed/007-deploy-mosquitto-and-verify-live-sensor-publishing.md)
+for the accepted integration results.
 
 See the [implemented contract](docs/contract.md),
 [Gateway Protocol](../docs/Gateway%20Protocol.md),
@@ -109,8 +111,59 @@ Serilog.Sinks.Console and Serilog.Sinks.File implement the required sinks.
 The automated suite uses a minimal loopback MQTT peer to inspect actual client
 traffic, acknowledge QoS 1, and exercise disconnect/reconnect. It installs no broker.
 The test peer does not verify Mosquitto retained-message storage or delivery to a
-new subscriber. Those checks, real sensor observations, Windows deployment of this
-increment, and production broker configuration belong to the later integration story.
+new subscriber. The developer has separately verified retained delivery/persistence and live sensor
+publication with Mosquitto on the Windows NUC; these remain manual integration checks.
+
+## Verified NUC MQTT deployment
+
+The developer verified Mosquitto 2.1.2 on the Windows NUC on 2026-09-22.
+The Windows service is named `mosquitto`, runs as LocalSystem, and starts
+automatically. Its executable is `C:/Program Files/Mosquitto/mosquitto.exe`
+with service argument `run`. The verified machine `MOSQUITTO_DIR` is
+`C:/Program Files/Mosquitto`; the service loads `mosquitto.conf` there.
+
+The broker listens only on `127.0.0.1:1883`. The LoRa Service and diagnostic
+subscriber run on the NUC; no LAN MQTT listener is enabled. Configuration:
+
+```conf
+listener 1883 127.0.0.1
+allow_anonymous true
+persistence true
+persistence_location C:/ProgramData/Mosquitto/
+persistence_file mosquitto.db
+autosave_interval 60
+autosave_on_changes false
+log_dest file C:/ProgramData/Mosquitto/mosquitto.log
+log_type error
+log_type warning
+log_type notice
+log_type information
+connection_messages true
+log_timestamp true
+```
+
+The persistence/log directory must exist and be writable by the service account.
+Broker data is separate from the LoRa deployment directory. Full-output LoRa
+deployment remains in effect under the deployment-preservation decision below.
+
+On the NUC, observe reports with PowerShell:
+
+```powershell
+& 'C:\Program Files\Mosquitto\mosquitto_sub.exe' -h 127.0.0.1 -p 1883 -t 'lora/sensors/+' -q 1 -v
+```
+
+To repeat the retained-state check, stop sensor transmissions after a report,
+then connect a new subscriber. The same sequence and receivedUtc should arrive
+immediately. In elevated PowerShell, run `Restart-Service mosquitto`, then
+reconnect the subscriber with the sensor still off; the same retained report
+should survive. Resume the sensor afterward.
+
+For outage recovery, use `Stop-Service mosquitto` and `Start-Service mosquitto`
+in elevated PowerShell. Fresh reports resume automatically; outage reports are
+not replayed. Restart the installed LoRa Windows service through Services and
+verify gateway reconnection. After a NUC reboot, verify automatic service startup,
+fresh subscriber reports, and the clock display. The developer verified all
+these recovery checks, sensor warming response, and sequence zero after reset.
 
 ## Gateway setup and later integration checks
 
@@ -213,4 +266,5 @@ on the NUC; do not run a console copy on the same listener port simultaneously.
 
 Windows Service operation uses the Serilog rolling files described above. Check
 those files for startup failures and MQTT connectivity. Existing Windows Service
-hosting remains supported; this increment has not been deployed to the NUC.
+hosting is deployed on the NUC; the developer verified resumed sensor publication
+after LoRa Service restart and NUC reboot.

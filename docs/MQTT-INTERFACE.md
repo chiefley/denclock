@@ -1,8 +1,9 @@
 # MQTT Interface
 
 The [current LoRa worker](../lora-service/docs/contract.md) implements this
-publishing contract. Production broker installation/configuration, NUC deployment,
-and real-sensor MQTT integration acceptance remain separate work.
+publishing contract. The developer has verified live sensor publications through
+Mosquitto on the Windows NUC, retained delivery/persistence, and restart/reboot
+recovery. DenClock subscription remains separate work.
 
 ## 1. Purpose
 
