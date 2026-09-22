@@ -184,6 +184,18 @@ Copy the whole published directory to the Windows host. The NUC needs the .NET 1
 x64 runtime installed; this publish does not bundle it. Run `LoRa.Service.exe`
 interactively or use your existing scripts to install and start it as a service.
 
+## Deployment preservation decision
+
+The developer has deferred file exclusions and configuration/log preservation
+changes while deployment is still evolving. Continue publishing and deploying
+the complete publish output for now. Revisit exclusions and preservation rules
+when the system is more stable.
+
+The existing [deployment helper](Deploy.sh) mirrors the complete publish output
+with `rsync --delete`. Published configuration replaces the deployed copies,
+and destination-only files, including logs under the deployment directory, may
+be removed. This behavior remains in place under the current decision.
+
 ## Windows Service hosting
 
 [Support Windows Service Hosting](docs/stories/completed/001-support-windows-service-hosting.md)
