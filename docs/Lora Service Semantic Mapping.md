@@ -46,11 +46,18 @@ The file contains two primary mapping domains:
 
 - `nodes` — maps LoRa Node IDs to human-readable node identity.
 - `measurements` — maps LoRa TLV Type IDs to measurement semantics and wire decoding information.
+- 'gateways' - maps gateway id to a human readable gateway identity
 
 Example:
 
 ```json
 {
+  "gateways": {
+    "1": {
+      "name": "den-gateway",
+      "description": "Den LoRa/Wi-Fi gateway"
+  }
+}
   "nodes": {
     "1": {
       "name": "porch",
@@ -88,6 +95,22 @@ Example:
   }
 }
 ```
+
+## 3.1 Gateway Mappint
+
+A gateway entry maps the numeric gateway ID carried by the LoRa protol to the unstallation specific identity.
+
+Each gateway entry initially contains
+
+- 'name' - short, stable, human-readable identity.
+- 'description' - optional descriptive text.
+
+Gateway names are installation configuration and are not part of the LoRa wire protocol.
+
+A gateway therefore needs to know only its numeric Node ID. Moving or repurposing a physical gateway may require only a mapping-file change rather than a firmware change.
+
+Friendly gateway identity must not be embedded in the LoRa packet solely for application presentation.
+
 
 ## 4. Node Mapping
 
