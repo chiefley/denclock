@@ -1,7 +1,8 @@
 # MQTT Interface
 
-This document specifies the MQTT contract for a future implementation increment.
-MQTT publishing is not yet implemented in the [current LoRa worker](../lora-service/docs/contract.md).
+The [current LoRa worker](../lora-service/docs/contract.md) implements this
+publishing contract. Production broker installation/configuration, NUC deployment,
+and real-sensor MQTT integration acceptance remain separate work.
 
 ## 1. Purpose
 

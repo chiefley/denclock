@@ -2,8 +2,8 @@ using System.Buffers.Binary;
 
 namespace LoRa.Service;
 
-public sealed record SensorReport(byte NodeId, ushort Sequence,
-    decimal? TemperatureC, decimal? RelativeHumidityPercent, decimal? BatteryVolts);
+public sealed record MeasurementTlv(byte Type, byte[] Value);
+public sealed record SensorReport(byte NodeId, ushort Sequence, IReadOnlyList<MeasurementTlv> Measurements);
 
 public static class SensorReportDecoder
 {
@@ -13,7 +13,8 @@ public static class SensorReportDecoder
         if (packet[0] != 1) throw new InvalidDataException("Expected SENSOR_REPORT Message Class.");
         if (packet[1] is 0 or >= 0xf0) throw new InvalidDataException("Reserved Source Node ID.");
         var sequence = BinaryPrimitives.ReadUInt16BigEndian(packet[2..]);
-        decimal? temperature = null, humidity = null, battery = null;
+        var measurements = new List<MeasurementTlv>();
+        var known = new HashSet<byte>();
         for (var position = 4; position < packet.Length;)
         {
             if (packet.Length - position < 2) throw new InvalidDataException("Truncated TLV header.");
@@ -22,27 +23,17 @@ public static class SensorReportDecoder
             if (type == 0) throw new InvalidDataException("TLV Type zero is invalid.");
             if (length > packet.Length - position) throw new InvalidDataException("TLV extends beyond packet.");
             var value = packet.Slice(position, length);
-            if (type is >= 1 and <= 3 && length != 2)
-                throw new InvalidDataException("Known measurement TLV length must be 2.");
-            switch (type)
+            // Preserve accepted wire validation independently of configured mapping.
+            if (type is >= 1 and <= 3)
             {
-                case 1:
-                    if (temperature.HasValue) throw new InvalidDataException("Duplicate temperature TLV.");
-                    temperature = BinaryPrimitives.ReadInt16BigEndian(value) / 100m;
-                    break;
-                case 2:
-                    if (humidity.HasValue) throw new InvalidDataException("Duplicate humidity TLV.");
-                    humidity = BinaryPrimitives.ReadUInt16BigEndian(value) / 100m;
-                    if (humidity > 100) throw new InvalidDataException("Relative humidity exceeds 100%.");
-                    break;
-                case 3:
-                    if (battery.HasValue) throw new InvalidDataException("Duplicate battery TLV.");
-                    battery = BinaryPrimitives.ReadUInt16BigEndian(value) / 1000m;
-                    break;
-                // Unknown nonzero types are skipped using their declared length.
+                if (length != 2) throw new InvalidDataException("Known measurement TLV length must be 2.");
+                if (!known.Add(type)) throw new InvalidDataException("Duplicate known measurement TLV.");
+                if (type == 2 && BinaryPrimitives.ReadUInt16BigEndian(value) > 10000)
+                    throw new InvalidDataException("Relative humidity exceeds 100%.");
             }
+            measurements.Add(new(type, value.ToArray()));
             position += length;
         }
-        return new(packet[1], sequence, temperature, humidity, battery);
+        return new(packet[1], sequence, measurements);
     }
 }

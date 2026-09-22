@@ -1,8 +1,8 @@
 # LoRa Service Semantic Mapping
 
-This is the specified mapping and logging contract for a future implementation
-increment. The [current worker](../lora-service/docs/contract.md) decodes and logs
-reports without configuration-driven semantic mapping or MQTT publishing.
+The [current worker](../lora-service/docs/contract.md) implements this mapping
+and logging contract. Production broker integration and NUC deployment of this
+increment remain separate work.
 
 ## 1. Purpose
 

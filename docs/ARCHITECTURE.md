@@ -24,7 +24,7 @@ tested and accepted by the developer; DenClock integration remains future work.
   production LoRa/Wi-Fi gateway transports raw packets and RSSI/SNR directly to
   the separate [LoRa Service](../lora-service/README.md) using the
   [Gateway Protocol](Gateway%20Protocol.md) over persistent TCP. The LoRa Service
-  timestamps and interprets the custom wire protocol. MQTT and DenClock
+  timestamps and interprets the custom wire protocol. MQTT publishing is implemented; production broker deployment and DenClock
   integration remain future work; the DenClock time server is not involved.
 - Known-good diagnostics in `firmware/bringup/` remain independent and unchanged,
   preserving a hardware troubleshooting baseline.
@@ -56,7 +56,8 @@ See [hardware](HARDWARE.md) for the recorded device/address inventory and
 
 The receive path through the LoRa Service is implemented in
 [story 004](stories/completed/004-end-to-end-lora-receive-path.md), accepted after developer testing and verification.
-The MQTT/application path below is specified but not yet implemented. The accepted serial diagnostic
+Mapping and MQTT publishing are implemented and accepted by the developer; broker deployment and
+application integration remain future work. The accepted serial diagnostic
 receiver remains selectable as a separate firmware build.
 
 ```text
@@ -94,16 +95,14 @@ MQTT belongs after the LoRa Service. The gateway never communicates with MQTT.
   [MQTT interface](MQTT-INTERFACE.md) defines the SENSOR_REPORT topic structure,
   payload, QoS, retention, and basic reconnect/delivery behavior. Sensor reports
   use `lora/sensors/{node-name}`, QoS 1, and retained messages. Retained state is
-  the last-known observation, not measurement history. Publishing remains
-  unimplemented; Mosquitto is the specified broker.
+  the last-known observation, not measurement history. Publishing is implemented; broker integration remains unverified; Mosquitto is the specified broker.
 - **LoRa Service owns the custom LoRa protocol.** It accepts gateway TCP
   connections, assigns UTC reception timestamps, validates and parses
   message-class headers and TLVs, and interprets Node IDs and sequence numbers.
   Its [semantic mapping](Lora%20Service%20Semantic%20Mapping.md) resolves Gateway
   IDs to friendly gateway names, Node IDs to friendly node names, and TLV Type
-  IDs to measurement names and normalized values. Currently it logs decoded
-  measurements; configured semantic mapping and MQTT publishing are specified
-  for a later implementation. It preserves relevant source and
+  IDs to measurement names and normalized values. Configured semantic mapping and MQTT publishing are implemented; routine
+  observations go to MQTT and operational logs describe infrastructure events. It preserves relevant source and
   reception context so applications need not decode packet bytes. Unknown TLVs
   and malformed packets follow the wire specification. This shared protocol
   knowledge is independent of DenClock and future ham-radio applications.
@@ -130,7 +129,7 @@ does not decide persistence policy.
 Mosquitto, LoRa Service, and DenClock may initially coexist on the Windows NUC.
 They remain separate, independently deployable and movable services, connected
 through network endpoints rather than shared process memory, local files,
-or a shared application database. Gateway-to-service transport is TCP; future
+or a shared application database. Gateway-to-service transport is TCP;
 service-to-application distribution is MQTT. Addresses and ports are configurable
 rather than requiring localhost. The independent .NET 10 Generic Host worker
 supports console and Windows Service lifetimes; NUC service execution is verified

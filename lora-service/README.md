@@ -1,10 +1,14 @@
 # LoRa Service
 
 An independent .NET 10 Generic Host worker that accepts gateway TCP connections,
-timestamps received packets in UTC, decodes SENSOR_REPORT, and logs measurements.
-It does not call or require the DenClock time server, MQTT, or a database.
+timestamps received packets in UTC, maps SENSOR_REPORT to semantic values, and
+publishes retained QoS 1 JSON to a configured MQTT broker. It does not require
+the DenClock time server or a database. Broker outages leave gateway reception
+running; reports that cannot be published are discarded.
 [Story 004](../docs/stories/completed/004-end-to-end-lora-receive-path.md) is accepted after developer testing and verification
-of the end-to-end receive path.
+of the receive path. [Semantic mapping and MQTT publishing](docs/stories/completed/002-implement-semantic-mapping-and-mqtt-publishing.md)
+is implemented and accepted by the developer; broker installation, NUC deployment, and real-sensor
+MQTT integration acceptance remain separate work.
 
 See the [implemented contract](docs/contract.md),
 [Gateway Protocol](../docs/Gateway%20Protocol.md),
@@ -40,16 +44,75 @@ the executable and read from that directory, independent of the working folder.
 For `dotnet run`, edit the source JSON and rebuild; for a published copy, edit
 its JSON or pass overrides. Ctrl+C stops the listener and active connections.
 
-Diagnostic output includes Gateway ID, UTC reception time, node, sequence,
-temperature in C, relative humidity in %, battery in V, RSSI in dBm, and SNR in dB.
-Missing legal TLVs display `N/A`. For example:
+## Mapping, MQTT, and logging configuration
 
-```text
-Gateway 1 connected
-Gateway 1 UTC 2026-09-20T14:38:27.1230000+00:00 Node 12 Sequence 3871 Temperature 21.43 C Relative Humidity 43.21 % Battery 3.912 V RSSI -72 dBm SNR 9.50 dB
+The published `semantic-mapping.json` is loaded and validated before network
+workers start. The supplied example maps Gateway 1 to `den-gateway`, Node 1 to
+`porch`, and TLVs 1–3 to temperature (C), relativeHumidity (percent), and
+batteryVoltage (V). Edit identities for your installation. See the
+[semantic-mapping contract](../docs/Lora%20Service%20Semantic%20Mapping.md).
+
+`appsettings.json` provides these settings, also overridable by command line or
+.NET environment keys such as `Mqtt__Host`:
+
+| Setting | Default | Purpose |
+| --- | --- | --- |
+| `SemanticMapping:Path` | `semantic-mapping.json` | Mapping file; relative to executable directory |
+| `Mqtt:Host` | `localhost` | Broker hostname/address |
+| `Mqtt:Port` | `1883` | Broker TCP port |
+| `Mqtt:ClientId` | `lora-service` | Client identity; distinct for each concurrent service instance |
+| `Logging:FilePath` | `logs/lora-service-.log` | Daily log filename prefix; relative to executable directory |
+
+For example, with an already available broker:
+
+```powershell
+dotnet run --project lora-service/LoRa.Service.csproj -- --Mqtt:Host=192.168.1.100
 ```
 
-## Gateway setup and hardware acceptance
+All three mapping domains must be JSON objects. IDs and names must be unambiguous;
+node names must be one literal MQTT topic level and cannot take another node's
+`node-{id}` fallback. Measurements require name, valueType, length, scale, and
+units; precision defaults to four significant figures. Only int16/uint16 and
+length 2 are supported. Scale must be nonzero and fit decimal arithmetic for the
+wire range; precision must be positive. Assigned TLVs must retain their specified
+wire representation, scale, and canonical units. Invalid configuration prevents
+startup with a diagnostic. There is no hot reload; restart after changes.
+
+Unmapped gateways use the decimal ID string; unmapped nodes use `node-{id}`.
+Unknown measurement types are skipped with warnings. No stale/default measurement
+is substituted. The generic normalization path applies configured types/scales
+without rounding values to the presentation precision.
+
+Each valid report attempts one publication on `lora/sensors/{node-name}`, QoS 1,
+retained, using the [MQTT JSON contract](../docs/MQTT-INTERFACE.md). The publisher
+uses MQTTnet 5.2.0.1603 with MQTT 3.1.1, clean sessions, a five-second operation
+timeout, and a five-second reconnect polling interval. It publishes directly;
+there is no offline queue, spool, or replay. Each gateway session awaits its
+current publish attempt, bounded by timeout; other sessions remain independent.
+QoS 1 permits duplicate delivery; retained state is not measurement history.
+
+Application code uses `ILogger<T>` through Serilog. Interactive execution logs to
+console; all execution modes also write daily rolling files with seven-day age
+retention, cleaned when files roll. Ensure the service account can write the
+configured log directory; choose an external directory if deployment replaces
+files under the publish directory. Logs contain infrastructure events and errors,
+not routine successful sensor values. Default Windows Event Log output has been
+replaced by the required Serilog sinks. Startup configuration failures before
+Serilog host setup use bootstrap console diagnostics.
+
+Dependencies: MQTTnet supplies the MQTT client and QoS protocol handling without
+an offline managed-client queue. Serilog.Extensions.Hosting bridges ILogger;
+Serilog.Sinks.Console and Serilog.Sinks.File implement the required sinks.
+
+## Verification scope
+
+The automated suite uses a minimal loopback MQTT peer to inspect actual client
+traffic, acknowledge QoS 1, and exercise disconnect/reconnect. It installs no broker.
+The test peer does not verify Mosquitto retained-message storage or delivery to a
+new subscriber. Those checks, real sensor observations, Windows deployment of this
+increment, and production broker configuration belong to the later integration story.
+
+## Gateway setup and later integration checks
 
 1. Copy `firmware/sensors/lora-gateway/include/config.example.h` to
    `config.local.h` in the same directory. Fill in the Wi-Fi SSID/password and
@@ -67,8 +130,8 @@ Gateway 1 UTC 2026-09-20T14:38:27.1230000+00:00 Node 12 Sequence 3871 Temperatur
    and `Gateway 1 connected` in the service. The gateway retries Wi-Fi/TCP and
    sends a new HELLO on every TCP connection.
 4. Run the existing sensor unchanged. Compare its serial values and sequence
-   with the service's output. All three readings plus RSSI/SNR and UTC must appear.
-5. Reset the sensor; confirm sequence 0, then 1, 2, and so on.
+   with the MQTT subscriber's JSON. All three readings plus RSSI/SNR and UTC must appear.
+5. Using a configured broker and diagnostic MQTT subscriber, reset the sensor; confirm sequence 0, then 1, 2, and so on.
 6. Restart the gateway while leaving the service running. Confirm another HELLO
    and resumed reports. Then stop/restart the service while leaving the gateway
    running; confirm reconnect and recovery without reflashing.
@@ -92,12 +155,14 @@ dotnet build lora-service/LoRa.Service.csproj
 dotnet run --project lora-service/tests/LoRa.Service.Tests.csproj
 ```
 
-The test project is a dependency-free executable harness (beyond the service's
-Hosting dependency). It exits nonzero on failure. It covers literal protocol
+The test project is an executable harness using the service dependencies, with
+no additional test framework or broker installation. It exits nonzero on failure. It covers literal protocol
 fixtures, all split positions in a multi-frame stream, one-byte reads, coalesced
 frames, length bounds, validation, signed values, scaling, optional/unknown TLVs,
 UTC timestamps, and a real loopback listener with concurrent clients, reconnect,
-and cancellation. It requires permission to open local TCP sockets.
+and cancellation. It also validates mapping/JSON, direct MQTT wire publication,
+reconnect/no replay, and real-host invalid-mapping startup. It requires permission
+to open local TCP sockets and launch the local dotnet host.
 
 Portable gateway encoder tests (host C++ compiler, choose your local output path):
 
@@ -134,10 +199,6 @@ binary path pointing to the published `LoRa.Service.exe`. Stop the installed ser
 before replacing its files. Verify start, decoded gateway reports, stop, and restart
 on the NUC; do not run a console copy on the same listener port simultaneously.
 
-Windows Service hosting adds Windows Application Event Log output. Its default
-threshold is Warning; to see Information-level connection and sensor reports, set
-`Logging:EventLog:LogLevel:Default` to `Information` in the deployed appsettings.json.
-Check Event Viewer → Windows Logs → Application for startup failures. An account
-without permission to create an Event Log source may need administrator setup of
-the source before logging works. Console logging remains available interactively.
-See [Microsoft's Windows Service hosting documentation](https://learn.microsoft.com/en-us/dotnet/core/extensions/windows-service).
+Windows Service operation uses the Serilog rolling files described above. Check
+those files for startup failures and MQTT connectivity. Existing Windows Service
+hosting remains supported; this increment has not been deployed to the NUC.

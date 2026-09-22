@@ -10,10 +10,15 @@ assets. Codex has not independently reverified the NUC/LAN browser or touchscree
 The remote LoRa sensor and diagnostic gateway are implemented and accepted by
 the developer. Temperature, humidity, and battery reports work over LoRa.
 The independent gateway-to-LoRa-Service Wi-Fi/TCP receive path is now implemented
-and accepted by the developer after testing and verification. MQTT and DenClock integration remain deferred. Remote-sensor deep sleep is
+and accepted by the developer after testing and verification. Semantic mapping and MQTT publishing are now implemented and accepted by the developer; production
+broker setup, NUC deployment of this increment, and DenClock integration remain deferred. Remote-sensor deep sleep is
 verified and accepted by the developer.
 
 ## Resume Here
+
+- [Implement LoRa Service Semantic Mapping and MQTT Publishing](lora-service/docs/stories/completed/002-implement-semantic-mapping-and-mqtt-publishing.md)
+  is implemented and accepted by the developer, with local automated verification; broker deployment
+  and real-sensor MQTT integration are separate work.
 
 - [Support Windows Service Hosting](lora-service/docs/stories/completed/001-support-windows-service-hosting.md)
   is verified and accepted by the developer for Windows Service hosting on the NUC.

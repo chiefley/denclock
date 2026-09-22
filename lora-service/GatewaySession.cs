@@ -1,11 +1,10 @@
 namespace LoRa.Service;
 
-public sealed class GatewaySession(ILogger logger)
+public sealed class GatewaySession(ILogger<GatewaySession> logger, LoRaPacketHandler handler)
 {
     public async Task RunAsync(Stream stream, CancellationToken cancellationToken)
     {
         byte? gatewayId = null;
-        var handler = new LoRaPacketHandler(logger);
         try
         {
             while (await GatewayProtocol.ReadAsync(stream, cancellationToken) is { } message)
@@ -24,7 +23,7 @@ public sealed class GatewaySession(ILogger logger)
                     throw new InvalidDataException("HELLO is only allowed at connection initialization.");
                 var packet = GatewayProtocol.ParseRx(gatewayId.Value, message.Payload, receivedAt);
                 logger.LogDebug("Gateway {GatewayId} RX_PACKET: {Length} LoRa bytes", gatewayId, packet.RawPacket.Length);
-                handler.Handle(packet);
+                await handler.HandleAsync(packet, cancellationToken);
             }
         }
         catch (InvalidDataException ex)

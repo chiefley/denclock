@@ -5,7 +5,9 @@ The independent .NET 10 worker listens on a configurable IP address and TCP port
 The host selects the Windows Service lifetime when launched by the Windows service
 manager. Configuration loads from the executable directory. Deployment is
 framework-dependent and requires the .NET 10 runtime on the Windows host.
-There is no dependency on the DenClock server and no MQTT interface yet.
+There is no dependency on the DenClock server. The receive path now feeds
+configured semantic mapping and an MQTT publisher; production broker integration
+and deployment of this increment remain unverified.
 
 Each TCP connection has independent framing and Gateway ID state. The first
 message must be HELLO with a one-byte, nonzero ID. Later messages must be
@@ -28,14 +30,37 @@ LoRa Message Class 1 dispatches to the SENSOR_REPORT decoder. Source IDs must
 be 1–239. The sequence is big-endian uint16, including legal reset value 0.
 Temperature is signed int16 / 100 C, humidity unsigned uint16 / 100 %, and battery
 unsigned uint16 / 1000 V. TLVs can appear in any order; unknown nonzero types are
-skipped by length. Missing measurements remain absent and are logged as N/A.
+skipped by length. Missing measurements remain absent from the published measurements object.
 Malformed boundaries, type zero, and incorrect known lengths are rejected. The
 initial decoder also rejects duplicate known measurements and RH above 100%,
 matching the accepted diagnostic decoder's validation policy. It imposes no
 SHT40-specific temperature range on the wire's signed representation.
 
 LoRa errors (including unsupported classes) are logged and dropped without
-closing a correctly initialized gateway connection. Valid reports log Gateway
-ID, UTC time, Node ID, sequence, all present measurements with units, RSSI and SNR.
-There is no persistent storage, sequence deduplication, outbound protocol,
-application friendly-name mapping, or generalized handler framework.
+closing a correctly initialized gateway connection. Valid reports preserve Gateway ID, UTC time, Node ID, sequence, measurements,
+RSSI and SNR in the semantic MQTT message. Routine successful values are not logged.
+
+## Semantic mapping and publication
+
+The startup-loaded JSON mapping supplies gateway/node names and measurement
+names, signed/unsigned 16-bit decoding, scale, units, and precision metadata.
+Assigned types are validated against immutable LoRa definitions. Mapping/config
+errors stop startup before listeners start. Runtime unknown identifiers warn;
+gateways fall back to decimal ID strings, nodes to `node-{id}`, and unmapped TLVs
+are skipped. Mapped duplicate measurements are rejected as ambiguous. Unknown
+unmapped TLVs remain skippable. Values use decimal arithmetic without presentation
+rounding. Mapping changes require restart.
+
+The [semantic mapping](../../docs/Lora%20Service%20Semantic%20Mapping.md) and
+[MQTT interface](../../docs/MQTT-INTERFACE.md) own detailed definitions. The service
+attempts one JSON publication per valid report on `lora/sensors/{node-name}`,
+QoS 1, retained. MQTTnet connects independently with clean sessions and retries
+at five-second polling intervals. Direct publishes time out after five seconds;
+unavailable/failed attempts are logged and discarded. Gateway reception continues,
+without an offline queue, spool, or replay. MQTT failure is not a LoRa framing error.
+
+ILogger uses Serilog console output interactively and daily files with seven-day
+age retention. Files are infrastructure diagnostics, not measurement history.
+The [README](../README.md) documents paths, configuration, and validation.
+There is no persistent measurement storage, sequence deduplication, outbound
+application protocol, or generalized handler framework.

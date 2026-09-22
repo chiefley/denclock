@@ -10,7 +10,7 @@ public sealed class GatewayOptions
     public int Port { get; set; } = 5210;
 }
 
-public sealed class GatewayWorker(IOptions<GatewayOptions> options, ILogger<GatewayWorker> logger) : BackgroundService
+public sealed class GatewayWorker(IOptions<GatewayOptions> options, ILogger<GatewayWorker> logger, GatewaySession session) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -44,7 +44,7 @@ public sealed class GatewayWorker(IOptions<GatewayOptions> options, ILogger<Gate
             var endpoint = client.Client.RemoteEndPoint;
             try
             {
-                await new GatewaySession(logger).RunAsync(client.GetStream(), cancellationToken);
+                await session.RunAsync(client.GetStream(), cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
             catch (IOException ex)

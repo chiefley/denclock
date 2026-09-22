@@ -2,9 +2,10 @@
 
 ## Implementation status
 
-The receive/decoding/logging path and Windows Service hosting are implemented.
-Configuration-driven semantic mapping, its logging policy, and MQTT publishing
-are specified for a later increment, not implemented by the current worker.
+The receive path, Windows Service hosting, configuration-driven semantic mapping,
+Serilog infrastructure logging, and MQTT publishing are implemented. Production
+broker installation and deployment/acceptance of the MQTT path on the NUC remain
+separate work.
 See the [implemented contract](../lora-service/docs/contract.md).
 
 ## 1. Purpose
@@ -19,7 +20,7 @@ Its primary responsibilities are:
 - Interpret LoRa application packets according to [LoRa Protocol](LoRa%20Protocol.md).
 - Assign an authoritative UTC reception timestamp to received packets.
 - Convert LoRa protocol messages into application-level representations.
-- Eventually publish application-level messages through MQTT.
+- Publish normalized SENSOR_REPORT messages through MQTT.
 - Eventually accept application requests that require transmission of LoRa messages.
 
 The LoRa Service separates knowledge of the custom LoRa application protocol from the gateway firmware and from applications such as DenClock.
@@ -317,11 +318,8 @@ MQTT
 Applications
 ```
 
-The LoRa Service will eventually:
-
-- publish normalized received messages;
-- receive requests requiring LoRa transmission where appropriate; and
-- translate between application-level requests and LoRa protocol messages.
+The LoRa Service publishes normalized received sensor messages. Receiving and
+translating application requests for LoRa transmission remains future work.
 
 The [MQTT interface](MQTT-INTERFACE.md) defines the initial SENSOR_REPORT topic
 hierarchy, payload schema, QoS, retained last-known state, and basic broker
@@ -333,7 +331,7 @@ Command, response, and event topics, authentication, and other bidirectional
 behavior remain outside that interface. The Gateway Protocol already defines
 TX_PACKET framing; this does not define application command semantics.
 
-MQTT publishing remains unimplemented in the current LoRa Service.
+MQTT publishing is implemented; production broker integration remains separate work.
 
 ---
 
@@ -425,45 +423,15 @@ Malformed input shall not cause termination of the service.
 
 The service shall provide useful operational logging.
 
-The currently implemented receive increment logs decoded reports to support
-end-to-end testing without MQTT or DenClock. The specified semantic-mapping/MQTT
-increment instead uses the [semantic-mapping logging policy](Lora%20Service%20Semantic%20Mapping.md#9-logging)
-and [MQTT logging policy](MQTT-INTERFACE.md#20-logging): infrastructure diagnostics,
-with routine successful measurements carried by MQTT rather than logged.
-That logging change, including Serilog sinks, is not yet implemented.
+The service uses the [semantic-mapping logging policy](Lora%20Service%20Semantic%20Mapping.md#9-logging)
+and [MQTT logging policy](MQTT-INTERFACE.md#20-logging). Application ILogger calls
+flow through Serilog to interactive console and daily rolling files retained for
+seven days. Logs describe startup/shutdown, configuration validation, gateway and
+MQTT connectivity, malformed packets, unknown identifiers, and operational errors.
+Routine successful measurements are published through MQTT, not logged.
 
-Useful events include:
-
-- service startup;
-- TCP listener startup;
-- gateway connection;
-- valid `HELLO`;
-- gateway disconnection;
-- received `RX_PACKET`;
-- radio metadata;
-- decoded LoRa Message Class;
-- decoded `SENSOR_REPORT`;
-- protocol validation failures;
-- unexpected connection failures.
-
-During initial development, a successfully decoded sensor report should be visible in console logging in a form similar to:
-
-```text
-Gateway 1 connected
-
-RX_PACKET: 16 LoRa bytes
-RSSI: -72 dBm
-SNR: +9.50 dB
-
-2026-09-20T14:38:27.123Z
-Node 1
-Sequence 42
-Temperature 21.43 C
-Relative Humidity 43.21 %
-Battery 3.912 V
-```
-
-The exact logging format is not part of the external service contract.
+The original receive increment used measurement diagnostics before MQTT existed;
+that historical verification path is described below.
 
 ---
 
@@ -519,8 +487,9 @@ The first increment does **not** require:
 - Remote antenna control
 - Production service installation
 
-Windows Service hosting has since been implemented and accepted. The other
-capabilities remain for later increments; see the implemented contract above.
+Windows Service hosting has since been implemented and accepted. Semantic mapping
+and MQTT publishing are now implemented and accepted by the developer. The other capabilities remain
+for later increments; see the implemented contract above.
 
 ---
 

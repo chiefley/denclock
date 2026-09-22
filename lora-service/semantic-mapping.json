@@ -1,0 +1,43 @@
+{
+  "gateways": {
+    "1": {
+      "name": "den-gateway",
+      "description": "Den LoRa/Wi-Fi gateway"
+    }
+  },
+  "nodes": {
+    "1": {
+      "name": "porch",
+      "description": "Porch temperature and humidity sensor"
+    }
+  },
+
+  "measurements": {
+    "1": {
+      "name": "temperature",
+      "valueType": "int16",
+      "length": 2,
+      "scale": 0.01,
+      "units": "C",
+      "precision": 4
+    },
+
+    "2": {
+      "name": "relativeHumidity",
+      "valueType": "uint16",
+      "length": 2,
+      "scale": 0.01,
+      "units": "percent",
+      "precision": 4
+    },
+
+    "3": {
+      "name": "batteryVoltage",
+      "valueType": "uint16",
+      "length": 2,
+      "scale": 0.001,
+      "units": "V",
+      "precision": 4
+    }
+  }
+}

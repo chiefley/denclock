@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using LoRa.Service;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging.Abstractions;
 
 // Literal fixtures follow docs/Gateway Protocol.md and docs/LoRa Protocol.md.
 // No alternate serializers are used to generate expected protocol bytes.
@@ -11,6 +12,18 @@ byte[] hello = [1, 0, 1, 1];
 byte[] sensor = [1, 12, 0x0f, 0x1f, 1, 2, 0x08, 0x5f, 2, 2, 0x10, 0xe1, 3, 2, 0x0f, 0x48];
 byte[] rx = [2, 0, 18, 0xb8, 38, .. sensor];
 var count = 0;
+var mapping = SemanticMapping.Load(Path.Combine(AppContext.BaseDirectory, "semantic-mapping.json"));
+var mapper = new SemanticMapper(mapping, NullLogger<SemanticMapper>.Instance);
+LegacyReport Decode(byte[] bytes)
+{
+    var decoded = SensorReportDecoder.Decode(bytes);
+    var result = mapper.Map(decoded, new(1, DateTimeOffset.UtcNow, -72, 9.5m, bytes));
+    decimal? Value(string name) => result.Measurements.TryGetValue(name, out var value) ? value.Value : null;
+    return new(decoded.NodeId, decoded.Sequence, Value("temperature"), Value("relativeHumidity"), Value("batteryVoltage"));
+}
+CapturePublisher publisher = new();
+GatewaySession Session(CaptureLogger logger) => new(logger,
+    new LoRaPacketHandler(mapper, publisher, logger));
 void Check(bool condition, string name)
 {
     if (!condition) throw new Exception($"FAIL: {name}");
@@ -71,42 +84,44 @@ Check(received.RawPacket.SequenceEqual(sensor), "unchanged raw packet");
 Check(GatewayProtocol.ParseRx(1, [128, 244, 0xff], timestamp).SnrDb == -3m, "negative SNR");
 Check(GatewayProtocol.ParseRx(1, [128, 128], timestamp).RssiDbm == -128, "RSSI boundary");
 Invalid(() => GatewayProtocol.ParseRx(1, [0], timestamp), "missing metadata");
-var report = SensorReportDecoder.Decode(sensor);
-Check(report == new SensorReport(12, 3871, 21.43m, 43.21m, 3.912m), "all decoded fields");
+var report = Decode(sensor);
+Check(report == new LegacyReport(12, 3871, 21.43m, 43.21m, 3.912m), "all decoded fields");
 byte[] negative = [1, 1, 0x12, 0x34, 1, 2, 0xfb, 0x1e, 2, 2, 0x27, 0x10, 3, 2, 0xff, 0xff];
-report = SensorReportDecoder.Decode(negative);
+report = Decode(negative);
 Check(report.Sequence == 0x1234 && report.TemperatureC == -12.50m && report.RelativeHumidityPercent == 100m && report.BatteryVolts == 65.535m, "signed/scaled bounds");
-Check(SensorReportDecoder.Decode([1, 1, 0, 0]).TemperatureC is null, "optional TLVs");
-Check(SensorReportDecoder.Decode([1, 1, 255, 255]).Sequence == 65535, "max sequence");
-Check(SensorReportDecoder.Decode([1, 1, 0, 0, 1, 2, 128, 0]).TemperatureC == -327.68m, "min temperature");
-Check(SensorReportDecoder.Decode([1, 1, 0, 0, 1, 2, 127, 255]).TemperatureC == 327.67m, "max temperature");
+Check(Decode([1, 1, 0, 0]).TemperatureC is null, "optional TLVs");
+Check(Decode([1, 1, 255, 255]).Sequence == 65535, "max sequence");
+Check(Decode([1, 1, 0, 0, 1, 2, 128, 0]).TemperatureC == -327.68m, "min temperature");
+Check(Decode([1, 1, 0, 0, 1, 2, 127, 255]).TemperatureC == 327.67m, "max temperature");
 byte[] unknown = [.. sensor[..4], 42, 3, 0, 1, 2, .. sensor[4..], 99, 0];
-Check(SensorReportDecoder.Decode(unknown) == SensorReportDecoder.Decode(sensor), "unknown TLVs skipped");
+Check(Decode(unknown) == Decode(sensor), "unknown TLVs skipped");
 byte[] reordered = [.. sensor[..4], .. sensor[12..], .. sensor[8..12], .. sensor[4..8]];
-Check(SensorReportDecoder.Decode(reordered) == SensorReportDecoder.Decode(sensor), "TLV ordering");
+Check(Decode(reordered) == Decode(sensor), "TLV ordering");
 foreach (byte[] bad in new byte[][] {
     [], [1], [1, 1, 0], [0, 1, 0, 0], [2, 1, 0, 0], [1, 0, 0, 0], [1, 240, 0, 0], [1, 255, 0, 0],
     [1, 1, 0, 0, 0, 0], [1, 1, 0, 0, 1], [1, 1, 0, 0, 42, 3, 0, 1],
     [1, 1, 0, 0, 1, 1, 0], [1, 1, 0, 0, 2, 0], [1, 1, 0, 0, 3, 3, 0, 0, 0],
     [1, 1, 0, 0, 2, 2, 0x27, 0x11], [.. sensor, .. sensor[4..8]] })
-    Invalid(() => SensorReportDecoder.Decode(bad), "malformed sensor packet");
+    Invalid(() => Decode(bad), "malformed sensor packet");
 
 var log = new CaptureLogger();
 var before = DateTimeOffset.UtcNow;
-await new GatewaySession(log).RunAsync(new FragmentedStream(combined, 1, 1), default);
-Check(log.Lines.Count(line => line.Contains("Node 12 Sequence 3871")) == 2, "session processes multiple reports");
+await Session(log).RunAsync(new FragmentedStream(combined, 1, 1), default);
+Check(publisher.Reports.Count == 2, "session processes multiple reports");
 Check(log.Lines.Any(line => line.Contains("Gateway 1 connected")), "HELLO logged");
-Check(log.Lines.Any(line => line.Contains("Temperature 21.43 C Relative Humidity 43.21 % Battery 3.912 V RSSI -72 dBm SNR 9.50 dB")), "complete diagnostics");
-Check(log.Timestamps.All(value => value >= before && value <= DateTimeOffset.UtcNow && value.Offset == TimeSpan.Zero) && log.Timestamps.Count == 2, "service UTC timestamps");
+Check(!log.Lines.Any(line => line.Contains("Temperature") || line.Contains("Sequence")), "measurements not operational logs");
+Check(publisher.Reports.All(r => r.ReceivedUtc >= before && r.ReceivedUtc <= DateTimeOffset.UtcNow && r.ReceivedUtc.Offset == TimeSpan.Zero) && publisher.Reports.Count == 2, "service UTC timestamps");
 foreach (byte[] badSession in new byte[][] { rx, [1, 0, 1, 0], [.. hello, .. hello, .. rx], [0, 0, 0], [.. hello, 2, 0] })
 {
     log = new CaptureLogger();
-    await new GatewaySession(log).RunAsync(new MemoryStream(badSession), default);
+    publisher = new();
+    await Session(log).RunAsync(new MemoryStream(badSession), default);
     Check(log.Lines.Any(line => line.Contains("Gateway Protocol error")), "gateway errors classified");
-    Check(!log.Lines.Any(line => line.Contains("Node 12")), "bad gateway frame not decoded");
+    Check(publisher.Reports.IsEmpty, "bad gateway frame not decoded");
 }
 log = new CaptureLogger();
-await new GatewaySession(log).RunAsync(new MemoryStream([
+publisher = new();
+await Session(log).RunAsync(new MemoryStream([
     .. hello, 2, 0, 2, 0xb8, 38, // Empty raw LoRa payload is a LoRa error.
     2, 0, 3, 0xb8, 38, 0, // Invalid class.
     2, 0, 3, 0xb8, 38, 99, // Unsupported class.
@@ -114,12 +129,13 @@ await new GatewaySession(log).RunAsync(new MemoryStream([
     .. rx]), default);
 Check(log.Lines.Count(line => line.Contains("LoRa protocol error")) == 4, "LoRa errors classified");
 Check(!log.Lines.Any(line => line.Contains("Gateway Protocol error")), "layers stay separate");
-Check(log.Lines.Any(line => line.Contains("Node 12 Sequence 3871")), "valid report follows bad LoRa packets");
+Check(publisher.Reports.Count == 1, "valid report follows bad LoRa packets");
 
 // Real TCP worker: concurrent connections, reconnect, cancellation during a frame.
 // Port 0 is used only in this direct worker test to obtain an OS-assigned port.
 var workerLog = new CaptureLogger();
-using var worker = new GatewayWorker(Options.Create(new GatewayOptions { ListenAddress = "127.0.0.1", Port = 0 }), workerLog);
+publisher = new();
+using var worker = new GatewayWorker(Options.Create(new GatewayOptions { ListenAddress = "127.0.0.1", Port = 0 }), workerLog, Session(workerLog));
 await worker.StartAsync(default);
 await WaitUntil(() => workerLog.Endpoint != null || worker.ExecuteTask?.IsCompleted == true);
 if (worker.ExecuteTask?.IsFaulted == true) await worker.ExecuteTask;
@@ -134,7 +150,7 @@ for (var run = 1; run <= 2; run++)
     await client.GetStream().WriteAsync(combined);
     client.Client.Shutdown(SocketShutdown.Send);
     var expected = run * 2;
-    await WaitUntil(() => workerLog.Lines.Count(line => line.Contains("Node 12 Sequence 3871")) == expected);
+    await WaitUntil(() => publisher.Reports.Count == expected);
 }
 using (var bad = new TcpClient())
 {
@@ -146,6 +162,7 @@ using (var bad = new TcpClient())
 using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5))) await worker.StopAsync(timeout.Token);
 Check(worker.ExecuteTask?.IsCompletedSuccessfully == true, "worker stops with a partial-frame client");
 Console.WriteLine($"PASS: {count} protocol, session, and TCP checks");
+await SemanticTests.RunAsync();
 
 static async Task WaitUntil(Func<bool> condition)
 {
@@ -163,7 +180,7 @@ sealed class FragmentedStream(byte[] data, int boundary, int chunkSize) : Memory
     }
 }
 
-sealed class CaptureLogger : ILogger<GatewayWorker>
+sealed class CaptureLogger : ILogger<GatewayWorker>, ILogger<GatewaySession>, ILogger<LoRaPacketHandler>, ILogger<SemanticMapper>, ILogger<MqttPublisher>
 {
     public ConcurrentQueue<string> Lines { get; } = new();
     public ConcurrentQueue<DateTimeOffset> Timestamps { get; } = new();
@@ -179,5 +196,17 @@ sealed class CaptureLogger : ILogger<GatewayWorker>
                 if (field.Key == "Endpoint" && field.Value is IPEndPoint endpoint) Endpoint = endpoint;
             }
         Lines.Enqueue(formatter(state, exception));
+    }
+}
+
+sealed record LegacyReport(byte NodeId, ushort Sequence, decimal? TemperatureC,
+    decimal? RelativeHumidityPercent, decimal? BatteryVolts);
+sealed class CapturePublisher : IReportPublisher
+{
+    public ConcurrentQueue<SemanticReport> Reports { get; } = new();
+    public Task PublishAsync(SemanticReport report, CancellationToken cancellationToken)
+    {
+        Reports.Enqueue(report);
+        return Task.CompletedTask;
     }
 }
