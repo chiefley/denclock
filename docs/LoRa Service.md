@@ -1,5 +1,12 @@
 # LoRa Service
 
+## Implementation status
+
+The receive/decoding/logging path and Windows Service hosting are implemented.
+Configuration-driven semantic mapping, its logging policy, and MQTT publishing
+are specified for a later increment, not implemented by the current worker.
+See the [implemented contract](../lora-service/docs/contract.md).
+
 ## 1. Purpose
 
 The LoRa Service is the application-level boundary between the DenClock LoRa radio network and applications that consume or produce LoRa messages.
@@ -7,9 +14,9 @@ The LoRa Service is the application-level boundary between the DenClock LoRa rad
 Its primary responsibilities are:
 
 - Accept connections from one or more LoRa/Wi-Fi gateways.
-- Implement the Gateway Protocol defined in `GATEWAY-PROTOCOL.md`.
+- Implement the Gateway Protocol defined in [Gateway Protocol](Gateway%20Protocol.md).
 - Receive raw LoRa packets and associated radio metadata from gateways.
-- Interpret LoRa application packets according to `LORA-PROTOCOL.md`.
+- Interpret LoRa application packets according to [LoRa Protocol](LoRa%20Protocol.md).
 - Assign an authoritative UTC reception timestamp to received packets.
 - Convert LoRa protocol messages into application-level representations.
 - Eventually publish application-level messages through MQTT.
@@ -86,7 +93,7 @@ The service shall:
 - Receive subsequent Gateway Protocol messages from that connection.
 - Detect connection loss and cleanly release connection state.
 
-The Gateway Protocol itself is defined by `GATEWAY-PROTOCOL.md`.
+The Gateway Protocol itself is defined by [Gateway Protocol](Gateway%20Protocol.md).
 
 ---
 
@@ -157,7 +164,7 @@ SNR
 Raw LoRa packet bytes
 ```
 
-RSSI and SNR representation are defined by `GATEWAY-PROTOCOL.md`.
+RSSI and SNR representation are defined by [Gateway Protocol](Gateway%20Protocol.md).
 
 The remaining bytes are the exact LoRa packet received by the gateway.
 
@@ -200,7 +207,7 @@ This design avoids requiring synchronized real-time clocks or NTP timekeeping in
 
 ## 8. LoRa Application Protocol
 
-The raw LoRa packet contained in `RX_PACKET` shall be interpreted according to `LORA-PROTOCOL.md`.
+The raw LoRa packet contained in `RX_PACKET` shall be interpreted according to [LoRa Protocol](LoRa%20Protocol.md).
 
 The first byte of a LoRa application packet is the Message Class.
 
@@ -226,7 +233,7 @@ The service architecture shall permit additional Message Class handlers to be ad
 
 ## 9. SENSOR_REPORT Processing
 
-The `SENSOR_REPORT` wire format is defined by `LORA-PROTOCOL.md`.
+The `SENSOR_REPORT` wire format is defined by [LoRa Protocol](LoRa%20Protocol.md).
 
 The initial service shall be capable of decoding:
 
@@ -244,11 +251,11 @@ The initial TLV types are:
 0x03  BATTERY_VOLTAGE
 ```
 
-Units, scaling, lengths, signedness, byte order, and other wire-level semantics are defined exclusively by `LORA-PROTOCOL.md`.
+Units, scaling, lengths, signedness, byte order, and other wire-level semantics are defined exclusively by [LoRa Protocol](LoRa%20Protocol.md).
 
 The LoRa Service shall not redefine those semantics.
 
-Unknown TLV types shall be handled according to `LORA-PROTOCOL.md`.
+Unknown TLV types shall be handled according to [LoRa Protocol](LoRa%20Protocol.md).
 
 ---
 
@@ -266,7 +273,8 @@ This includes converting protocol-specific representations such as:
 
 into useful application-level values.
 
-The normalized representation may also include transport context such as:
+The semantic-mapping and MQTT contracts define normalized measurements and
+reception context, including:
 
 - Gateway ID
 - Source Node ID
@@ -274,6 +282,14 @@ The normalized representation may also include transport context such as:
 - UTC reception timestamp
 - RSSI
 - SNR
+
+The [semantic-mapping contract](Lora%20Service%20Semantic%20Mapping.md) defines
+Gateway ID to gateway-name mapping, Node ID to node-name mapping, and TLV Type
+to measurement-name and normalized-value mapping. The
+[MQTT interface](MQTT-INTERFACE.md) defines the application-facing representation.
+The flow is LoRa wire representation → LoRa Service semantic mapping → normalized
+semantic representation → MQTT interface. Consumers need no LoRa or Gateway
+wire-protocol knowledge to interpret the published data.
 
 Wire-protocol definitions must not be exposed to applications merely because they are convenient to the first implementation.
 
@@ -307,19 +323,17 @@ The LoRa Service will eventually:
 - receive requests requiring LoRa transmission where appropriate; and
 - translate between application-level requests and LoRa protocol messages.
 
-The following MQTT details are intentionally not yet specified:
+The [MQTT interface](MQTT-INTERFACE.md) defines the initial SENSOR_REPORT topic
+hierarchy, payload schema, QoS, retained last-known state, and basic broker
+failure/reconnection behavior. It does not require offline spooling or replay;
+loss of a report while MQTT is unavailable is acceptable. Retained state does
+not replace application measurement history.
 
-- Topic hierarchy
-- Message payload schema
-- QoS
-- Retained-message policy
-- Command topics
-- Response topics
-- Event topics
+Command, response, and event topics, authentication, and other bidirectional
+behavior remain outside that interface. The Gateway Protocol already defines
+TX_PACKET framing; this does not define application command semantics.
 
-Those decisions shall be made when an implementation increment requires them.
-
-MQTT support is not required for the first LoRa Service implementation.
+MQTT publishing remains unimplemented in the current LoRa Service.
 
 ---
 
@@ -339,18 +353,15 @@ Battery 3.912 V
 Received 2026-09-20T14:38:27.123Z
 ```
 
-It shall not decide that Node 1 means:
-
-```text
-Porch Sensor
-```
-
-unless such naming is later deliberately made part of shared infrastructure configuration.
+Shared infrastructure naming is now defined by the
+[semantic-mapping contract](Lora%20Service%20Semantic%20Mapping.md): the LoRa
+Service resolves gateway and node names (for example, Node 1 to `porch`) and
+measurement identities. This is distinct from application-specific presentation.
 
 Likewise, the LoRa Service does not decide:
 
 - how long temperature history is retained;
-- how DenClock presents temperature;
+- how DenClock presents temperature or converts canonical units for display;
 - what graphs DenClock displays;
 - whether a temperature is considered high or low;
 - how environmental history is stored.
@@ -414,7 +425,12 @@ Malformed input shall not cause termination of the service.
 
 The service shall provide useful operational logging.
 
-For the initial implementation, logging should make end-to-end development testing possible without requiring MQTT or DenClock.
+The currently implemented receive increment logs decoded reports to support
+end-to-end testing without MQTT or DenClock. The specified semantic-mapping/MQTT
+increment instead uses the [semantic-mapping logging policy](Lora%20Service%20Semantic%20Mapping.md#9-logging)
+and [MQTT logging policy](MQTT-INTERFACE.md#20-logging): infrastructure diagnostics,
+with routine successful measurements carried by MQTT rather than logged.
+That logging change, including Serilog sinks, is not yet implemented.
 
 Useful events include:
 
@@ -503,7 +519,8 @@ The first increment does **not** require:
 - Remote antenna control
 - Production service installation
 
-Those capabilities shall be added as later increments when required.
+Windows Service hosting has since been implemented and accepted. The other
+capabilities remain for later increments; see the implemented contract above.
 
 ---
 
@@ -543,16 +560,27 @@ The initial deployment on the DenClock NUC shall not unnecessarily bind the LoRa
 
 ## 18. Related Documents
 
-`ARCHITECTURE.md`
+[Architecture](ARCHITECTURE.md)
 
 Defines the overall DenClock system architecture and component responsibilities.
 
-`LORA-PROTOCOL.md`
+[LoRa Protocol](LoRa%20Protocol.md)
 
 Defines the custom LoRa application protocol, radio configuration, Message Classes, `SENSOR_REPORT`, Node IDs, sequence semantics, and TLV definitions.
 
-`GATEWAY-PROTOCOL.md`
+[Gateway Protocol](Gateway%20Protocol.md)
 
 Defines the TCP/IP protocol used between gateways and the LoRa Service, including `HELLO`, `RX_PACKET`, and `TX_PACKET`.
 
-This document defines the responsibilities and behavior of the **LoRa Service component** that joins those two protocol boundaries.
+[LoRa Service Semantic Mapping](Lora%20Service%20Semantic%20Mapping.md)
+
+Defines numeric identifier mapping, canonical measurement normalization, and the
+logging policy for the specified mapping increment.
+
+[MQTT Interface](MQTT-INTERFACE.md)
+
+Defines semantic sensor publication, including topics, payloads, QoS, retention,
+and basic failure/recovery behavior.
+
+This document defines the responsibilities of the **LoRa Service component**
+that connects transport, wire interpretation, semantic mapping, and publication.

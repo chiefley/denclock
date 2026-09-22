@@ -56,7 +56,7 @@ See [hardware](HARDWARE.md) for the recorded device/address inventory and
 
 The receive path through the LoRa Service is implemented in
 [story 004](stories/completed/004-end-to-end-lora-receive-path.md), accepted after developer testing and verification.
-The MQTT/application path below is future work. The accepted serial diagnostic
+The MQTT/application path below is specified but not yet implemented. The accepted serial diagnostic
 receiver remains selectable as a separate firmware build.
 
 ```text
@@ -90,21 +90,26 @@ MQTT belongs after the LoRa Service. The gateway never communicates with MQTT.
   checks belong here; custom-protocol validation belongs in the LoRa Service.
   The existing receiver's diagnostic decoder does not establish a production
   gateway responsibility.
-- **MQTT is the future application distribution boundary.** Mosquitto will
-  distribute normalized LoRa Service outputs to applications. Broker persistence,
-  sessions, and retained messages do not replace environmental history. MQTT
-  topics and application encoding remain TBD; the gateway TCP framing is defined.
+- **MQTT is the specified application distribution boundary.** The
+  [MQTT interface](MQTT-INTERFACE.md) defines the SENSOR_REPORT topic structure,
+  payload, QoS, retention, and basic reconnect/delivery behavior. Sensor reports
+  use `lora/sensors/{node-name}`, QoS 1, and retained messages. Retained state is
+  the last-known observation, not measurement history. Publishing remains
+  unimplemented; Mosquitto is the specified broker.
 - **LoRa Service owns the custom LoRa protocol.** It accepts gateway TCP
   connections, assigns UTC reception timestamps, validates and parses
   message-class headers and TLVs, and interprets Node IDs and sequence numbers.
-  Currently it logs decoded measurements; eventually it will publish messages with
-  explicit measurement meaning and units. It preserves relevant source and
+  Its [semantic mapping](Lora%20Service%20Semantic%20Mapping.md) resolves Gateway
+  IDs to friendly gateway names, Node IDs to friendly node names, and TLV Type
+  IDs to measurement names and normalized values. Currently it logs decoded
+  measurements; configured semantic mapping and MQTT publishing are specified
+  for a later implementation. It preserves relevant source and
   reception context so applications need not decode packet bytes. Unknown TLVs
   and malformed packets follow the wire specification. This shared protocol
   knowledge is independent of DenClock and future ham-radio applications.
 - **DenClock owns environmental history and presentation.** It consumes normalized
   LoRa Service outputs, maintains application state/history, and supplies clock
-  and weather information to browsers. Friendly node and gateway names are resolved by the LoRa Service semantic mapping. Display-unit preferences, history retention, and display behavior belong to applications. DenClock does not parse the LoRa wire protocol.
+  and weather information to browsers. Friendly node and gateway names are resolved by the LoRa Service semantic mapping. Display-unit preferences/conversion, history retention, alarms, and display behavior belong to applications. DenClock does not parse the LoRa wire protocol.
 - **Future ham-radio applications consume LoRa Service outputs.** They own their
   equipment-specific behavior and application transactions. Shared wire-protocol
   understanding stays in the LoRa Service. Future outbound commands would be
@@ -116,7 +121,9 @@ MQTT belongs after the LoRa Service. The gateway never communicates with MQTT.
   to the service rather than an individual display. Remote access belongs at the
   web-service/network boundary.
 
-Gateway firmware does not decide application persistence policy.
+The MQTT interface defines SENSOR_REPORT publication policy. Applications own
+their measurement history and application-specific policy; gateway firmware
+does not decide persistence policy.
 
 ## Deployment Independence
 
@@ -165,7 +172,8 @@ parser in DenClock.
 
 - Command/response and event wire formats, destination addressing, authentication,
   transaction correlation, timeouts, retries, and delivery guarantees.
-- Application storage, history retention, and retained application topic policies.
+- Application storage and history retention. SENSOR_REPORT publication and
+  retention are already defined by the MQTT interface.
 - Security and remote-access configuration; the radio sync word provides network
   discrimination, not authentication.
 - Registry policy for future Message Classes and TLV Types, and any additional
@@ -184,7 +192,7 @@ Service supersedes the earlier assignment of wire-payload interpretation directl
 to application services. The Gateway Protocol and LoRa Service specifications
 supersede the earlier gateway-to-MQTT transport and gateway timestamp suggestions.
 Using direct framed TCP keeps the gateway independent of both the LoRa application
-protocol and the future MQTT schema. The service assigns reception time so the
+protocol and the separately defined MQTT schema. The service assigns reception time so the
 gateway needs no synchronized clock.
 
 Decision context:

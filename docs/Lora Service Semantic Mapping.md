@@ -1,5 +1,9 @@
 # LoRa Service Semantic Mapping
 
+This is the specified mapping and logging contract for a future implementation
+increment. The [current worker](../lora-service/docs/contract.md) decodes and logs
+reports without configuration-driven semantic mapping or MQTT publishing.
+
 ## 1. Purpose
 
 The LoRa Service translates the compact numeric representation used by the LoRa application protocol into semantic, application-friendly data.
@@ -8,7 +12,7 @@ LoRa airtime is a constrained resource, so the radio protocol uses compact numer
 
 The semantic mapping is configuration-driven so that new sensor nodes and new measurement types can normally be introduced without modifying LoRa Service code.
 
-`LORA-PROTOCOL.md` remains authoritative for assigned LoRa protocol identifiers and their immutable wire semantics. The mapping file is the machine-readable representation used by the LoRa Service.
+[LoRa Protocol](LoRa%20Protocol.md) remains authoritative for assigned LoRa protocol identifiers and their immutable wire semantics. The mapping file is the machine-readable representation used by the LoRa Service.
 
 ## 2. Architectural Boundary
 
@@ -34,7 +38,7 @@ MQTT
 Applications
 ```
 
-An application consuming MQTT data should not need `LORA-PROTOCOL.md` in order to understand a measurement.
+An application consuming MQTT data should not need [LoRa Protocol](LoRa%20Protocol.md) in order to understand a measurement.
 
 Application-specific presentation policy is outside this mapping. For example, whether DenClock displays porch temperature on its front page belongs to DenClock configuration, not the LoRa Service.
 
@@ -42,11 +46,11 @@ Application-specific presentation policy is outside this mapping. For example, w
 
 The LoRa Service shall use a single JSON semantic mapping file.
 
-The file contains two primary mapping domains:
+The file contains three primary mapping domains:
 
 - `nodes` — maps LoRa Node IDs to human-readable node identity.
 - `measurements` — maps LoRa TLV Type IDs to measurement semantics and wire decoding information.
-- 'gateways' - maps gateway id to a human readable gateway identity
+- `gateways` — maps Gateway IDs to human-readable gateway identity.
 
 Example:
 
@@ -56,8 +60,8 @@ Example:
     "1": {
       "name": "den-gateway",
       "description": "Den LoRa/Wi-Fi gateway"
-  }
-}
+    }
+  },
   "nodes": {
     "1": {
       "name": "porch",
@@ -96,18 +100,24 @@ Example:
 }
 ```
 
-## 3.1 Gateway Mappint
+## 3.1 Gateway Mapping
 
-A gateway entry maps the numeric gateway ID carried by the LoRa protol to the unstallation specific identity.
+A gateway entry maps the numeric Gateway ID carried by Gateway Protocol HELLO
+to installation-specific identity.
 
 Each gateway entry initially contains
 
-- 'name' - short, stable, human-readable identity.
-- 'description' - optional descriptive text.
+- `name` — short, stable, human-readable identity.
+- `description` — optional descriptive text.
 
 Gateway names are installation configuration and are not part of the LoRa wire protocol.
 
-A gateway therefore needs to know only its numeric Node ID. Moving or repurposing a physical gateway may require only a mapping-file change rather than a firmware change.
+If a Gateway ID has no configured mapping, the service may use its decimal ID
+as the fallback name (for example, Gateway ID 37 becomes `"37"`). The numeric
+Gateway ID remains unchanged; no friendly-name mapping is required for this
+fallback.
+
+A gateway therefore needs to know only its numeric Gateway ID. Moving or repurposing a physical gateway may require only a mapping-file change rather than a firmware change.
 
 Friendly gateway identity must not be embedded in the LoRa packet solely for application presentation.
 
@@ -222,7 +232,7 @@ For a known measurement TLV, the LoRa Service shall:
 
 1. Look up the TLV Type in the measurement mapping.
 2. Verify the expected length.
-3. Decode the Value using the configured numeric wire type and the byte-order rules defined by `LORA-PROTOCOL.md`.
+3. Decode the Value using the configured numeric wire type and the byte-order rules defined by [LoRa Protocol](LoRa%20Protocol.md).
 4. Apply the configured scale.
 5. Associate the resulting numeric value with its semantic name and units.
 
@@ -243,7 +253,7 @@ Value       = 21.43
 Units       = C
 ```
 
-The exact MQTT representation of this semantic information is defined separately by the MQTT interface contract.
+The exact MQTT representation of this semantic information is defined separately by the [MQTT interface contract](MQTT-INTERFACE.md).
 
 ## 7. Configuration Validation
 
@@ -270,7 +280,7 @@ An unknown Node ID or TLV Type received at runtime is not itself a service failu
 
 The LoRa Service shall handle unknown identifiers gracefully and generate an appropriate infrastructure warning.
 
-Unknown TLVs remain skippable according to the Length field as required by `LORA-PROTOCOL.md`.
+Unknown TLVs remain skippable according to the Length field as required by [LoRa Protocol](LoRa%20Protocol.md).
 
 This permits deployments and protocol additions to occur without causing the service to fail when it encounters data not yet represented in its local mapping.
 
@@ -312,7 +322,7 @@ App storage -> What happened to measurements over time?
 
 ## 10. Authority of the LoRa Protocol
 
-`LORA-PROTOCOL.md` remains authoritative for LoRa wire protocol assignments and semantics.
+[LoRa Protocol](LoRa%20Protocol.md) remains authoritative for LoRa wire protocol assignments and semantics.
 
 Once a TLV Type has been defined, its protocol meaning, representation, units, length, and scaling are immutable as specified by the LoRa protocol.
 

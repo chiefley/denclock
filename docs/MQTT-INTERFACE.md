@@ -1,5 +1,8 @@
 # MQTT Interface
 
+This document specifies the MQTT contract for a future implementation increment.
+MQTT publishing is not yet implemented in the [current LoRa worker](../lora-service/docs/contract.md).
+
 ## 1. Purpose
 
 MQTT provides the application-facing messaging boundary between the LoRa Service and applications that consume information received through the LoRa network.
@@ -155,7 +158,8 @@ The `gateway` object identifies the gateway through which the LoRa Service recei
 It contains:
 
 - `id` — numeric Gateway ID from the Gateway Protocol.
-- `name` — friendly gateway name from semantic mapping configuration.
+- `name` — friendly gateway name from semantic mapping configuration, or the
+  ID fallback defined by [Gateway Mapping](Lora%20Service%20Semantic%20Mapping.md#31-gateway-mapping).
 
 Gateway naming is configuration rather than a property of the Gateway Protocol.
 
