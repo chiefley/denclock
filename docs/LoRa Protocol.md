@@ -350,8 +350,7 @@ Examples include:
 - radio parameters.
 
 The Gateway Protocol carries RSSI/SNR and associates the Gateway ID with the
-TCP connection. The LoRa Service adds the UTC reception timestamp. MQTT is a
-future application-facing boundary after the LoRa Service.
+TCP connection. The LoRa Service adds the UTC reception timestamp. MQTT is an application-facing boundary after the LoRa Service, as defined in MQTT-INTERFACE.nd
 
 The gateway does not interpret sensor TLVs in order to perform this function.
 

@@ -104,9 +104,7 @@ MQTT belongs after the LoRa Service. The gateway never communicates with MQTT.
   knowledge is independent of DenClock and future ham-radio applications.
 - **DenClock owns environmental history and presentation.** It consumes normalized
   LoRa Service outputs, maintains application state/history, and supplies clock
-  and weather information to browsers. Friendly sensor names, display units,
-  history retention, and display behavior belong to the application. DenClock
-  does not parse the LoRa wire protocol.
+  and weather information to browsers. Friendly node and gateway names are resolved by the LoRa Service semantic mapping. Display-unit preferences, history retention, and display behavior belong to applications. DenClock does not parse the LoRa wire protocol.
 - **Future ham-radio applications consume LoRa Service outputs.** They own their
   equipment-specific behavior and application transactions. Shared wire-protocol
   understanding stays in the LoRa Service. Future outbound commands would be
@@ -118,8 +116,7 @@ MQTT belongs after the LoRa Service. The gateway never communicates with MQTT.
   to the service rather than an individual display. Remote access belongs at the
   web-service/network boundary.
 
-Applications own the meaning and publication policy of their retained application
-topics. Gateway firmware does not decide application persistence policy.
+Gateway firmware does not decide application persistence policy.
 
 ## Deployment Independence
 
@@ -166,8 +163,6 @@ parser in DenClock.
 
 ## Deliberately Unresolved
 
-- MQTT topics, normalized message schemas,
-  QoS, retention/expiry, and reconnect/delivery behavior.
 - Command/response and event wire formats, destination addressing, authentication,
   transaction correlation, timeouts, retries, and delivery guarantees.
 - Application storage, history retention, and retained application topic policies.

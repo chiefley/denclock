@@ -275,10 +275,6 @@ The normalized representation may also include transport context such as:
 - RSSI
 - SNR
 
-The exact normalized application-message schema is not yet defined.
-
-It shall be defined when the MQTT application interface is designed.
-
 Wire-protocol definitions must not be exposed to applications merely because they are convenient to the first implementation.
 
 ---
