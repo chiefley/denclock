@@ -30,6 +30,22 @@ as documented; always-powered wiring cannot be switched off by this firmware.
 The radio and sensor are initialized again on wake. Radio sleep failures are
 logged; the ESP32 still sleeps and retries on wake.
 
+## Sensor reset OLED diagnostics
+
+Power-up, manual reset, and other resets except ESP32 deep-sleep wakes display
+only the configured node ID and battery voltage for five seconds before normal
+sensor/radio initialization. The centered node ID uses a 24-pixel font; voltage
+uses a 16-pixel font with two decimal places and the existing battery-measurement
+routine. Deep-sleep wakes do not initialize the OLED or wait for this interval.
+OLED initialization failure does not prevent normal sensor operation.
+
+After diagnostics, firmware sends display-off, stops the OLED Wire bus, leaves
+GPIO17/18 as inputs without internal pull-ups, asserts reset GPIO21 LOW, and
+cuts Vext power. Because Vext also supplies the SHT40, it is restored for normal
+sensor operation with OLED reset held LOW. During deep sleep Vext is off, and
+GPIO holds preserve OLED reset and I2C pin states. Packet format, measurement
+behavior, sequence handling, and the five-second sleep interval are unchanged.
+
 ## Radio and reception
 
 Both projects configure SX1262 at 915 MHz, bandwidth 125 kHz, SF9, coding rate

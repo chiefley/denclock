@@ -38,8 +38,9 @@ present measurements are printed after the entire packet validates. The first
 sensor always sends all three. Sync-word matching is not authentication.
 
 Hardware wiring and battery calibration assumptions match the bench tests
-below. The production gateway drives its OLED; the remote sensor and serial-only
-`diagnostic` build use serial at 115200 without an OLED.
+below. The production gateway drives its OLED continuously; the remote sensor
+uses its OLED briefly after reset. Both retain serial diagnostics at 115200;
+the serial-only gateway `diagnostic` build does not use an OLED.
 The [deep-sleep story](docs/stories/completed/003-remote-sensor-deep-sleep-operation.md)
 is verified and accepted by the developer. Production gateway networking forwards raw packets
 to the independent LoRa Service; the DenClock time server is not involved.
@@ -98,6 +99,31 @@ On hardware, flash the production environment and verify:
    battery. Test an error before any valid report and restoration to placeholders.
 5. Disconnect the service: valid radio reports must still update RX/the OLED.
    Restore the service and confirm HELLO and unchanged raw forwarding resume.
+
+## Remote sensor reset diagnostics
+
+[Sensor Node Reset Status Display](docs/stories/completed/005-sensor-node-reset-status-display.md)
+is accepted by the developer. Power-up, the Reset button, and other resets that
+are not deep-sleep wakes show a prominent node ID and battery voltage with two
+decimal places for five seconds. The display reuses the packet battery-measurement
+routine; it shows no environmental measurements. All deep-sleep wakes skip OLED
+initialization and the display delay.
+
+The sensor uses the same pinned ThingPulse library and GPIO17/18 I2C wiring,
+with reset on GPIO21, as the gateway. Diagnostics run before sensor/radio
+initialization so they remain available even if those devices fail. After the
+interval, firmware sends display-off, stops Wire, removes OLED I2C pull-ups,
+asserts OLED reset LOW, and switches Vext off. Vext supplies both OLED and SHT40,
+so normal sensor startup restores it; holding OLED reset LOW keeps the display
+inactive during measurement and transmission. Deep sleep switches Vext off and
+holds OLED reset LOW and its I2C pins as inputs. Actual current consumption,
+including any reset-line pull-up load, has not been characterized by Codex.
+
+For hardware regression checks, power-cycle and press Reset separately: confirm
+only node ID and battery volts appear, remain readable for about five seconds,
+and then disappear. Observe several timer wakes: the screen must stay dark,
+reports must continue, and sequence must advance normally. Compare battery
+current during measurement and sleep with the previous firmware where practical.
 
 ## Remote sensor deep-sleep operation
 
