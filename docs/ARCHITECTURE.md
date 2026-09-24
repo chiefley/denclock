@@ -86,11 +86,13 @@ MQTT belongs after the LoRa Service. The gateway never communicates with MQTT.
 - **Gateway firmware owns LoRa/radio transport.** It configures and operates the
   radio, receives packets, and forwards original packet bytes plus RSSI/SNR over
   TCP. HELLO identifies the gateway once per connection. The gateway does not
-  timestamp packets. The gateway preserves the packet without interpreting custom message
-  classes, Node IDs, sequence semantics, or sensor TLVs. Radio reception and CRC
-  checks belong here; custom-protocol validation belongs in the LoRa Service.
-  The existing receiver's diagnostic decoder does not establish a production
-  gateway responsibility.
+  timestamp packets. Forwarding preserves raw bytes independently of custom
+  message classes, Node IDs, sequence semantics, or sensor TLVs. Radio reception
+  and CRC checks belong here; application acceptance belongs in the LoRa Service.
+  The production OLED separately observes sensor-decoder results to show node,
+  battery and radio diagnostics and packet errors. This narrow local diagnostic
+  exception preserves the transport boundary: OLED rejection does not suppress
+  raw forwarding, and environmental measurements are not displayed.
 - **MQTT is the specified application distribution boundary.** The
   [MQTT interface](MQTT-INTERFACE.md) defines the SENSOR_REPORT topic structure,
   payload, QoS, retention, and basic reconnect/delivery behavior. Sensor reports
@@ -190,7 +192,7 @@ Windows hosting, and diagnostic baseline decisions above. The separate LoRa
 Service supersedes the earlier assignment of wire-payload interpretation directly
 to application services. The Gateway Protocol and LoRa Service specifications
 supersede the earlier gateway-to-MQTT transport and gateway timestamp suggestions.
-Using direct framed TCP keeps the gateway independent of both the LoRa application
+Using direct framed TCP keeps gateway transport independent of both the LoRa application
 protocol and the separately defined MQTT schema. The service assigns reception time so the
 gateway needs no synchronized clock.
 

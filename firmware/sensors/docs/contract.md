@@ -45,10 +45,12 @@ nonzero TLVs, and permits missing measurements as the protocol specifies.
 
 ## Production gateway transport
 
-The default gateway build is application-agnostic. It receives radio/CRC-valid
+The default gateway transport is application-agnostic. It receives radio/CRC-valid
 packets and forwards the exact bytes over persistent TCP to the separately
-configured LoRa Service. It does not inspect Message Class, Node ID, sequence,
-or TLVs, and does not timestamp or convert packets to JSON.
+configured LoRa Service. Forwarding does not depend on Message Class, Node ID,
+sequence, or TLVs, and does not timestamp or convert packets to JSON. A local
+OLED observer separately reuses the sensor decoder without changing the raw
+forwarding decision or bytes.
 
 The gateway connects to configured Wi-Fi and initiates TCP to the service.
 It sends HELLO with Gateway ID 1 after every successful connection. RX_PACKET
@@ -68,6 +70,27 @@ Local credentials/endpoint values belong in the ignored `include/config.local.h`
 next to its checked-in example. Missing configuration logs a diagnostic and
 leaves forwarding disabled. The `diagnostic` environment has no Wi-Fi dependency
 and retains the original sensor decoder source unchanged.
+
+## Production gateway OLED
+
+The continuously powered 128×64 OLED shows the most recently validated sensor
+node, RSSI in dBm, SNR in dB, battery volts, and cumulative RX/ERR counts since
+boot. It never displays environmental measurements. Missing battery is N/A;
+before any accepted report, node and signal fields are placeholders.
+
+RX counts sensor-decoder successes independently of network availability. ERR
+counts observed radio receive failures and sensor-decoder rejections, retaining
+the last exact decoder reason or RadioLib error code even after subsequent
+success. Unobservable radio filtering, connection failures and transport metadata
+discards are not sensor-validation errors. The protocol has no version field and
+there is no node registry; assignable node IDs remain valid.
+
+A rejection displays large black `PACKET ERROR` text on a white background for
+three seconds from the most recent error. The rollover-safe timer does not wait
+or suspend packet processing. Valid reports received during the interval update
+the cached diagnostics; expiry restores that latest report and current counters.
+Reception is rearmed before OLED/TCP work. Existing synchronous networking can
+still delay loop servicing; no lossless receive guarantee is added.
 
 No MQTT, DenClock integration, or command handling is implemented.
 Sync-word matching provides network discrimination, not authentication.

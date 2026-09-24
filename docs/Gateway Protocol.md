@@ -6,9 +6,13 @@ This document defines the protocol between a LoRa/Wi-Fi Gateway and the LoRa Ser
 
 The purpose of the Gateway Protocol is to transport LoRa packets between the radio network and the LoRa Service over an IP network.
 
-The gateway is intentionally application-agnostic. It does not interpret the Den Clock and Weather LoRa application protocol and does not know the meaning of the packets it transports.
+The gateway transport is intentionally application-agnostic. Its forwarding
+decision does not depend on the Den Clock and Weather LoRa application protocol.
+The production OLED separately decodes sensor reports for local node, battery,
+radio and error diagnostics; this observer does not change the raw bytes or
+filter packets forwarded to the LoRa Service.
 
-In particular, the gateway does not interpret:
+In particular, transport does not interpret:
 
 - LoRa Message Classes;
 - Node IDs;
@@ -176,7 +180,7 @@ The assignment and administration of Gateway IDs is outside the wire protocol.
 
 `RX_PACKET` reports a LoRa packet received by the gateway.
 
-The gateway does not interpret the LoRa packet.
+The forwarding path does not interpret the LoRa packet.
 
 ### Payload
 
@@ -221,7 +225,8 @@ This representation avoids floating-point values in the Gateway Protocol while p
 
 All remaining bytes in the payload are the LoRa packet exactly as received from the radio.
 
-The gateway shall not modify, decode, translate, or reformat these bytes.
+The gateway shall not modify, translate, or reformat these bytes for forwarding.
+Local OLED diagnostic decoding does not affect their transport.
 
 For example, if the gateway receives a 16-byte LoRa packet, the `RX_PACKET` payload length is:
 

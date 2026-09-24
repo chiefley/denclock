@@ -1,7 +1,9 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <SSD1306Wire.h>
 #include "config.h"
 #include "gateway_protocol.h"
+#include "gateway_diagnostics.h"
 #include "../../common/radio_config.h"
 
 SX1262 radio = new Module(RadioNss, RadioDio1, RadioReset, RadioBusy);
@@ -10,6 +12,49 @@ volatile bool received = false;
 constexpr uint32_t RetryMs = 5000;
 uint32_t lastWifiAttempt = 0, lastTcpAttempt = 0;
 bool networkConfigured = false;
+SSD1306Wire display(0x3C, 17, 18);
+GatewayDiagnostics diagnostics;
+
+void updateDisplay() {
+    diagnostics.tick(millis());
+    if (!diagnostics.dirty) return;
+    diagnostics.dirty = false;
+    display.clear();
+    display.setColor(WHITE);
+    display.setTextAlignment(TEXT_ALIGN_CENTER);
+    if (diagnostics.errorVisible) {
+        display.fillRect(0, 0, 128, 64);
+        display.setColor(BLACK);
+        display.setFont(ArialMT_Plain_24);
+        display.drawString(64, 3, "PACKET");
+        display.drawString(64, 32, "ERROR");
+    } else {
+        char line[48];
+        display.setFont(ArialMT_Plain_16);
+        if (diagnostics.node) snprintf(line, sizeof(line), "NODE %02u", diagnostics.node);
+        else snprintf(line, sizeof(line), "NODE --");
+        display.drawString(64, 0, line);
+        display.setFont(ArialMT_Plain_10);
+        display.setTextAlignment(TEXT_ALIGN_LEFT);
+        // ThingPulse fonts have 19/13-pixel cells; these glyphs occupy rows
+        // 3..14 / 3..9. Eleven-pixel small-text spacing leaves clear ink gaps.
+        if (diagnostics.node)
+            snprintf(line, sizeof(line), "RSSI %.0fdBm  SNR %+.0fdB",
+                     diagnostics.rssi, diagnostics.snr);
+        else snprintf(line, sizeof(line), "RSSI --dBm  SNR --dB");
+        display.drawString(0, 18, line);
+        if (diagnostics.hasBattery)
+            snprintf(line, sizeof(line), "BAT %.2fV", diagnostics.battery / 1000.0);
+        else snprintf(line, sizeof(line), "BAT N/A");
+        display.drawString(0, 29, line);
+        // Separate rows keep the full uint32 counters legible, even at 10 digits.
+        snprintf(line, sizeof(line), "RX %lu", static_cast<unsigned long>(diagnostics.accepted));
+        display.drawString(0, 40, line);
+        snprintf(line, sizeof(line), "ERR %lu", static_cast<unsigned long>(diagnostics.rejected));
+        display.drawString(0, 51, line);
+    }
+    display.display();
+}
 
 void IRAM_ATTR packetReceived() { received = true; }
 
@@ -68,6 +113,14 @@ void setup() {
     pinMode(Vext, OUTPUT);
     digitalWrite(Vext, LOW);
     delay(50);
+    pinMode(21, OUTPUT);
+    digitalWrite(21, LOW);
+    delay(20);
+    digitalWrite(21, HIGH);
+    delay(20);
+    display.init();
+    display.flipScreenVertically();
+    updateDisplay();
     int16_t state = initializeRadio(radio);
     if (state != RADIOLIB_ERR_NONE) {
         Serial.printf("Radio initialization failed: %d\n", state);
@@ -96,22 +149,34 @@ void loop() {
         uint8_t packet[GatewayProtocol::MaxLoRaLength];
         const size_t length = radio.getPacketLength();
         int16_t state = radio.readData(packet, length);
+        const float rssi = radio.getRSSI(), snr = radio.getSNR();
+        // Re-arm reception before OLED I2C or TCP work. Metadata and payload
+        // above belong to the packet just read, not a subsequent reception.
+        startRadioReceive();
         if (state != RADIOLIB_ERR_NONE) {
+            diagnostics.reject("radio packet failure", state, millis());
             Serial.printf("RX discarded: radio error %d\n", state);
-        } else if (WiFi.status() != WL_CONNECTED || !service.connected()) {
-            Serial.println("RX discarded: service disconnected");
-        } else {
-            uint8_t frame[GatewayProtocol::MaxFrameLength];
-            size_t frameLength = GatewayProtocol::encodeRx(
-                frame, packet, length, radio.getRSSI(), radio.getSNR());
-            if (frameLength == 0) {
-                Serial.println("RX discarded: radio metadata outside wire range");
-            } else if (sendFrame(frame, frameLength)) {
-                Serial.printf("RX_PACKET forwarded: %u raw LoRa bytes\n", unsigned(length));
+        } else if (!diagnostics.observe(packet, length, rssi, snr, millis())) {
+            Serial.printf("OLED report rejected: %s\n", diagnostics.lastError);
+        }
+        updateDisplay();
+        // OLED protocol validation is observational: preserve raw forwarding.
+        if (state == RADIOLIB_ERR_NONE) {
+            if (WiFi.status() != WL_CONNECTED || !service.connected()) {
+                Serial.println("RX discarded: service disconnected");
+            } else {
+                uint8_t frame[GatewayProtocol::MaxFrameLength];
+                size_t frameLength = GatewayProtocol::encodeRx(
+                    frame, packet, length, rssi, snr);
+                if (frameLength == 0) {
+                    Serial.println("RX discarded: radio metadata outside wire range");
+                } else if (sendFrame(frame, frameLength)) {
+                    Serial.printf("RX_PACKET forwarded: %u raw LoRa bytes\n", unsigned(length));
+                }
             }
         }
-        startRadioReceive();
     }
+    updateDisplay();
     maintainConnection();
     delay(1);
 }

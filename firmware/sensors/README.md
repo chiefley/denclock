@@ -38,7 +38,8 @@ present measurements are printed after the entire packet validates. The first
 sensor always sends all three. Sync-word matching is not authentication.
 
 Hardware wiring and battery calibration assumptions match the bench tests
-below. No OLED is driven by these two projects; diagnostics use serial at 115200.
+below. The production gateway drives its OLED; the remote sensor and serial-only
+`diagnostic` build use serial at 115200 without an OLED.
 The [deep-sleep story](docs/stories/completed/003-remote-sensor-deep-sleep-operation.md)
 is verified and accepted by the developer. Production gateway networking forwards raw packets
 to the independent LoRa Service; the DenClock time server is not involved.
@@ -50,6 +51,53 @@ five-second intervals, and discards reports while disconnected without queuing.
 RSSI is rounded to the nearest dBm; SNR to the nearest quarter dB. Metadata that
 cannot fit the protocol signed bytes is logged and the packet discarded rather
 than wrapped or assigned an invented saturation value. Raw LoRa bytes are opaque.
+
+## Gateway OLED diagnostics
+
+[Gateway OLED Infrastructure Diagnostics](docs/stories/completed/004-gateway-oled-infrastructure-diagnostics.md)
+is verified and accepted by the developer.
+The production build uses the same ThingPulse OLED library and Heltec OLED wiring
+as the bringup receiver. It shows a prominent node ID, rounded RSSI (dBm) and SNR
+(dB), battery volts (N/A when absent), and full RX/ERR counters on separate rows.
+Environmental measurements are never rendered. Before the first valid report,
+node and signal values show placeholders.
+
+RX counts locally validated sensor reports, even without a TCP connection. ERR
+counts observed RadioLib receive failures and reports rejected by the existing
+sensor decoder. An error fills the display white with large black `PACKET ERROR`
+text for three seconds; another error restarts that interval. Reception continues,
+and expiry restores the latest valid report. Exact decoder reasons and radio error
+codes remain in RAM and are logged to serial. Silent radio filtering (such as a
+different sync word) cannot be counted. No version field or node registry exists.
+
+OLED validation is observational: it does not filter the raw TCP forwarding path.
+Disconnected-service drops, TCP write failures, and unrepresentable forwarding
+metadata retain their existing logs and are not OLED sensor-validation errors.
+The error timer is nonblocking and rollover-safe; existing synchronous network
+operations can still delay loop servicing and cause packet loss.
+
+Build both environments with:
+
+```sh
+pio run -d firmware/sensors/lora-gateway -e heltec_wifi_lora_32_V3 -e diagnostic
+g++ -std=c++11 -Wall -Wextra -Werror -pedantic firmware/sensors/tests/gateway_diagnostics_test.cpp -o /tmp/denclock-gateway-diagnostics-test
+/tmp/denclock-gateway-diagnostics-test
+```
+
+On hardware, flash the production environment and verify:
+
+1. Startup placeholders, then node, battery, signal units and advancing RX counts;
+   no temperature/humidity. Confirm the layout fits and the node stands out.
+2. Send a malformed TLV, unsupported class, or reserved node ID using a temporary
+   transmitter with matching radio settings. Confirm ERR increments once and
+   serial preserves the reason. Exercise observable CRC failures where practical.
+3. During the bright error screen, send a valid report from another node and
+   confirm raw TCP forwarding continues. At about three seconds, confirm the
+   newest node and counters appear. A second error should restart the interval.
+4. Send a valid report without a battery TLV and confirm N/A replaces the previous
+   battery. Test an error before any valid report and restoration to placeholders.
+5. Disconnect the service: valid radio reports must still update RX/the OLED.
+   Restore the service and confirm HELLO and unchanged raw forwarding resume.
 
 ## Remote sensor deep-sleep operation
 

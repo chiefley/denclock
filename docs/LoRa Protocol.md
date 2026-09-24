@@ -451,7 +451,9 @@ A received packet is considered a candidate application packet only if it:
 
 Failure of any of these checks causes the packet to be discarded. Radio checks
 1–3 belong to the gateway; application-protocol checks 4–5 belong to the LoRa
-Service. The production gateway does not inspect application Message Classes.
+Service. The production gateway's OLED separately observes sensor-report
+validation results for local diagnostics; that observer does not filter raw
+forwarding or replace the LoRa Service's application acceptance decision.
 
 ### Security
 
