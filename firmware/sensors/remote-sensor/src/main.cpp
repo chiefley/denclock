@@ -11,7 +11,7 @@
 
 SX1262 radio = new Module(RadioNss, RadioDio1, RadioReset, RadioBusy);
 Adafruit_SHT4x sht40;
-constexpr uint8_t NodeId = 1;
+constexpr uint8_t NodeId = 2;
 constexpr uint64_t DevelopmentSleepUs = 5ULL * 1000000ULL;
 constexpr int BatteryAdc = 1, BatteryEnable = 37;
 constexpr int OledSda = 17, OledScl = 18, OledReset = 21;
