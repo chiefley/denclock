@@ -2,9 +2,15 @@
   "temperatureUnit": "F",
   "sensors": [
     {
-      "internalName": "porch",
-      "displayName": "Outside",
+      "internalName": "back-porch",
+      "displayName": "Back Porch",
       "position": "upperRight",
+      "maxAgeSeconds": 60
+    },
+    {
+      "internalName": "den",
+      "displayName": "Den",
+      "position": "upperLeft",
       "maxAgeSeconds": 60
     }
   ]

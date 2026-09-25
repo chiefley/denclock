@@ -15,13 +15,14 @@ for the production path.
 - `../../docs/LoRa Protocol.md`: [wire protocol](../../docs/LoRa%20Protocol.md).
 - `../bringup/`: unchanged known-good TX/RX hardware diagnostics described below.
 
-The sensor sends node 1 reports with three two-byte TLVs in a 16-byte binary
-packet, then enters timer-driven deep sleep for five seconds. Values are rounded to hundredths of degrees C,
+The sensor sends reports with its configured node ID and three two-byte TLVs in a
+16-byte binary packet, then enters timer-driven deep sleep with fresh random jitter. Values are rounded to hundredths of degrees C,
 hundredths of percent RH, and millivolts, using big-endian encoding.
 Sequence starts at 0, advances for every generated/transmission-attempted report
 (including radio errors), and wraps from 65535 to 1. Sensor read failures skip
 reports and retry initialization; no fabricated or stale readings are sent.
-RTC memory retains the next sequence across timer wakes; a true reset or power-up
+RTC memory retains the next sequence, unrounded reporting baseline, and last
+successful transmission time across timer wakes; a true reset or power-up
 starts at 0. Failed readings retry on the next wake without consuming a sequence.
 
 Both projects use 915 MHz, 125 kHz bandwidth, SF9, coding rate 4/7, 10 dBm,
@@ -125,11 +126,46 @@ and then disappear. Observe several timer wakes: the screen must stay dark,
 reports must continue, and sequence must advance normally. Compare battery
 current during measurement and sleep with the previous firmware where practical.
 
+## Change reporting and heartbeat
+
+[Sensor Change Reporting, Heartbeat, and Randomized Sampling](docs/stories/completed/006-sensor-change-reporting-heartbeat-and-randomized-sampling.md)
+is verified and accepted by the developer. Development defaults in
+`remote-sensor/include/config.h` are five-second nominal sampling sleep,
+random jitter bounded by -1 and +1 second, a 0.1 °C temperature threshold,
+and a 30-second heartbeat. Every cycle gets fresh jitter, including cycles with
+suppressed reports or failures; awake processing adds to the 4–6-second sleep.
+
+The first valid sample after reset triggers a report. Subsequent samples report
+when unrounded SHT40 temperature differs from the last successfully transmitted
+unrounded measurement by at least the threshold, or the heartbeat expires.
+Humidity and battery changes do not trigger reports; every report includes all
+three current readings. Packet rounding does not influence reporting decisions.
+Only a successful RadioLib transmission updates the baseline and heartbeat time;
+there is no gateway acknowledgment. Heartbeats are checked at valid samples, so
+reports can follow expiry by up to one sampling cycle, or longer during failures.
+
+RTC memory retains reporting state and RTC-backed system time includes awake and
+sleep time. Fresh ESP32 hardware entropy is collected before ADC initialization,
+then its source is disabled before battery measurement. Independent jitter avoids
+persistent timing alignment without adding radio coordination or retry protocols.
+
+For regression checks, run two nodes together and observe their activity timing
+wander. Let temperatures stabilize to check suppression and continuing heartbeats,
+then warm/cool a sensor gradually to check accumulated raw temperature changes.
+Confirm reset still shows the OLED for five seconds and routine wakes keep it dark.
+
+Portable policy tests:
+
+```sh
+g++ -std=c++11 -Wall -Wextra -Werror -pedantic firmware/sensors/tests/reporting_policy_test.cpp -o /tmp/denclock-reporting-policy-test
+/tmp/denclock-reporting-policy-test
+```
+
 ## Remote sensor deep-sleep operation
 
-Each wake powers Vext, initializes SHT40 and SX1262, measures, and attempts one
-report. `DevelopmentSleepUs` in `remote-sensor/src/main.cpp` sets the five-second
-sleep interval; initialization and transmission add to the report-to-report time.
+Each wake powers Vext, initializes SHT40 and SX1262, measures, and checks whether
+a report is due. Sampling/reporting constants live in
+`remote-sensor/include/config.h`; awake processing adds to the sampling period.
 There is no one-second startup delay or serial-attachment wait. Initialization,
 measurement, and transmission failures also lead to sleep and retry next wake.
 
@@ -137,8 +173,8 @@ After blocking transmission completes or fails, the radio enters cold sleep
 (`sleep(false)`) and SPI stops. Wire1 stops, SDA/SCL become inputs without internal
 pull-ups, Vext goes HIGH (off), and battery measurement enable stays LOW. GPIO
 holds preserve these states and keep radio NSS/reset HIGH through deep sleep.
-Holds are released on wake before reinitialization. RTC memory preserves only the
-next sequence; there are no per-report flash writes. These choices follow
+Holds are released on wake before reinitialization. RTC memory preserves the next sequence, unrounded temperature baseline,
+and successful-transmission timestamp; there are no per-report flash writes. These choices follow
 [ESP32-S3 GPIO hold requirements](https://docs.espressif.com/projects/esp-idf/en/v5.2/esp32s3/api-reference/peripherals/gpio.html)
 and the pinned RadioLib blocking transmit/cold-sleep implementation.
 
@@ -152,8 +188,8 @@ sleeps the ESP32 and retries initialization on the next wake.
 For acceptance, use the existing gateway and LoRa Service without modification:
 
 1. Reset/power the sensor and confirm sequence 0 followed by 1, 2, 3 across wakes.
-2. Confirm one report per wake with fresh readings and roughly five seconds of
-   sleep plus awake time between reports; inspect wake/reset and TX diagnostics.
+2. Confirm fresh samples each wake, randomized 4–6-second sleeps, temperature
+   change reports, and stable-temperature heartbeats; inspect serial diagnostics.
 3. Confirm Vext switches off between cycles and reporting recovers when the
    SHT40 is disconnected and reconnected, without resetting the sequence.
 4. Power-cycle and press reset separately; each must restart at sequence 0.

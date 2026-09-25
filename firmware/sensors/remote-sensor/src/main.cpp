@@ -5,6 +5,9 @@
 #include <math.h>
 #include <esp_sleep.h>
 #include <esp_system.h>
+#include <bootloader_random.h>
+#include <sys/time.h>
+#include "reporting_policy.h"
 #include <driver/gpio.h>
 #include "../../common/radio_config.h"
 #include "../../common/sensor_report.h"
@@ -12,7 +15,14 @@
 SX1262 radio = new Module(RadioNss, RadioDio1, RadioReset, RadioBusy);
 Adafruit_SHT4x sht40;
 constexpr uint8_t NodeId = 2;
-constexpr uint64_t DevelopmentSleepUs = 5ULL * 1000000ULL;
+uint32_t cycleRandom = 0;
+RTC_DATA_ATTR ReportingState reportingState = {};
+
+uint64_t currentTimeUs() {
+    timeval now{};
+    gettimeofday(&now, nullptr); // ESP32 RTC-backed time continues through deep sleep.
+    return uint64_t(now.tv_sec) * 1000000ULL + now.tv_usec;
+}
 constexpr int BatteryAdc = 1, BatteryEnable = 37;
 constexpr int OledSda = 17, OledScl = 18, OledReset = 21;
 bool sensorReady = false;
@@ -100,8 +110,9 @@ void enterDeepSleep() {
     digitalWrite(RadioReset, HIGH);
     for (int pin : SleepHeldPins) ESP_ERROR_CHECK(gpio_hold_en(gpio_num_t(pin)));
     gpio_deep_sleep_hold_en();
-    ESP_ERROR_CHECK(esp_sleep_enable_timer_wakeup(DevelopmentSleepUs));
-    Serial.println("Entering deep sleep for 5 seconds");
+    const uint64_t intervalUs = sampleInterval(cycleRandom);
+    ESP_ERROR_CHECK(esp_sleep_enable_timer_wakeup(intervalUs));
+    Serial.printf("Entering deep sleep for %llu us\n", intervalUs);
     // No serial-attachment wait or delay to keep diagnostics alive.
     esp_deep_sleep_start();
 }
@@ -110,7 +121,15 @@ void setup() {
     Serial.begin(115200);
     auto wake = esp_sleep_get_wakeup_cause();
     auto reset = esp_reset_reason();
-    if (reset != ESP_RST_DEEPSLEEP || wake != ESP_SLEEP_WAKEUP_TIMER) sequence = 0;
+    if (reset != ESP_RST_DEEPSLEEP || wake != ESP_SLEEP_WAKEUP_TIMER) {
+        sequence = 0;
+        reportingState = {};
+    }
+    // Obtain fresh hardware entropy every wake, before battery ADC initialization.
+    // Disable the entropy source before using the ADC (they share hardware).
+    bootloader_random_enable();
+    cycleRandom = esp_random();
+    bootloader_random_disable();
     Serial.printf("Reset reason=%d wake reason=%d next sequence=%u\n", reset, wake, sequence);
 
     // Set safe levels before releasing the holds retained through deep sleep.
@@ -164,7 +183,20 @@ void loop() {
         enterDeepSleep();
         return;
     }
-    int16_t temp = lroundf(temperature.temperature * 100);
+    const float rawTemperature = temperature.temperature;
+    const uint64_t nowUs = currentTimeUs();
+    if (!reportDue(reportingState, rawTemperature, nowUs)) {
+        Serial.printf("Report suppressed: T=%.5f C last=%.5f C age=%llu us\n",
+                      rawTemperature, reportingState.lastTransmittedRawTemperature,
+                      nowUs - reportingState.lastTransmittedUs);
+        enterDeepSleep();
+        return;
+    }
+    Serial.printf("Report due: %s T=%.5f C\n",
+                  !reportingState.hasTransmitted ? "initial" :
+                  (nowUs - reportingState.lastTransmittedUs >= HeartbeatIntervalUs
+                   ? "heartbeat" : "temperature"), rawTemperature);
+    int16_t temp = lroundf(rawTemperature * 100);
     uint16_t rh = lroundf(humidity.relative_humidity * 100);
     uint16_t battery = readBatteryMillivolts();
     uint8_t packet[SensorReport::PacketSize];
@@ -174,6 +206,9 @@ void loop() {
     for (uint8_t byte : packet) Serial.printf("%02X ", byte);
     int16_t state = radio.transmit(packet, sizeof(packet));
     Serial.printf("result=%d\n", state);
+    if (state == RADIOLIB_ERR_NONE) {
+        reportingState = {true, rawTemperature, currentTimeUs()};
+    }
     // A generated report consumes its sequence even if transmission fails.
     sequence = SensorReport::nextSequence(sequence);
     enterDeepSleep();

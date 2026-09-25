@@ -5,10 +5,15 @@
       "description": "Den LoRa/Wi-Fi gateway"
     }
   },
+
   "nodes": {
     "1": {
-      "name": "porch",
-      "description": "Porch temperature and humidity sensor"
+      "name": "den",
+      "description": "Den temperature and humidity sensor"
+    },
+     "2": {
+      "name": "back-porch",
+      "description": "Back Porch temperature and humidity sensor"
     }
   },
 

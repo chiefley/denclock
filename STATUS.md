@@ -16,6 +16,10 @@ verified and accepted by the developer.
 
 ## Resume Here
 
+- [Sensor Change Reporting, Heartbeat, and Randomized Sampling](firmware/sensors/docs/stories/completed/006-sensor-change-reporting-heartbeat-and-randomized-sampling.md)
+  is verified and accepted. Nodes suppress stable-temperature reports, retain
+  heartbeat/change state through deep sleep, and randomize sampling intervals.
+
 - [Display Primary Sensor Readings](docs/stories/completed/008-display-primary-sensor-readings.md)
   is verified and accepted by the developer. Local automated checks cover
   data flow and presentation; shelf/NUC verification was confirmed by the developer.

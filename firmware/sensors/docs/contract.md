@@ -7,7 +7,7 @@ See the [README](../README.md) for wiring, calibration assumptions, and operatio
 ## Reports
 
 The sensor emits the [SENSOR_REPORT wire format](../../../docs/LoRa%20Protocol.md):
-message class 1, node 1, big-endian sequence, then temperature (type 1), relative
+message class 1, configured node ID, big-endian sequence, then temperature (type 1), relative
 humidity (type 2), and battery voltage (type 3). Each value is two bytes; the
 whole packet is 16 bytes. Temperature is signed hundredths of degrees C,
 humidity unsigned hundredths of percent RH, and battery unsigned millivolts.
@@ -18,9 +18,29 @@ transmission fails, and wraps from 65535 to 1. Invalid or unavailable SHT40
 readings cause a skipped report and initialization retry, without consuming a
 sequence. The next sequence is RTC-retained across timer deep-sleep wakes, with
 no per-report flash writes. Non-timer wake or a true reset starts again at 0.
-Each wake normally attempts one report, then sleeps for five seconds; sampling
-and transmission add to that development interval. Initialization/read failures
-also sleep and retry on the next wake.
+Each wake samples and checks reporting policy before packet quantization. The
+first valid sample after reset reports immediately. Later samples report when
+absolute unrounded SHT40 temperature change from the last successfully transmitted
+unrounded measurement is at least the configured threshold, or the heartbeat
+interval has elapsed. Humidity and battery do not independently trigger reports;
+every transmitted report includes their current values.
+
+Development defaults in `remote-sensor/include/config.h` are 0.1 °C threshold,
+30-second heartbeat, and five-second nominal sleep with fresh random jitter
+bounded by -1 and +1 second. Jitter applies on every cycle, including suppressed
+reports and failures. Awake processing adds to the 4–6-second sleep duration.
+Heartbeat expiry is checked at each valid sample; a report may follow expiry by
+one sampling cycle, or longer during failures.
+
+RTC memory retains the unrounded baseline, successful-transmission timestamp,
+and whether an initial report has succeeded. RTC-backed system time measures
+awake and sleep time. Only RadioLib TX success updates reporting state; failures
+leave it unchanged. Success is local transmission completion, not gateway receipt.
+Reset clears this state along with sequence. Hardware entropy is acquired every
+wake before ADC initialization and disabled before battery measurement, avoiding
+ADC contention. Independent jitter prevents fixed periodic alignment without
+introducing acknowledgments or radio scheduling. Initialization/read failures
+sleep and retry on the next wake.
 
 After blocking transmission, the SX1262 is commanded into cold sleep, SPI and
 Wire1 stop, I2C pins become inputs without pull-ups, Vext switches off, and the
@@ -44,7 +64,8 @@ GPIO17/18 as inputs without internal pull-ups, asserts reset GPIO21 LOW, and
 cuts Vext power. Because Vext also supplies the SHT40, it is restored for normal
 sensor operation with OLED reset held LOW. During deep sleep Vext is off, and
 GPIO holds preserve OLED reset and I2C pin states. Packet format, measurement
-behavior, sequence handling, and the five-second sleep interval are unchanged.
+behavior and sequence handling are independent of OLED diagnostics. Sampling
+and reporting follow the policy above.
 
 ## Radio and reception
 
