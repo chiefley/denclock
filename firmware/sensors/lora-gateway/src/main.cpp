@@ -99,6 +99,45 @@ void maintainConnection() {
     if (sendFrame(hello, sizeof(hello))) Serial.println("Gateway 1 connected; HELLO sent");
 }
 
+void onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
+    switch (event) {
+        case ARDUINO_EVENT_WIFI_STA_CONNECTED:
+            Serial.println("Wi-Fi associated with access point");
+            break;
+
+        case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+            Serial.print("Wi-Fi connected. IP: ");
+            Serial.println(WiFi.localIP());
+            break;
+
+        case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
+            Serial.printf("Wi-Fi disconnected. Reason: %d\n",
+                          info.wifi_sta_disconnected.reason);
+            break;
+
+        default:
+            break;
+    }
+}
+
+void scanWiFi() {
+    Serial.println("Scanning Wi-Fi networks...");
+    int count = WiFi.scanNetworks();
+
+    for (int i = 0; i < count; i++) {
+        Serial.printf(
+            "SSID: %s  RSSI: %d  Channel: %d  Auth: %d  BSSID: %s\n",
+            WiFi.SSID(i).c_str(),
+            WiFi.RSSI(i),
+            WiFi.channel(i),
+            static_cast<int>(WiFi.encryptionType(i)),
+            WiFi.BSSIDstr(i).c_str()
+        );
+    }
+
+    WiFi.scanDelete();
+}
+
 void startRadioReceive() {
     int16_t state = radio.startReceive();
     if (state != RADIOLIB_ERR_NONE) {
@@ -130,7 +169,9 @@ void setup() {
     startRadioReceive();
     networkConfigured = GATEWAY_WIFI_SSID[0] != '\0' && LORA_SERVICE_HOST[0] != '\0';
     if (networkConfigured) {
+        WiFi.onEvent(onWiFiEvent);
         WiFi.mode(WIFI_STA);
+        scanWiFi();
         WiFi.setAutoReconnect(true);
         WiFi.begin(GATEWAY_WIFI_SSID, GATEWAY_WIFI_PASSWORD);
         lastWifiAttempt = millis();
