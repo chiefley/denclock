@@ -59,10 +59,20 @@ than wrapped or assigned an invented saturation value. Raw LoRa bytes are opaque
 [Gateway OLED Infrastructure Diagnostics](docs/stories/completed/004-gateway-oled-infrastructure-diagnostics.md)
 is verified and accepted by the developer.
 The production build uses the same ThingPulse OLED library and Heltec OLED wiring
-as the bringup receiver. It shows a prominent node ID, rounded RSSI (dBm) and SNR
+as the bringup receiver. It shows a centered node ID, rounded LoRa RSSI (dBm) and SNR
 (dB), battery volts (N/A when absent), and full RX/ERR counters on separate rows.
 Environmental measurements are never rendered. Before the first valid report,
 node and signal values show placeholders.
+
+[Display Wi-Fi and Server Connectivity Status](docs/stories/completed/007-gateway-display-wifi-and-server-connectivity-status.md)
+is accepted by the developer. The normal screen uses seven compact 10-pixel-font
+rows to retain the sensor diagnostics while adding `WiFi: OK` with RSSI in dBm
+or `WiFi: DOWN`, and independently `Server: OK` or `Server: DOWN` for the TCP
+connection. Connection state is checked each loop; connected Wi-Fi RSSI is sampled
+every five seconds. Unchanged values do not trigger a redraw. The packet-error
+screen temporarily covers these rows; expiry restores current connectivity and
+the latest sensor diagnostics. Serial retains Wi-Fi disconnection reason codes,
+connection/reconnection events, and TCP disconnection reporting.
 
 RX counts locally validated sensor reports, even without a TCP connection. ERR
 counts observed RadioLib receive failures and reports rejected by the existing
@@ -100,6 +110,10 @@ On hardware, flash the production environment and verify:
    battery. Test an error before any valid report and restoration to placeholders.
 5. Disconnect the service: valid radio reports must still update RX/the OLED.
    Restore the service and confirm HELLO and unchanged raw forwarding resume.
+6. Stop LoRaService while Wi-Fi remains connected: confirm `Server: DOWN` with
+   `WiFi: OK` and RSSI. Disable router Wi-Fi: confirm both indicators show DOWN.
+   Restore each connection and confirm automatic recovery without a reset,
+   continuing LoRa reception, and readable diagnostics throughout.
 
 ## Remote sensor reset diagnostics
 

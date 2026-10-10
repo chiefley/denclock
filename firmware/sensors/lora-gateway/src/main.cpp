@@ -14,8 +14,26 @@ uint32_t lastWifiAttempt = 0, lastTcpAttempt = 0;
 bool networkConfigured = false;
 SSD1306Wire display(0x3C, 17, 18);
 GatewayDiagnostics diagnostics;
+constexpr uint32_t WifiSignalRefreshMs = 5000;
+uint32_t lastWifiSignalRead = 0;
+
+void updateConnectivity() {
+    const uint32_t now = millis();
+    const bool wifi = WiFi.status() == WL_CONNECTED;
+    const bool server = service.connected();
+    int32_t signal = diagnostics.wifiRssi;
+    if (wifi && (!diagnostics.wifiConnected ||
+                 uint32_t(now - lastWifiSignalRead) >= WifiSignalRefreshMs)) {
+        signal = WiFi.RSSI();
+        lastWifiSignalRead = now;
+    }
+    if (diagnostics.serverConnected && !server)
+        Serial.println("LoRa Service TCP disconnected");
+    diagnostics.connectivity(wifi, server, signal);
+}
 
 void updateDisplay() {
+    updateConnectivity();
     diagnostics.tick(millis());
     if (!diagnostics.dirty) return;
     diagnostics.dirty = false;
@@ -30,28 +48,32 @@ void updateDisplay() {
         display.drawString(64, 32, "ERROR");
     } else {
         char line[48];
-        display.setFont(ArialMT_Plain_16);
+        display.setFont(ArialMT_Plain_10);
         if (diagnostics.node) snprintf(line, sizeof(line), "NODE %02u", diagnostics.node);
         else snprintf(line, sizeof(line), "NODE --");
         display.drawString(64, 0, line);
-        display.setFont(ArialMT_Plain_10);
         display.setTextAlignment(TEXT_ALIGN_LEFT);
-        // ThingPulse fonts have 19/13-pixel cells; these glyphs occupy rows
-        // 3..14 / 3..9. Eleven-pixel small-text spacing leaves clear ink gaps.
+        // Small-font ink occupies y+3..y+9. Nine-pixel row spacing fits
+        // all seven rows in 64 pixels, including full ten-digit counters.
+        if (diagnostics.wifiConnected)
+            snprintf(line, sizeof(line), "WiFi: OK  %ld dBm",
+                     static_cast<long>(diagnostics.wifiRssi));
+        else snprintf(line, sizeof(line), "WiFi: DOWN");
+        display.drawString(0, 9, line);
+        display.drawString(0, 18, diagnostics.serverConnected ? "Server: OK" : "Server: DOWN");
         if (diagnostics.node)
             snprintf(line, sizeof(line), "RSSI %.0fdBm  SNR %+.0fdB",
                      diagnostics.rssi, diagnostics.snr);
         else snprintf(line, sizeof(line), "RSSI --dBm  SNR --dB");
-        display.drawString(0, 18, line);
+        display.drawString(0, 27, line);
         if (diagnostics.hasBattery)
             snprintf(line, sizeof(line), "BAT %.2fV", diagnostics.battery / 1000.0);
         else snprintf(line, sizeof(line), "BAT N/A");
-        display.drawString(0, 29, line);
-        // Separate rows keep the full uint32 counters legible, even at 10 digits.
+        display.drawString(0, 36, line);
         snprintf(line, sizeof(line), "RX %lu", static_cast<unsigned long>(diagnostics.accepted));
-        display.drawString(0, 40, line);
+        display.drawString(0, 45, line);
         snprintf(line, sizeof(line), "ERR %lu", static_cast<unsigned long>(diagnostics.rejected));
-        display.drawString(0, 51, line);
+        display.drawString(0, 54, line);
     }
     display.display();
 }

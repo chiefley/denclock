@@ -17,6 +17,18 @@ struct GatewayDiagnostics {
     int16_t lastRadioError = 0;
     uint32_t errorStarted = 0;
     bool errorVisible = false, dirty = true;
+    bool wifiConnected = false, serverConnected = false;
+    int32_t wifiRssi = 0;
+
+    void connectivity(bool wifi, bool server, int32_t signal) {
+        // Disconnected RSSI is irrelevant; retain no stale signal on the OLED.
+        if (!wifi) signal = 0;
+        if (wifiConnected == wifi && serverConnected == server && wifiRssi == signal) return;
+        wifiConnected = wifi;
+        serverConnected = server;
+        wifiRssi = signal;
+        if (!errorVisible) dirty = true;
+    }
 
     void reject(const char* reason, int16_t radioError, uint32_t now) {
         ++rejected;

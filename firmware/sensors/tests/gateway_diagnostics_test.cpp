@@ -65,5 +65,33 @@ int main() {
     assert(!boot.errorVisible && boot.dirty);
     assert(boot.observe(headerOnly, sizeof(headerOnly), -80, 7, 2000));
     assert(boot.lastRadioError == -7 && boot.lastError); // Success retains reason.
+    // Connectivity is independent of sensor reports and refreshes only on change.
+    GatewayDiagnostics network;
+    network.dirty = false;
+    network.connectivity(false, false, -46);
+    assert(!network.dirty && network.wifiRssi == 0);
+    network.connectivity(true, false, -46);
+    assert(network.dirty && network.wifiConnected && !network.serverConnected);
+    network.dirty = false;
+    network.connectivity(true, false, -46);
+    assert(!network.dirty);
+    network.connectivity(true, true, -46);
+    assert(network.dirty && network.serverConnected);
+    network.dirty = false;
+    network.connectivity(true, true, -50);
+    assert(network.dirty && network.wifiRssi == -50);
+    network.dirty = false;
+    network.connectivity(true, false, -50); // Service-only outage.
+    assert(network.dirty && network.wifiConnected && !network.serverConnected);
+    network.connectivity(false, false, -50);
+    assert(!network.wifiConnected && network.wifiRssi == 0);
+    network.reject("radio packet failure", -7, UINT32_MAX - 1000);
+    network.dirty = false;
+    network.connectivity(true, true, -46); // Recovery during the alert.
+    assert(!network.dirty && network.errorVisible);
+    network.tick(1999);
+    assert(network.dirty && !network.errorVisible);
+    assert(network.wifiConnected && network.serverConnected && network.wifiRssi == -46);
+    assert(network.accepted == 0 && network.rejected == 1 && network.node == 0);
     puts("gateway diagnostics tests passed");
 }

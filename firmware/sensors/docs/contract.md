@@ -115,6 +115,16 @@ node, RSSI in dBm, SNR in dB, battery volts, and cumulative RX/ERR counts since
 boot. It never displays environmental measurements. Missing battery is N/A;
 before any accepted report, node and signal fields are placeholders.
 
+The normal screen also shows `WiFi: OK` with Wi-Fi RSSI in dBm or `WiFi: DOWN`,
+using `WiFi.status()`, and independently `Server: OK` or `Server: DOWN`, using
+`service.connected()`. All seven rows use the 10-pixel font to preserve node,
+LoRa signal, battery, and full counters on the 128×64 display. Connection state
+is checked each loop; Wi-Fi RSSI is sampled on connection and every five seconds
+while connected. Changes mark the display dirty; unchanged connectivity and
+signal values do not trigger a redraw. No network connection attempt is made
+in the display update path. Serial logs retain Wi-Fi disconnection reason codes
+and connection/reconnection events, with TCP disconnection reporting.
+
 RX counts sensor-decoder successes independently of network availability. ERR
 counts observed radio receive failures and sensor-decoder rejections, retaining
 the last exact decoder reason or RadioLib error code even after subsequent
@@ -126,6 +136,7 @@ A rejection displays large black `PACKET ERROR` text on a white background for
 three seconds from the most recent error. The rollover-safe timer does not wait
 or suspend packet processing. Valid reports received during the interval update
 the cached diagnostics; expiry restores that latest report and current counters.
+Connectivity changes during the alert are cached and restored on expiry as well.
 Reception is rearmed before OLED/TCP work. Existing synchronous networking can
 still delay loop servicing; no lossless receive guarantee is added.
 
