@@ -65,14 +65,18 @@ Environmental measurements are never rendered. Before the first valid report,
 node and signal values show placeholders.
 
 [Display Wi-Fi and Server Connectivity Status](docs/stories/completed/007-gateway-display-wifi-and-server-connectivity-status.md)
-is accepted by the developer. The normal screen uses seven compact 10-pixel-font
+is accepted by the developer. The follow-up
+[Gateway OLED Connectivity Status](docs/stories/completed/008-gateway-oled-connectivity-status.md)
+is also accepted and refines RSSI refresh and TCP failure logging.
+The normal screen uses seven compact 10-pixel-font
 rows to retain the sensor diagnostics while adding `WiFi: OK` with RSSI in dBm
 or `WiFi: DOWN`, and independently `Server: OK` or `Server: DOWN` for the TCP
 connection. Connection state is checked each loop; connected Wi-Fi RSSI is sampled
-every five seconds. Unchanged values do not trigger a redraw. The packet-error
+every second. RSSI changes below 3 dBm from the displayed value do not trigger
+a redraw; connection-state changes always update the current signal. The packet-error
 screen temporarily covers these rows; expiry restores current connectivity and
 the latest sensor diagnostics. Serial retains Wi-Fi disconnection reason codes,
-connection/reconnection events, and TCP disconnection reporting.
+connection/reconnection events, failed TCP connection attempts, and TCP disconnection reporting.
 
 RX counts locally validated sensor reports, even without a TCP connection. ERR
 counts observed RadioLib receive failures and reports rejected by the existing

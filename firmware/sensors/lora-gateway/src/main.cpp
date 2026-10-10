@@ -14,7 +14,7 @@ uint32_t lastWifiAttempt = 0, lastTcpAttempt = 0;
 bool networkConfigured = false;
 SSD1306Wire display(0x3C, 17, 18);
 GatewayDiagnostics diagnostics;
-constexpr uint32_t WifiSignalRefreshMs = 5000;
+constexpr uint32_t WifiSignalRefreshMs = 1000;
 uint32_t lastWifiSignalRead = 0;
 
 void updateConnectivity() {
@@ -113,7 +113,10 @@ void maintainConnection() {
     lastTcpAttempt = now;
     service.stop();
     Serial.printf("Connecting to LoRa Service %s:%u\n", LORA_SERVICE_HOST, LORA_SERVICE_PORT);
-    if (!service.connect(LORA_SERVICE_HOST, LORA_SERVICE_PORT, 1000)) return;
+    if (!service.connect(LORA_SERVICE_HOST, LORA_SERVICE_PORT, 1000)) {
+        Serial.println("LoRa Service TCP connection attempt failed; will retry");
+        return;
+    }
     service.setNoDelay(true);
     service.setTimeout(1); // WiFiClient uses seconds for socket I/O timeout.
     uint8_t hello[4];

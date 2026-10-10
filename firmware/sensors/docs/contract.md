@@ -119,11 +119,13 @@ The normal screen also shows `WiFi: OK` with Wi-Fi RSSI in dBm or `WiFi: DOWN`,
 using `WiFi.status()`, and independently `Server: OK` or `Server: DOWN`, using
 `service.connected()`. All seven rows use the 10-pixel font to preserve node,
 LoRa signal, battery, and full counters on the 128×64 display. Connection state
-is checked each loop; Wi-Fi RSSI is sampled on connection and every five seconds
-while connected. Changes mark the display dirty; unchanged connectivity and
+is checked each loop; Wi-Fi RSSI is sampled on connection and every second
+while connected. RSSI changes below 3 dBm from the displayed value are suppressed;
+connection-state changes always update the current signal. Changes mark the display dirty; unchanged connectivity and
 signal values do not trigger a redraw. No network connection attempt is made
 in the display update path. Serial logs retain Wi-Fi disconnection reason codes
-and connection/reconnection events, with TCP disconnection reporting.
+and connection/reconnection events, failed TCP connection attempts, and TCP
+disconnection reporting.
 
 RX counts sensor-decoder successes independently of network availability. ERR
 counts observed radio receive failures and sensor-decoder rejections, retaining

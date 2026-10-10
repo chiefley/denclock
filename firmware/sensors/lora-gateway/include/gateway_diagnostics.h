@@ -23,6 +23,11 @@ struct GatewayDiagnostics {
     void connectivity(bool wifi, bool server, int32_t signal) {
         // Disconnected RSSI is irrelevant; retain no stale signal on the OLED.
         if (!wifi) signal = 0;
+        // Compare with the displayed value so gradual drift eventually updates.
+        // Always accept the current signal on a connection-state transition.
+        if (wifi && wifiConnected == wifi && serverConnected == server &&
+            signal > wifiRssi - 3 && signal < wifiRssi + 3)
+            signal = wifiRssi;
         if (wifiConnected == wifi && serverConnected == server && wifiRssi == signal) return;
         wifiConnected = wifi;
         serverConnected = server;

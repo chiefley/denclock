@@ -78,6 +78,16 @@ int main() {
     network.connectivity(true, true, -46);
     assert(network.dirty && network.serverConnected);
     network.dirty = false;
+    network.connectivity(true, true, -47);
+    assert(!network.dirty && network.wifiRssi == -46);
+    network.connectivity(true, true, -48);
+    assert(!network.dirty && network.wifiRssi == -46);
+    network.connectivity(true, true, -49); // Cumulative drift reaches 3 dBm.
+    assert(network.dirty && network.wifiRssi == -49);
+    network.dirty = false;
+    network.connectivity(true, true, -46); // Threshold works in both directions.
+    assert(network.dirty && network.wifiRssi == -46);
+    network.dirty = false;
     network.connectivity(true, true, -50);
     assert(network.dirty && network.wifiRssi == -50);
     network.dirty = false;
