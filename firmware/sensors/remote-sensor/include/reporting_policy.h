@@ -9,13 +9,13 @@ struct ReportingState {
     uint64_t lastTransmittedUs;
 };
 
-inline bool reportDue(const ReportingState& state, float temperature, uint64_t nowUs) {
+inline bool reportDue(const ReportingState& state, float temperature, uint64_t nowUs, const SensorConfig& config = SensorConfig{}) {
     return !state.hasTransmitted
-        || fabsf(temperature - state.lastTransmittedRawTemperature) >= TemperatureChangeThresholdC
-        || nowUs - state.lastTransmittedUs >= HeartbeatIntervalUs;
+        || fabsf(temperature - state.lastTransmittedRawTemperature) >= config.threshold / 10.0f
+        || nowUs - state.lastTransmittedUs >= uint64_t(config.heartbeat) * 1000000ULL;
 }
 
-inline uint64_t sampleInterval(uint32_t random) {
-    return SampleIntervalUs - SampleJitterUs
-        + random % (2ULL * SampleJitterUs + 1);
+inline uint64_t sampleInterval(uint32_t random, const SensorConfig& config = SensorConfig{}) {
+    return uint64_t(config.sample - config.jitter) * 1000000ULL
+        + random % (2ULL * config.jitter * 1000000ULL + 1);
 }

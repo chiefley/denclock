@@ -4,6 +4,11 @@
 #include "../remote-sensor/include/reporting_policy.h"
 
 int main() {
+    const SensorConfig defaults;
+    const uint64_t HeartbeatIntervalUs = uint64_t(defaults.heartbeat) * 1000000;
+    const float TemperatureChangeThresholdC = defaults.threshold / 10.0f;
+    const uint64_t SampleIntervalUs = uint64_t(defaults.sample) * 1000000;
+    const uint32_t SampleJitterUs = defaults.jitter * 1000000;
     ReportingState state{};
     assert(reportDue(state, 20.0f, 0));
     state = {true, 20.004f, 1000000};

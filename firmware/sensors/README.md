@@ -25,7 +25,8 @@ RTC memory retains the next sequence, unrounded reporting baseline, and last
 successful transmission time across timer wakes; a true reset or power-up
 starts at 0. Failed readings retry on the next wake without consuming a sequence.
 
-Both projects use 915 MHz, 125 kHz bandwidth, SF9, coding rate 4/7, 10 dBm,
+Both projects use 915 MHz, 125 kHz bandwidth, SF9, coding rate 4/7,
+10 dBm by default (sensor power is configurable),
 eight-symbol RadioLib default preamble, 1.8 V TCXO, explicit header and CRC.
 The exact sync register bytes are D3 C7. RadioLib's
 [`setSyncWord(syncWord, controlBits)`](https://jgromes.github.io/RadioLib/class_s_x126x.html)
@@ -119,6 +120,80 @@ On hardware, flash the production environment and verify:
    Restore each connection and confirm automatic recovery without a reset,
    continuing LoRa reception, and readable diagnostics throughout.
 
+## Persistent sensor configuration
+
+[Persistent Serial Configuration for LoRa Sensor Nodes](docs/stories/completed/009-persistent-serial-configuration.md)
+is accepted by the developer.
+
+Use the existing PlatformIO monitor at 115200 baud and reset/power the sensor.
+Enter `?` within ten seconds of reset to enter configuration. The five-second
+OLED diagnostics overlap this window; there is no additional consecutive delay.
+Timer deep-sleep wakes bypass both. A valid command enters the console; invalid
+input does not extend entry or inactivity windows. No sensor radio initialization
+or transmission occurs until the console exits. Explicit exit can end startup
+diagnostics early.
+
+The sensor echoes serial input as characters arrive. Backspace and Delete erase
+the previous input character; CRLF produces a single echoed line ending.
+Disable terminal local echo if characters appear twice. Line-buffered terminals
+may send characters only after Enter.
+
+The sensor serial console displays `> ` when accepting commands, including the
+startup entry window, and repeats it after command responses or invalid input.
+Exit, timeout, and reboot do not emit another prompt.
+
+Commands ignore case and extra whitespace, accept CR, LF or CRLF, and use integer
+values. Lines are limited to 95 characters; oversized or malformed lines are
+rejected in full. `?` or `help` lists commands, ranges, units and examples.
+
+| Command | Range / action | Development default |
+| --- | --- | --- |
+| `set node N` | 1–239 | 2 |
+| `set sample N` | 1–86400 seconds, strictly greater than jitter | 5 |
+| `set jitter N` | 0–2147 seconds, ± jitter, less than sample | 1 |
+| `set heartbeat N` | 1–604800 seconds | 30 |
+| `set threshold N` | 1–1650 tenths of °C; 1 means 0.1°C | 1 |
+| `set power N` | -9–22 dBm (SX1262 range) | 10 |
+| `show` | All working settings, threshold units and saved/unsaved status | |
+| `save` | Persist all settings; remain in console | |
+| `defaults` | Restore development defaults in RAM | |
+| `exit` | Discard unsaved edits and resume operation | |
+| `reboot` | Restart without saving edits | |
+
+For example, enter `set node 3`, `set sample 15`, `set jitter 2`,
+`set heartbeat 300`, `set threshold 1`, `set power 10`, then `save`, `show`,
+and `exit`, each on its own line. There are no den/remote profiles.
+
+`set` and `defaults` only change RAM. Five minutes without a valid command
+prints a timeout and discards unsaved edits, as does `exit`. Only `save` writes
+the complete version-1 configuration blob to ESP32 Preferences/NVS namespace
+`denclock-sensor`, key `config`. Missing, wrong-size, incompatible or invalid
+records fall back to development defaults. Flash write failure is reported and
+the session retains its previous saved snapshot. The effective snapshot counts
+as Saved even when using defaults with no stored record. Settings survive sleep,
+power cycling and firmware uploads that preserve NVS. Sampling never writes NVS.
+
+Bounds cap sample sleep at a day, heartbeat at a week and threshold at the SHT40
+measurement span; jitter keeps the microsecond random span within 32 bits.
+Temperature comparisons still use raw SHT40 measurements. Reset/session exit
+produces an initial report at the next valid measurement with effective settings.
+
+Additional host checks (use a local executable path on Windows):
+
+```sh
+g++ -std=c++11 -Wall -Wextra -Werror -pedantic firmware/sensors/tests/sensor_config_test.cpp -o /tmp/denclock-sensor-config-test
+/tmp/denclock-sensor-config-test
+g++ -std=c++11 -Wall -Wextra -Werror -pedantic -I firmware/sensors/tests/console_fakes firmware/sensors/tests/config_console_test.cpp -o /tmp/denclock-config-console-test
+/tmp/denclock-config-console-test
+```
+
+Console tests use fake serial, time and Preferences storage; they do not prove
+physical NVS durability or serial timing. Before acceptance, run the hardware
+checks in story 009: power/reset entry and overlapping OLED timing, every command,
+save/reboot and power-cycle persistence, exit/timeout discard, invalid inputs,
+custom reporting/node/power settings, timer wakes with no entry delays, gateway
+reception, and two differently configured boards using the same firmware image.
+
 ## Remote sensor reset diagnostics
 
 [Sensor Node Reset Status Display](docs/stories/completed/005-sensor-node-reset-status-display.md)
@@ -139,7 +214,7 @@ holds OLED reset LOW and its I2C pins as inputs. Actual current consumption,
 including any reset-line pull-up load, has not been characterized by Codex.
 
 For hardware regression checks, power-cycle and press Reset separately: confirm
-only node ID and battery volts appear, remain readable for about five seconds,
+only node ID and battery volts appear, remain readable for about five seconds (unless explicitly exiting the console),
 and then disappear. Observe several timer wakes: the screen must stay dark,
 reports must continue, and sequence must advance normally. Compare battery
 current during measurement and sleep with the previous firmware where practical.
@@ -182,7 +257,7 @@ g++ -std=c++11 -Wall -Wextra -Werror -pedantic firmware/sensors/tests/reporting_
 ## Remote sensor deep-sleep operation
 
 Each wake powers Vext, initializes SHT40 and SX1262, measures, and checks whether
-a report is due. Sampling/reporting constants live in
+a report is due. Sampling/reporting settings are loaded from NVS with development defaults in
 `remote-sensor/include/config.h`; awake processing adds to the sampling period.
 There is no one-second startup delay or serial-attachment wait. Initialization,
 measurement, and transmission failures also lead to sleep and retry next wake.
@@ -229,7 +304,7 @@ For the diagnostic gateway, add `-e diagnostic`; omitting it selects production 
 Monitor each board with `pio device monitor --port <port> --baud 115200`.
 Use the appropriate serial port on Windows or your development host.
 
-1. Start the gateway, then reset the sensor. Check node=1, seq=0, then 1, 2, 3.
+1. Start the gateway, then reset the sensor. Check node=2 (or the saved ID), seq=0, then 1, 2, 3.
 2. Compare all three RX readings against TX serial output, which includes the
    exact 16 bytes. Warm the SHT40 and confirm changing readings reach RX.
 3. Compare battery millivolts against a meter, preferably on battery power.

@@ -8,13 +8,15 @@
 #include <bootloader_random.h>
 #include <sys/time.h>
 #include "reporting_policy.h"
+#include "config_console.h"
 #include <driver/gpio.h>
 #include "../../common/radio_config.h"
 #include "../../common/sensor_report.h"
 
 SX1262 radio = new Module(RadioNss, RadioDio1, RadioReset, RadioBusy);
 Adafruit_SHT4x sht40;
-constexpr uint8_t NodeId = 2;
+SensorConfig config;
+uint32_t startupStarted;
 uint32_t cycleRandom = 0;
 RTC_DATA_ATTR ReportingState reportingState = {};
 
@@ -52,7 +54,7 @@ uint16_t readBatteryMillivolts() {
     digitalWrite(BatteryEnable, LOW);
     return uint16_t(lroundf(sum / 16.0f * 4.9f));
 }
-void showResetStatus() {
+void showResetStatus(ConfigConsole& console) {
     // Vext is shared with the SHT40; show diagnostics before initializing it.
     digitalWrite(Vext, LOW);
     delay(50);
@@ -64,14 +66,18 @@ void showResetStatus() {
         display.clear();
         display.setTextAlignment(TEXT_ALIGN_CENTER);
         char line[16];
-        snprintf(line, sizeof(line), "NODE %02u", NodeId);
+        snprintf(line, sizeof(line), "NODE %02u", unsigned(config.node));
         display.setFont(ArialMT_Plain_24);
         display.drawString(64, 5, line);
         snprintf(line, sizeof(line), "%.2f V", readBatteryMillivolts() / 1000.0);
         display.setFont(ArialMT_Plain_16);
         display.drawString(64, 39, line);
         display.display();
-        delay(5000);
+        const uint32_t shown = millis();
+        while (!console.finished && uint32_t(millis() - shown) < 5000) {
+            if (!console.finished) console.poll();
+            delay(1);
+        }
         display.displayOff();
     } else {
         Serial.println("OLED initialization failed; continuing without display");
@@ -110,7 +116,7 @@ void enterDeepSleep() {
     digitalWrite(RadioReset, HIGH);
     for (int pin : SleepHeldPins) ESP_ERROR_CHECK(gpio_hold_en(gpio_num_t(pin)));
     gpio_deep_sleep_hold_en();
-    const uint64_t intervalUs = sampleInterval(cycleRandom);
+    const uint64_t intervalUs = sampleInterval(cycleRandom, config);
     ESP_ERROR_CHECK(esp_sleep_enable_timer_wakeup(intervalUs));
     Serial.printf("Entering deep sleep for %llu us\n", intervalUs);
     // No serial-attachment wait or delay to keep diagnostics alive.
@@ -118,7 +124,9 @@ void enterDeepSleep() {
 }
 
 void setup() {
+    startupStarted = millis();
     Serial.begin(115200);
+    config = loadConfig();
     auto wake = esp_sleep_get_wakeup_cause();
     auto reset = esp_reset_reason();
     if (reset != ESP_RST_DEEPSLEEP || wake != ESP_SLEEP_WAKEUP_TIMER) {
@@ -151,7 +159,15 @@ void setup() {
     gpio_deep_sleep_hold_dis();
     analogReadResolution(12);
     analogSetPinAttenuation(BatteryAdc, ADC_0db);
-    if (reset != ESP_RST_DEEPSLEEP) showResetStatus();
+    if (reset != ESP_RST_DEEPSLEEP) {
+        ConfigConsole console(config);
+        console.begin();
+        showResetStatus(console);
+        while (!console.finished && (console.active || uint32_t(millis() - startupStarted) < 10000)) {
+            console.poll();
+            delay(1);
+        }
+    }
     digitalWrite(Vext, LOW);
     delay(50);
     i2cReady = Wire1.begin(41, 42, 100000);
@@ -161,7 +177,7 @@ void setup() {
         Wire1.setTimeOut(100);
         sensorReady = initializeSensor();
     }
-    int16_t state = initializeRadio(radio);
+    int16_t state = initializeRadio(radio, config.power);
     radioAttempted = true;
     if (state != RADIOLIB_ERR_NONE) {
         Serial.printf("Radio initialization failed: %d; report skipped\n", state);
@@ -185,7 +201,7 @@ void loop() {
     }
     const float rawTemperature = temperature.temperature;
     const uint64_t nowUs = currentTimeUs();
-    if (!reportDue(reportingState, rawTemperature, nowUs)) {
+    if (!reportDue(reportingState, rawTemperature, nowUs, config)) {
         Serial.printf("Report suppressed: T=%.5f C last=%.5f C age=%llu us\n",
                       rawTemperature, reportingState.lastTransmittedRawTemperature,
                       nowUs - reportingState.lastTransmittedUs);
@@ -194,15 +210,15 @@ void loop() {
     }
     Serial.printf("Report due: %s T=%.5f C\n",
                   !reportingState.hasTransmitted ? "initial" :
-                  (nowUs - reportingState.lastTransmittedUs >= HeartbeatIntervalUs
+                  (nowUs - reportingState.lastTransmittedUs >= uint64_t(config.heartbeat) * 1000000ULL
                    ? "heartbeat" : "temperature"), rawTemperature);
     int16_t temp = lroundf(rawTemperature * 100);
     uint16_t rh = lroundf(humidity.relative_humidity * 100);
     uint16_t battery = readBatteryMillivolts();
     uint8_t packet[SensorReport::PacketSize];
-    SensorReport::encode(packet, NodeId, sequence, temp, rh, battery);
+    SensorReport::encode(packet, uint8_t(config.node), sequence, temp, rh, battery);
     Serial.printf("TX node=%u seq=%u T=%.2f C RH=%.2f %% BAT=%u mV bytes=",
-                  NodeId, sequence, temp / 100.0, rh / 100.0, battery);
+                  unsigned(config.node), sequence, temp / 100.0, rh / 100.0, battery);
     for (uint8_t byte : packet) Serial.printf("%02X ", byte);
     int16_t state = radio.transmit(packet, sizeof(packet));
     Serial.printf("result=%d\n", state);

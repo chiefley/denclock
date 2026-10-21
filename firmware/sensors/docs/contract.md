@@ -50,6 +50,44 @@ as documented; always-powered wiring cannot be switched off by this firmware.
 The radio and sensor are initialized again on wake. Radio sleep failures are
 logged; the ESP32 still sleeps and retries on wake.
 
+## Sensor serial configuration
+
+The sensor loads a validated version-1 complete Preferences/NVS configuration
+at every startup, including timer wakes. Missing, incompatible or invalid data
+uses development defaults: node 2, sample 5 seconds, jitter ±1 second,
+heartbeat 30 seconds, threshold 1 tenth °C and power 10 dBm.
+Only explicit `save` writes NVS; measurement/reporting cycles never do.
+
+After non-deep-sleep reset, a ten-second serial entry window at 115200 baud
+overlaps OLED diagnostics. A recognized valid command enters configuration;
+radio initialization and transmissions wait until exit. Timer wakes bypass
+entry and OLED entirely. Commands are case-insensitive, whitespace-tolerant,
+CR/LF/CRLF terminated and bounded to 95 characters. Invalid commands leave
+settings unchanged and do not refresh inactivity time.
+
+The sensor echoes serial input as characters arrive. Backspace and Delete erase
+the previous input character; CRLF produces a single echoed line ending.
+Disable terminal local echo if characters appear twice. Line-buffered terminals
+may send characters only after Enter.
+
+The sensor serial console displays `> ` when accepting commands, including the
+startup entry window, and repeats it after command responses or invalid input.
+Exit, timeout, and reboot do not emit another prompt.
+
+`?`/`help` lists commands, ranges, units and examples; `show` displays working
+settings and Saved or Modified (unsaved). `set node/sample/jitter/heartbeat/
+threshold/power N` edits RAM after validating the whole candidate. Ranges are
+node 1–239, sample 1–86400 seconds, jitter 0–2147 seconds with sample > jitter,
+heartbeat 1–604800 seconds, threshold 1–1650 integer tenths °C, and power
+-9–22 dBm. Microsecond conversion and jitter arithmetic remain bounded.
+
+`save` persists the entire record and remains in the console. `defaults` resets
+RAM only. `exit` and five minutes without a valid command restore the saved
+snapshot (or default fallback) and resume operation. `reboot` restarts without
+saving. Explicit exit can end OLED diagnostics early. First valid measurement
+after reset/configuration reports using effective settings. Serial configuration
+does not change packet format or gateway behavior. See the [console reference](../README.md#persistent-sensor-configuration).
+
 ## Sensor reset OLED diagnostics
 
 Power-up, manual reset, and other resets except ESP32 deep-sleep wakes display
@@ -70,7 +108,7 @@ and reporting follow the policy above.
 ## Radio and reception
 
 Both projects configure SX1262 at 915 MHz, bandwidth 125 kHz, SF9, coding rate
-4/7, TX power 10 dBm, sync word 0xD3C7, CRC enabled, eight-symbol preamble
+4/7, sensor-configurable TX power (default 10 dBm; gateway fixed at 10 dBm), sync word 0xD3C7, CRC enabled, eight-symbol preamble
 (the pinned RadioLib default), and 1.8 V TCXO.
 
 The selectable `diagnostic` build of the gateway validates a complete received packet before
