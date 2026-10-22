@@ -10,6 +10,7 @@
             "includePath": [
                 "/home/chief/src/denclock/firmware/sensors/lora-gateway/include",
                 "/home/chief/src/denclock/firmware/sensors/lora-gateway/src",
+                "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/Preferences/src",
                 "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src",
                 "/home/chief/src/denclock/firmware/sensors/lora-gateway/.pio/libdeps/heltec_wifi_lora_32_V3/ESP8266 and ESP32 OLED driver for SSD1306 displays/src",
                 "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/Wire/src",
@@ -232,7 +233,6 @@
                 "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/Insights/src",
                 "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/LittleFS/src",
                 "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/NetBIOS/src",
-                "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/Preferences/src",
                 "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/RainMaker/src",
                 "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/SD/src",
                 "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/SD_MMC/src",
@@ -251,6 +251,7 @@
                 "path": [
                     "/home/chief/src/denclock/firmware/sensors/lora-gateway/include",
                     "/home/chief/src/denclock/firmware/sensors/lora-gateway/src",
+                    "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/Preferences/src",
                     "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src",
                     "/home/chief/src/denclock/firmware/sensors/lora-gateway/.pio/libdeps/heltec_wifi_lora_32_V3/ESP8266 and ESP32 OLED driver for SSD1306 displays/src",
                     "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/Wire/src",
@@ -473,7 +474,6 @@
                     "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/Insights/src",
                     "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/LittleFS/src",
                     "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/NetBIOS/src",
-                    "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/Preferences/src",
                     "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/RainMaker/src",
                     "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/SD/src",
                     "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/SD_MMC/src",
