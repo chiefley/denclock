@@ -203,11 +203,19 @@ and explicit NVS writes may delay servicing. No lossless reception guarantee is
 introduced.
 
 Each TCP connection attempt resolves the startup destination anew. IPv4 is used
-directly; ordinary DNS uses the Wi-Fi stack; `.local` uses ESPmDNS with a
-one-second query timeout after removing the suffix. Failed resolution is logged
+directly; ordinary DNS and `.local` use `WiFi.hostByName` through the platform
+lwIP resolver, with mDNS queries enabled in the pinned ESP32-S3 framework.
+Lookup removes a trailing root dot and normalizes the `.local` suffix to lowercase.
+No mDNS responder or gateway hostname advertisement is started. Each attempt
+reports resolution failure or the resulting IP, then TCP failure or successful
+connection and HELLO transmission. Failed resolution is logged
 and retried on the existing five-second connection schedule. No permanent
 application address cache is introduced. System DNS caching may apply, and
-existing synchronous resolver/TCP calls can delay polling. Windows advertisement
+existing synchronous resolver/TCP calls can delay polling. Platform DNS lookup
+can wait about 15 seconds, longer if another lookup is active; the five-second
+retry gate remains measured from attempt start. Actual `.local` multicast behavior
+and absence of gateway advertisements require hardware verification (see README).
+Windows advertisement
 is separate work; unresolved `.local` names remain valid configuration.
 Settings persist through power cycles and uploads preserving NVS. Sync words
 are synchronization parameters, not credentials, and radio settings must match

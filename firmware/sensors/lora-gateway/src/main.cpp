@@ -122,6 +122,7 @@ void maintainConnection() {
         Serial.printf("LoRa Service hostname resolution failed for %s; will retry\n", activeConfig.host);
         return;
     }
+    Serial.printf("LoRa Service %s resolved to %s\n", activeConfig.host, address.toString().c_str());
     if (!service.connect(address, LORA_SERVICE_PORT, 1000)) {
         Serial.println("LoRa Service TCP connection attempt failed; will retry");
         return;

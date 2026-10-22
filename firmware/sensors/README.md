@@ -179,12 +179,24 @@ serial output and flash writes can still delay servicing; no lossless reception
 or bounded response latency is guaranteed.
 
 Each TCP reconnect resolves the startup hostname again: IPv4 literals are used
-directly, ordinary DNS uses the Wi-Fi resolver, and `.local` names use ESPmDNS
-(with a one-second query timeout). Failed resolution logs a diagnostic and is
+directly; ordinary DNS and `.local` names use `WiFi.hostByName` through the
+platform lwIP resolver, without starting an mDNS responder. The pinned ESP32-S3
+framework enables `CONFIG_LWIP_DNS_SUPPORT_MDNS_QUERIES`. The `.local` suffix
+is normalized to lowercase and a trailing root dot is removed for lookup. Failed resolution logs a diagnostic and is
 retried on the existing five-second schedule, without reboot. No resolved address
 is permanently cached by the application; normal system DNS caching may apply.
-Existing synchronous DNS/TCP operations may delay reception and console polling.
-Windows mDNS advertisement is separate work, so `.local` may remain unresolved
+Existing synchronous DNS/TCP operations may delay reception and console polling;
+the platform DNS lookup can wait about 15 seconds (longer if another lookup is
+active), replacing the former one-second ESPmDNS query timeout. The five-second
+retry gate is unchanged, measured from the start of each attempt. Each attempt
+logs the destination, resolution failure or resolved IP, and TCP failure or
+connection/HELLO success.
+Hardware verification must confirm `.local` queries reach an advertising Windows
+service, recover after temporary resolution failure and reconnect after an address
+change (allowing for platform DNS caching). Confirm with network capture that the
+gateway does not advertise `denclock-gateway`. Portable fakes verify resolver
+interface use, not multicast network behavior. Windows mDNS advertisement is
+separate work, so `.local` may remain unresolved
 until that service is available. No service advertisement is configured here.
 
 Sensor and gateway frequency, sync and modulation parameters must match. Sync

@@ -12,6 +12,12 @@ public:
         value = (a<<24) | (b<<16) | (c<<8) | d;
         return true;
     }
+    std::string toString() const {
+        char text[16];
+        snprintf(text, sizeof(text), "%u.%u.%u.%u", value >> 24,
+                 (value >> 16) & 255, (value >> 8) & 255, value & 255);
+        return text;
+    }
     operator uint32_t() const { return value; }
 };
 constexpr int WL_CONNECTED = 3, WIFI_STA = 1;
