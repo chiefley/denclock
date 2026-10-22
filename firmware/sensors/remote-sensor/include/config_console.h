@@ -36,9 +36,9 @@ struct ConfigConsole {
         prompt();
     }
     void show() {
-        Serial.printf("Node ID:       %ld\nSample:        %ld seconds\nJitter:        +/- %ld seconds\nHeartbeat:     %ld seconds\nThreshold:     %ld (%.1f C)\nTX Power:      %ld dBm\n\nConfiguration: %s\n",
+        Serial.printf("Node ID:       %ld\nSample:        %ld seconds\nJitter:        +/- %ld seconds\nHeartbeat:     %ld seconds\nThreshold:     %ld (%.1f C)\nTX Power:      %ld dBm\nLoRa Frequency: %.3f MHz\nLoRa Sync:      0x%04X\n\nConfiguration: %s\n",
             long(working.node), long(working.sample), long(working.jitter), long(working.heartbeat),
-            long(working.threshold), working.threshold / 10.0, long(working.power),
+            long(working.threshold), working.threshold / 10.0, long(working.power), working.frequencyKhz / 1000.0, unsigned(working.sync),
             sameConfig(working, saved) ? "Saved" : "Modified (unsaved)");
     }
     void exit() { working = saved; active = false; finished = true; }
@@ -87,12 +87,15 @@ struct ConfigConsole {
                     "set heartbeat N   1..604800 seconds\n"
                     "set threshold N   1..1650 tenths of C (1 = 0.1 C)\n"
                     "set power N       -9..22 dBm\n"
+                    "set frequency N   902125..927875 kHz (integer)\n"
+                    "set sync HHHH     0000..FFFF hex register bytes; optional 0x prefix\n"
                     "save              Save all settings; stay in console\n"
                     "defaults          Development defaults in RAM only\n"
                     "reboot            Restart without saving\n"
                     "exit              Discard unsaved changes; resume operation\n"
                     "Examples: set node 3; set sample 15; set jitter 2; set heartbeat 300;\n"
-                    "set threshold 2; set power 10 (enter each command on its own line).\n"
+                    "set threshold 2; set power 10; set frequency 915500; set sync D3C7\n"
+                    "(enter each command on its own line).\n"
                     "Five minutes without a valid command exits and discards unsaved changes.");
                 break;
             case Command::Show: show(); break;

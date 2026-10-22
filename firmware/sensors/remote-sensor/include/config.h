@@ -5,19 +5,24 @@
 #include <ctype.h>
 #include <errno.h>
 
-// Whole seconds keep conversion and jitter arithmetic bounded and auditable.
+// Integer kHz, register bytes, and whole seconds keep parsing/conversions explicit.
 struct SensorConfig {
-    int32_t version = 1;
+    int32_t version = 2;
+    int32_t frequencyKhz = 915000;
+    uint16_t sync = 0xD3C7;
     int32_t node = 2, sample = 5, jitter = 1, heartbeat = 30, threshold = 1, power = 10;
 };
 inline bool validConfig(const SensorConfig& c) {
-    return c.version == 1 && c.node >= 1 && c.node <= 239
+    return c.version == 2
+        && c.frequencyKhz >= 902125 && c.frequencyKhz <= 927875
+        && c.node >= 1 && c.node <= 239
         && c.sample >= 1 && c.sample <= 86400 && c.jitter >= 0 && c.jitter <= 2147
         && c.sample > c.jitter && c.heartbeat >= 1 && c.heartbeat <= 604800
         && c.threshold >= 1 && c.threshold <= 1650 && c.power >= -9 && c.power <= 22;
 }
 inline bool sameConfig(const SensorConfig& a, const SensorConfig& b) {
-    return a.version == b.version && a.node == b.node && a.sample == b.sample
+    return a.version == b.version && a.frequencyKhz == b.frequencyKhz && a.sync == b.sync
+        && a.node == b.node && a.sample == b.sample
         && a.jitter == b.jitter && a.heartbeat == b.heartbeat
         && a.threshold == b.threshold && a.power == b.power;
 }
@@ -43,12 +48,27 @@ inline Command parseCommand(char* line, SensorConfig& config) {
         if (!strcmp(words[0], "exit")) return Command::Exit;
     }
     if (count != 3 || strcmp(words[0], "set")) return Command::Invalid;
+    SensorConfig candidate = config;
+    if (!strcmp(words[1], "sync")) {
+        const char* hex = words[2];
+        if (hex[0] == '0' && hex[1] == 'x') hex += 2;
+        if (strlen(hex) != 4) return Command::Invalid;
+        uint16_t value = 0;
+        for (unsigned i = 0; i < 4; ++i) {
+            if (!isxdigit(static_cast<unsigned char>(hex[i]))) return Command::Invalid;
+            value = uint16_t((value << 4) | (hex[i] <= '9' ? hex[i] - '0' : hex[i] - 'a' + 10));
+        }
+        candidate.sync = value;
+        if (!validConfig(candidate)) return Command::Invalid;
+        config = candidate;
+        return Command::Set;
+    }
     char* end;
     errno = 0;
     long n = strtol(words[2], &end, 10);
     if (errno || *end || end == words[2] || n < INT32_MIN || n > INT32_MAX) return Command::Invalid;
-    SensorConfig candidate = config;
-    if (!strcmp(words[1], "node")) candidate.node = n;
+    if (!strcmp(words[1], "frequency")) candidate.frequencyKhz = n;
+    else if (!strcmp(words[1], "node")) candidate.node = n;
     else if (!strcmp(words[1], "sample")) candidate.sample = n;
     else if (!strcmp(words[1], "jitter")) candidate.jitter = n;
     else if (!strcmp(words[1], "heartbeat")) candidate.heartbeat = n;

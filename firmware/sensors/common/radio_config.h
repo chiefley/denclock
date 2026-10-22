@@ -1,17 +1,19 @@
 #pragma once
 #include <RadioLib.h>
+#include "radio_sync.h"
 
 // Heltec WiFi LoRa 32 V3: NSS, DIO1, reset, busy.
 constexpr int RadioNss = 8, RadioDio1 = 14, RadioReset = 12, RadioBusy = 13;
-inline int16_t initializeRadio(SX1262& radio, int8_t power = 10) {
+// Defaults preserve the gateway radio configuration; sensors pass saved settings.
+inline int16_t initializeRadio(SX1262& radio, int8_t power = 10,
+                               int32_t frequencyKhz = 915000, uint16_t sync = 0xD3C7) {
     radio.tcxoVoltage = 1.8;
     // Eight symbols is RadioLib's default; explicitly retain the board's 1.8 V TCXO.
-    int16_t state = radio.begin(915.0, 125.0, 9, 7,
+    int16_t state = radio.begin(frequencyKhz / 1000.0f, 125.0, 9, 7,
                                RADIOLIB_SX126X_SYNC_WORD_PRIVATE, power, 8, 1.8);
     if (state != RADIOLIB_ERR_NONE) return state;
-    // RadioLib expands the high nibbles from syncWord and low nibbles
-    // from controlBits: 0xDC, 0x37 -> register bytes 0xD3, 0xC7.
-    state = radio.setSyncWord(0xDC, 0x37);
+    const RadioLibSync parameters = radioLibSync(sync);
+    state = radio.setSyncWord(parameters.syncWord, parameters.controlBits);
     if (state != RADIOLIB_ERR_NONE) return state;
     return radio.setCRC(2);
 }

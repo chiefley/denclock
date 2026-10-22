@@ -177,14 +177,15 @@ void setup() {
         Wire1.setTimeOut(100);
         sensorReady = initializeSensor();
     }
-    int16_t state = initializeRadio(radio, config.power);
+    int16_t state = initializeRadio(radio, config.power, config.frequencyKhz, config.sync);
     radioAttempted = true;
     if (state != RADIOLIB_ERR_NONE) {
         Serial.printf("Radio initialization failed: %d; report skipped\n", state);
         enterDeepSleep();
         return;
     }
-    Serial.println("Remote sensor ready: 915 MHz, sync 0xD3C7, CRC on");
+    Serial.printf("Remote sensor ready: %.3f MHz, sync 0x%04X, CRC on\n",
+                  config.frequencyKhz / 1000.0, unsigned(config.sync));
 }
 void loop() {
     sensors_event_t humidity{}, temperature{};

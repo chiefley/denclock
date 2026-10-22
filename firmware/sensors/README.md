@@ -25,10 +25,10 @@ RTC memory retains the next sequence, unrounded reporting baseline, and last
 successful transmission time across timer wakes; a true reset or power-up
 starts at 0. Failed readings retry on the next wake without consuming a sequence.
 
-Both projects use 915 MHz, 125 kHz bandwidth, SF9, coding rate 4/7,
+Both projects default to 915.000 MHz (sensor frequency is configurable), 125 kHz bandwidth, SF9, coding rate 4/7,
 10 dBm by default (sensor power is configurable),
 eight-symbol RadioLib default preamble, 1.8 V TCXO, explicit header and CRC.
-The exact sync register bytes are D3 C7. RadioLib's
+The default sync register bytes are D3 C7 (configurable on the sensor). RadioLib's
 [`setSyncWord(syncWord, controlBits)`](https://jgromes.github.io/RadioLib/class_s_x126x.html)
 uses split nibbles, so the call is `setSyncWord(0xDC, 0x37)`.
 
@@ -154,6 +154,8 @@ rejected in full. `?` or `help` lists commands, ranges, units and examples.
 | `set heartbeat N` | 1–604800 seconds | 30 |
 | `set threshold N` | 1–1650 tenths of °C; 1 means 0.1°C | 1 |
 | `set power N` | -9–22 dBm (SX1262 range) | 10 |
+| `set frequency N` | 902125–927875 integer kHz | 915000 (915.000 MHz) |
+| `set sync HHHH` | Exactly four hex digits, optional `0x` prefix | D3C7 |
 | `show` | All working settings, threshold units and saved/unsaved status | |
 | `save` | Persist all settings; remain in console | |
 | `defaults` | Restore development defaults in RAM | |
@@ -166,12 +168,33 @@ and `exit`, each on its own line. There are no den/remote profiles.
 
 `set` and `defaults` only change RAM. Five minutes without a valid command
 prints a timeout and discards unsaved edits, as does `exit`. Only `save` writes
-the complete version-1 configuration blob to ESP32 Preferences/NVS namespace
+the complete version-2 configuration blob to ESP32 Preferences/NVS namespace
 `denclock-sensor`, key `config`. Missing, wrong-size, incompatible or invalid
 records fall back to development defaults. Flash write failure is reported and
 the session retains its previous saved snapshot. The effective snapshot counts
 as Saved even when using defaults with no stored record. Settings survive sleep,
 power cycling and firmware uploads that preserve NVS. Sampling never writes NVS.
+
+[Configurable LoRa Frequency and Sync Word](docs/stories/completed/010-configurable-lora-frequency-and-sync-word.md)
+is accepted by the developer.
+Use `set frequency 915500` for 915.500 MHz and `set sync D3C7` or
+`set sync 0xd3c7` for the two SX1262 sync register bytes. `show` displays
+frequency in MHz to three decimals and sync as four hexadecimal digits.
+Changes apply at the next radio initialization, after leaving configuration.
+Sensor and gateway frequency, sync and modulation settings must match to receive
+reports. Gateway configuration behavior remains unchanged in this story.
+
+Version-1 records are rejected entirely: upgrading resets **all** effective
+settings to version-2 defaults, including node ID and reporting intervals.
+There is no migration, and fallback does not write NVS. Reconfigure each sensor
+and explicitly `save`. Both new settings use the same RAM/save/defaults/exit/
+timeout/reboot semantics as other settings.
+
+The frequency range does not establish FCC compliance. Custom sync words are
+experimental and may differ in reception performance or isolation. Sync words
+are radio synchronization parameters, not authentication credentials; firmware
+does not replace arbitrary values. Radio initialization failures retain the
+existing error log and deep-sleep retry behavior.
 
 Bounds cap sample sleep at a day, heartbeat at a week and threshold at the SHT40
 measurement span; jitter keeps the microsecond random span within 32 bits.
@@ -186,6 +209,18 @@ g++ -std=c++11 -Wall -Wextra -Werror -pedantic firmware/sensors/tests/sensor_con
 g++ -std=c++11 -Wall -Wextra -Werror -pedantic -I firmware/sensors/tests/console_fakes firmware/sensors/tests/config_console_test.cpp -o /tmp/denclock-config-console-test
 /tmp/denclock-config-console-test
 ```
+
+Sync conversion host check:
+
+```sh
+g++ -std=c++11 -Wall -Wextra -Werror -pedantic firmware/sensors/tests/radio_sync_test.cpp -o /tmp/denclock-radio-sync-test
+/tmp/denclock-radio-sync-test
+```
+
+For story 010 hardware verification, confirm default gateway reception, saved
+frequency/sync persistence through reset, matched-setting reception, mismatched
+frequency/sync behavior, and unchanged sampling and sleep. Matching custom gateway
+settings may be tested after the separate gateway configuration story.
 
 Console tests use fake serial, time and Preferences storage; they do not prove
 physical NVS durability or serial timing. Before acceptance, run the hardware
@@ -374,8 +409,9 @@ sensor initialization on the next cycle. Battery reporting continues.
   during this build. The library manifest also downloads Adafruit display
   dependencies; the sketch continues to use the existing ThingPulse OLED.
 
-Radio settings are unchanged on both ends: 915 MHz, 125 kHz bandwidth, SF9,
-coding rate 4/7, private sync word, 10 dBm, eight-symbol preamble, 1.8 V TCXO.
+Radio defaults on both ends are 915.000 MHz, 125 kHz bandwidth, SF9,
+coding rate 4/7, sync registers D3 C7, 10 dBm, eight-symbol preamble, 1.8 V TCXO.
+The sensor supports configurable frequency, sync word and transmit power.
 Existing RadioLib CRC behavior and radio error handling remain in place.
 
 References: [Heltec battery example](https://github.com/HelTecAutomation/Heltec_ESP32/blob/master/examples/ESP32/WiFiLoRa32_battery_read/WiFiLoRa32_battery_read.ino),

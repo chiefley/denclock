@@ -54,5 +54,34 @@ int main() {
     SensorConfig invalid; invalid.version = 99;
     flash.assign(reinterpret_cast<const char*>(&invalid), sizeof(invalid));
     assert(sameConfig(loadConfig(), SensorConfig{}));
+    // A real version-1 record has the previous size and must not be migrated.
+    int32_t version1[] = {1, 17, 15, 2, 300, 1, 10};
+    flash.assign(reinterpret_cast<const char*>(version1), sizeof(version1));
+    unsigned previousWrites = writes;
+    c = loadConfig();
+    assert(sameConfig(c, SensorConfig{}) && writes == previousWrites);
+    invalid = SensorConfig{}; invalid.version = 1;
+    flash.assign(reinterpret_cast<const char*>(&invalid), sizeof(invalid));
+    assert(sameConfig(loadConfig(), SensorConfig{}) && writes == previousWrites);
+    failSave = false;
+    ConfigConsole radio(c);
+    send(radio, "set frequency 915500\nset sync 0xab12\nshow\n");
+    assert(c.frequencyKhz == 915500 && c.sync == 0xAB12);
+    assert(writes == previousWrites);
+    assert(Serial.output.find("LoRa Frequency: 915.500 MHz") != std::string::npos);
+    assert(Serial.output.find("LoRa Sync:      0xAB12") != std::string::npos);
+    send(radio, "save\n");
+    assert(writes == previousWrites + 1 && sameConfig(c, loadConfig()));
+    send(radio, "defaults\n");
+    assert(c.frequencyKhz == 915000 && c.sync == 0xD3C7);
+    send(radio, "exit\n");
+    assert(c.frequencyKhz == 915500 && c.sync == 0xAB12);
+    ConfigConsole radioTimeout(c);
+    send(radioTimeout, "set frequency 916000\nset sync 1234\n");
+    fakeMillis += 300000; radioTimeout.poll();
+    assert(sameConfig(c, loadConfig()));
+    ConfigConsole radioReboot(c);
+    send(radioReboot, "set frequency 917000\nset sync 5678\nreboot\n");
+    assert(loadConfig().frequencyKhz == 915500 && loadConfig().sync == 0xAB12);
     std::cout << "Configuration console tests passed\n";
 }

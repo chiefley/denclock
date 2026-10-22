@@ -52,10 +52,12 @@ logged; the ESP32 still sleeps and retries on wake.
 
 ## Sensor serial configuration
 
-The sensor loads a validated version-1 complete Preferences/NVS configuration
+The sensor loads a validated version-2 complete Preferences/NVS configuration
 at every startup, including timer wakes. Missing, incompatible or invalid data
 uses development defaults: node 2, sample 5 seconds, jitter ±1 second,
-heartbeat 30 seconds, threshold 1 tenth °C and power 10 dBm.
+heartbeat 30 seconds, threshold 1 tenth °C, power 10 dBm, frequency 915000 kHz
+and sync-register value 0xD3C7. Version-1 records are rejected without migration
+of any settings; fallback defaults are not written until explicit `save`.
 Only explicit `save` writes NVS; measurement/reporting cycles never do.
 
 After non-deep-sleep reset, a ten-second serial entry window at 115200 baud
@@ -79,7 +81,11 @@ settings and Saved or Modified (unsaved). `set node/sample/jitter/heartbeat/
 threshold/power N` edits RAM after validating the whole candidate. Ranges are
 node 1–239, sample 1–86400 seconds, jitter 0–2147 seconds with sample > jitter,
 heartbeat 1–604800 seconds, threshold 1–1650 integer tenths °C, and power
--9–22 dBm. Microsecond conversion and jitter arithmetic remain bounded.
+-9–22 dBm. `set frequency N` accepts 902125–927875 integer kHz;
+`set sync HHHH` accepts exactly four hexadecimal digits, case-insensitive, with
+an optional `0x` prefix. All 16-bit sync values are accepted unchanged.
+`show` renders frequency in MHz with three decimals and sync as `0xHHHH`.
+Microsecond conversion and jitter arithmetic remain bounded.
 
 `save` persists the entire record and remains in the console. `defaults` resets
 RAM only. `exit` and five minutes without a valid command restore the saved
@@ -107,9 +113,19 @@ and reporting follow the policy above.
 
 ## Radio and reception
 
-Both projects configure SX1262 at 915 MHz, bandwidth 125 kHz, SF9, coding rate
-4/7, sensor-configurable TX power (default 10 dBm; gateway fixed at 10 dBm), sync word 0xD3C7, CRC enabled, eight-symbol preamble
-(the pinned RadioLib default), and 1.8 V TCXO.
+Both projects default to 915.000 MHz, 10 dBm and sync registers D3 C7.
+The sensor uses configured frequency, power and sync when initializing the radio;
+the gateway retains fixed defaults. Bandwidth 125 kHz, SF9, coding rate 4/7,
+CRC enabled, eight-symbol preamble and 1.8 V TCXO remain fixed. Startup serial
+diagnostics display the actual sensor frequency and sync. Radio initialization
+errors retain existing sleep/retry handling.
+
+`radioLibSync` converts register-byte representation to RadioLib's split-nibble
+arguments; 0xD3C7 produces `setSyncWord(0xDC, 0x37)`. Settings apply on the next
+radio initialization, never during configuration. Sensor and gateway settings
+must match. Arbitrary sync words are experimental and do not guarantee equivalent
+reception or perfect isolation. They are synchronization parameters, not
+credentials. The permitted frequency range does not establish FCC compliance.
 
 The selectable `diagnostic` build of the gateway validates a complete received packet before
 printing node, sequence, RSSI, SNR, and present measurements at 115200 baud.
