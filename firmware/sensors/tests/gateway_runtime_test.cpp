@@ -6,7 +6,12 @@ void commands(const char* text) {
     while (Serial.available()) loop();
 }
 int main() {
+    GatewayWiFi::Credentials credentials;
+    strcpy(credentials.ssid, "Test network"); strcpy(credentials.password, "test-password");
+    assert(GatewayWiFi::save(credentials));
     setup();
+    assert(!provisioning.active && WiFi.stationSsid == "Test network");
+    WiFi.statusValue = WL_CONNECTED;
     assert(radio.frequency == 915.0f && radio.syncWord == 0xDC && radio.controlBits == 0x37);
     strcpy(activeConfig.host, "Original.Example");
     maintainConnection();
@@ -72,12 +77,38 @@ int main() {
     assert(Serial.input.size() == 136 && service.frames.size() > frameBytes);
     Serial.input.clear();
     WiFi.statusValue = 0; fakeMillis += RetryMs;
-    maintainConnection(); assert(!service.connected() && WiFi.reconnects == 1);
+    maintainConnection(); assert(!service.connected());
+    provisioning.tick(); fakeMillis += RetryMs; provisioning.tick();
+    assert(WiFi.reconnects == 1);
     WiFi.statusValue = WL_CONNECTED;
     setup(); // Simulate startup loading the saved snapshot, not unsaved RAM.
     assert(!strcmp(activeConfig.host, "Staged.local"));
     assert(radio.frequency == 916.5f && radio.power == 10);
     assert(radio.syncWord == 0xAC && radio.controlBits == 0xBD);
     assert(!console.active);
+    // Provisioning keeps radio/console servicing alive without a packet backlog.
+    provisioning.start();
+    assert(provisioning.active);
+    Serial.input = std::string(200, 'x');
+    received = true;
+    const unsigned accepted = diagnostics.accepted;
+    const size_t bytesBeforeSetup = service.frames.size();
+    loop();
+    assert(diagnostics.accepted == accepted + 1 && Serial.input.size() == 136);
+    assert(display.lines.size() == 6 && display.lines[0] == "SETUP");
+    assert(display.lines[1] + display.lines[2] == provisioning.ssid);
+    assert(display.lines[4] == provisioning.password);
+    assert(service.frames.size() == bytesBeforeSetup && !service.connected());
+    Serial.input.clear();
+    provisioning.candidate = credentials;
+    provisioning.testing = true; provisioning.attemptAt = millis();
+    WiFi.statusValue = WL_CONNECTED;
+    loop(); assert(provisioning.success && provisioning.active);
+    fakeMillis += 60000; loop();
+    assert(!provisioning.active && service.connected());
+    assert(WiFi.lastHost == "Staged.local");
+    assert(service.frames.substr(service.frames.size() - 4) == hello);
+    received = true; const size_t beforeForward = service.frames.size(); loop();
+    assert(service.frames.size() > beforeForward);
     std::cout << "Gateway runtime tests passed\n";
 }

@@ -158,11 +158,56 @@ without waiting for a blocking receive timeout. Network operations can still
 cause packet loss; there is no application queue or persistent buffer. Packets
 received without an available service connection are discarded.
 
-Wi-Fi credentials and the development default destination belong in the build
-configuration (`include/config.local.h` can override checked-in defaults). An
-empty SSID disables forwarding with a diagnostic. The production gateway uses
-its saved hostname when present. The `diagnostic` environment has no Wi-Fi dependency
-and retains the original sensor decoder source unchanged.
+Household Wi-Fi credentials are provisioned at runtime and stored separately
+from radio/hostname configuration. The development default service endpoint may
+still be overridden through `include/config.local.h`. The production gateway uses
+its saved service hostname when present. The `diagnostic` environment has no Wi-Fi
+dependency and retains the fixed-default sensor decoder.
+
+## Gateway household Wi-Fi provisioning
+
+The production gateway loads a version-1 household credential record from
+Preferences namespace `denclock-wifi`, key `credentials`. Missing or invalid
+records start temporary setup. Valid saved records initiate station connection;
+five-second retries offer setup after 60 seconds continuously offline, including
+later disconnections. Platform credential persistence and auto-reconnect are
+disabled; only explicit verified saves update the application credential record.
+
+Setup uses WPA2-Personal, a `DenClock-Setup-` SSID with the complete station MAC,
+and a persisted random eight-character setup password using lowercase letters and
+digits (40 random bits) in key `setup`. A failed
+secret save never opens an unsecured AP. Previously stored long setup passwords
+are regenerated in the shorter format without changing household credentials. Setup runs AP+station with local DHCP,
+HTTP at `192.168.4.1:80`, and bounded wildcard captive DNS. The OLED shows SETUP,
+SSID, setup password and manual address while normal diagnostics continue updating
+internally. Holding PRG/GPIO0 for two seconds after firmware startup enters setup
+without erasing credentials; holding it across reset is reserved for the ESP32
+bootloader. The setup screen restores current normal diagnostics when setup ends.
+
+Browser form POSTs test candidate credentials for at most 30 seconds. Only a
+connected station with a nonzero IPv4 address permits saving; neither Internet nor
+the Windows service is required. Failed tests or saves preserve the saved record
+and leave setup available. Success reports the household IP and closes setup
+15 seconds after sending a success page, or after 60 seconds without a returning
+browser. A disconnected household link during that interval cancels shutdown.
+A confirmed Wi-Fi-only clear invalidates just the household credential record;
+setup password and `denclock-gw` radio/hostname data remain intact.
+
+HTTP limits each connection to 1024 header and 512 body bytes, three seconds,
+128 input bytes and one nonblocking 256-byte output per poll. Only form-encoded
+POSTs with a per-setup token can perform actions. Scan results are capped at 16;
+SSID input is bounded to 32 bytes without DNS-name restrictions. Household
+passwords never appear in serial output, URLs, response HTML or OLED output.
+Captive DNS validates one uncompressed question in at most 512 bytes per poll;
+HTTP discovery paths redirect to the manual address. Automatic captive-page
+opening varies by OS; manual HTTP remains the fallback.
+
+The AP and HTTP/DNS servers exist only during setup. Radio reception, serial
+configuration and diagnostic counters continue; packets during setup are dropped
+without a backlog. Existing TCP resolution, HELLO and forwarding resume after
+setup closes. See the [setup guide and engineering limitations](../README.md#set-up-gateway-wi-fi)
+for supported password forms, SSID representation, recovery rationale and pending
+hardware verification. Compile-time household credentials are no longer used.
 
 ## Gateway serial configuration and destination resolution
 

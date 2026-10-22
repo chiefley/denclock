@@ -4,14 +4,19 @@
 #include <stdio.h>
 #include <stddef.h>
 #define IRAM_ATTR
-constexpr int Vext = 36, OUTPUT = 1, LOW = 0, HIGH = 1;
+constexpr int Vext = 36, OUTPUT = 1, LOW = 0, HIGH = 1, INPUT_PULLUP = 2;
+static int buttonLevel = HIGH;
+inline int digitalRead(int) { return buttonLevel; }
 static uint32_t fakeMillis;
 inline uint32_t millis() { return fakeMillis; }
 inline void delay(uint32_t ms) { fakeMillis += ms; }
 inline void pinMode(int, int) {}
 inline void digitalWrite(int, int) {}
 struct FakeString {
-    const char* c_str() const { return "fake"; }
+    std::string value = "fake";
+    explicit FakeString(std::string s = "fake") : value(s) {}
+    const char* c_str() const { return value.c_str(); }
+    size_t length() const { return value.size(); }
 };
 struct FakeSerial {
     std::string input, output;

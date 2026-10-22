@@ -47,15 +47,125 @@ The [deep-sleep story](docs/stories/completed/003-remote-sensor-deep-sleep-opera
 is verified and accepted by the developer. Production gateway networking forwards raw packets
 to the independent LoRa Service; the DenClock time server is not involved.
 Copy `lora-gateway/include/config.example.h` to ignored `config.local.h` in the
-same directory to set Wi-Fi credentials and the development default service host.
-The production gateway can override its destination using the persistent serial
-console described below; Wi-Fi credentials remain compile-time settings.
-An empty Wi-Fi SSID disables forwarding with a diagnostic.
+same directory only to override the development default service endpoint.
+Household Wi-Fi is configured through the temporary setup network described below;
+no household credentials are embedded in the production firmware. The persistent
+serial console still controls the service hostname and radio parameters.
 The gateway sends HELLO (ID 1) after every TCP connect, retries connections at
 five-second intervals, and discards reports while disconnected without queuing.
 RSSI is rounded to the nearest dBm; SNR to the nearest quarter dB. Metadata that
 cannot fit the protocol signed bytes is logged and the packet discarded rather
 than wrapped or assigned an invented saturation value. Raw LoRa bytes are opaque.
+
+## Set up gateway Wi-Fi
+
+1. Power on the gateway. With no saved household Wi-Fi, its OLED shows **SETUP**.
+   Select the phone's Wi-Fi network matching `DenClock-Setup-` plus the twelve
+   hexadecimal digits shown on the next OLED line. Together these form one SSID.
+2. Enter the **setup password** shown on the OLED. If the phone warns that this
+   network has no Internet, choose to stay connected.
+3. Open the setup page. If it does not open automatically, browse to
+   **http://192.168.4.1** (HTTP, not HTTPS). No app or Internet is needed.
+4. Wait for the nearby-network scan, choose your household network, or enter
+   its SSID manually for a hidden network. Enter its Wi-Fi password and select
+   **Connect**. The gateway supports **2.4 GHz** household Wi-Fi.
+5. The page reports progress for up to 30 seconds. An incorrect password leaves
+   setup available: correct it and try again. If the phone disconnects while
+   the gateway changes Wi-Fi channels, rejoin the same setup network and reopen
+   the manual address to see progress or the result.
+6. On success the page confirms the connection and displays the household IP.
+   The setup network closes shortly afterward. Rejoin household Wi-Fi on the
+   phone. Normal gateway OLED diagnostics return; future power-ups automatically
+   use the saved credentials.
+
+To change networks, power on with **PRG released**, wait for the OLED to come on,
+then hold **PRG for two seconds** until SETUP appears. PRG also works during normal
+operation. Do not hold PRG while applying power or pressing reset: that selects
+firmware-download mode. Entering setup preserves the saved household credentials.
+If household Wi-Fi remains unavailable for 60 seconds, setup becomes available
+automatically. Only a successful replacement connection saves new credentials.
+
+To forget household Wi-Fi deliberately, enter setup, open **Clear saved household
+Wi-Fi**, check **Forget household Wi-Fi only**, and press **Clear Wi-Fi credentials**.
+This leaves LoRa frequency, sync word, service hostname and the device's setup
+password intact. Setup remains available for another network.
+
+Captive-portal auto-opening varies by phone and its VPN/private DNS settings.
+The manual HTTP address remains supported. Some phones require disabling mobile
+data temporarily or choosing “use this network anyway.” The page uses local HTML
+and forms, with no JavaScript or external resources.
+
+### Wi-Fi provisioning engineering notes
+
+Accepted story: [Gateway Wi-Fi Provisioning Through Temporary Access Point](docs/stories/completed/013-gateway-wifi-provisioning-through-temporary-access-point.md).
+
+- `denclock-wifi` is a separate Preferences namespace: `credentials` holds the
+  version-1 household record; `setup` holds the device-specific setup password.
+  Explicit verified saves and Wi-Fi-only clearing do not touch `denclock-gw`.
+  Uploads preserving NVS preserve both. Compile-time Wi-Fi settings are ignored;
+  development configurations are not migrated.
+- The setup SSID uses all six bytes of the station MAC. Its eight-character
+  password uses lowercase letters and digits (40 random bits), generated with `esp_fill_random` after the
+  Wi-Fi radio starts and persisted before opening a WPA2-Personal AP. Storage/AP
+  failures retry after five seconds without falling back to an open AP. Older
+  long setup passwords are replaced once; read the new password from the OLED.
+- Physical recovery uses PRG/GPIO0 **after boot**, rather than held across power-on.
+  The [Heltec V3 schematic](https://resource.heltec.cn/download/WiFi_LoRa_32_V3/HTIT-WB32LA(F)_V3_Schematic_Diagram.pdf)
+  identifies the PRG switch on GPIO0. [Espressif documents](https://docs.espressif.com/projects/esptool/en/release-v4/esp32s3/advanced-topics/boot-mode-selection.html)
+  that GPIO0 low at reset selects the ROM bootloader. This is the story's permitted
+  alternative recovery interaction; no extra hardware or boot-strapping changes.
+- AP+station operation keeps setup available during a 30-second credential test.
+  Association plus a nonzero station IPv4 address verifies connection; the LoRa
+  service and Internet are not involved. Failed tests and saves preserve the last
+  saved record. Success closes setup 15 seconds after a success page is sent,
+  or after 60 seconds if the browser never returns. A lost household link during
+  that grace period leaves setup available for another attempt.
+- Ordinary station retries use a five-second gate and offer recovery after
+  60 seconds continuously offline, including after a later disconnection.
+  The HTTP listener binds only `192.168.4.1:80`; HTTP and captive DNS stop with
+  the AP. LoRa reception and the bounded serial console continue in setup, but
+  packets are discarded rather than queued. TCP hostname resolution/HELLO resume
+  after setup closes, without changing the existing resolver or wire protocol.
+- HTTP accepts one request at a time: at most 1024 header bytes, 512 body bytes,
+  128 input bytes and one nonblocking 256-byte send per loop, with a three-second
+  connection deadline. Content-Length is required for form POSTs; chunked bodies,
+  duplicates, malformed encoding, embedded NUL and oversized fields are rejected.
+  Actions use POST and a per-setup random token; no passwords enter URLs, logs,
+  returned HTML or the OLED. Household passwords are not shown after submission.
+- Async scans display at most 16 networks. Discovered SSIDs are submitted as hex
+  bytes, so punctuation, spaces and non-UTF-8 names are not interpreted as DNS
+  names or HTML. Manual entry accepts up to 32 UTF-8 bytes. Embedded NUL SSIDs
+  are unsupported by the platform's C-string station API. Passwords accept an
+  open network, 8–63 printable ASCII characters or a 64-digit hexadecimal PSK.
+- Captive DNS processes one query per loop, limited to 512 bytes, with validated
+  uncompressed labels. A/ANY queries receive `192.168.4.1`; AAAA receives an empty
+  answer. Common HTTP discovery paths redirect to the manual address. HTTPS
+  interception and guaranteed captive-browser launch are not implemented.
+- The OLED setup screen temporarily replaces the normal screen while RX/ERR,
+  sensor and connectivity diagnostics continue updating internally. The latest
+  normal diagnostics return when setup ends.
+
+Portable provisioning checks (same compiler/flags as the gateway runtime tests):
+
+```sh
+g++ -std=c++11 -Wall -Wextra -Werror -pedantic -I firmware/sensors/tests/gateway_fakes -I firmware/sensors/tests/console_fakes -I firmware/sensors/lora-gateway/include firmware/sensors/tests/wifi_provisioning_test.cpp -o /tmp/denclock-wifi-provisioning
+/tmp/denclock-wifi-provisioning
+```
+
+This host test uses local socket pairs for real bounded HTTP input/output;
+restricted development sandboxes may need permission to send local socket data.
+It covers NVS isolation, random setup-password persistence, failure/recovery,
+credential testing/commit, AP shutdown, request/DNS bounds and malformed traffic.
+The gateway runtime test also covers LoRa/console servicing during setup and
+hostname resolution, HELLO and forwarding afterward.
+
+Hardware review remains required: verify OLED text fits; post-boot PRG recovery;
+phone association/DHCP; automatic captive opening and manual HTTP on actual
+phones; asynchronous scans/hidden SSID; wrong/correct passwords; AP channel-change
+recovery; success response and AP shutdown; saved reconnect after power cycle;
+60-second offline recovery; Wi-Fi-only clear with radio settings preserved;
+network changes; and continued LoRa receive/forwarding, counters, OLED and TCP
+reconnection. No hardware flash or phone test has been performed by Codex.
 
 ## Gateway OLED diagnostics
 

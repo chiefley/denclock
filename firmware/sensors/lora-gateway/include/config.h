@@ -1,15 +1,9 @@
 #pragma once
 #include <stdint.h>
 
-// Copy config.example.h to config.local.h and fill in local settings.
+// Optional service endpoint overrides; household Wi-Fi is provisioned at runtime.
 #if __has_include("config.local.h")
 #include "config.local.h"
-#endif
-#ifndef GATEWAY_WIFI_SSID
-#define GATEWAY_WIFI_SSID "NativeLogic"
-#endif
-#ifndef GATEWAY_WIFI_PASSWORD
-#define GATEWAY_WIFI_PASSWORD "NewLondonGrinders"
 #endif
 #ifndef LORA_SERVICE_HOST
 #define LORA_SERVICE_HOST "192.168.50.90"

@@ -4,6 +4,7 @@
 #include "config.h"
 #include "gateway_console.h"
 #include "service_resolver.h"
+#include "wifi_provisioning.h"
 #include "gateway_protocol.h"
 #include "gateway_diagnostics.h"
 #include "../../common/radio_config.h"
@@ -14,8 +15,10 @@ GatewayConfiguration::Config activeConfig;
 GatewayConfiguration::Console console(activeConfig);
 volatile bool received = false;
 constexpr uint32_t RetryMs = 5000;
-uint32_t lastWifiAttempt = 0, lastTcpAttempt = 0;
-bool networkConfigured = false;
+uint32_t lastTcpAttempt = 0;
+GatewayWiFi::Provisioning provisioning;
+bool setupWasActive = false;
+uint32_t setupDisplayAt = 0;
 SSD1306Wire display(0x3C, 17, 18);
 GatewayDiagnostics diagnostics;
 constexpr uint32_t WifiSignalRefreshMs = 1000;
@@ -39,6 +42,20 @@ void updateConnectivity() {
 void updateDisplay() {
     updateConnectivity();
     diagnostics.tick(millis());
+    if (provisioning.active) {
+        if (setupWasActive && uint32_t(millis() - setupDisplayAt) < 1000) return;
+        setupWasActive = true; setupDisplayAt = millis();
+        display.clear(); display.setColor(WHITE);
+        display.setTextAlignment(TEXT_ALIGN_CENTER); display.setFont(ArialMT_Plain_10);
+        display.drawString(64, 0, "SETUP");
+        display.drawString(64, 10, "DenClock-Setup-");
+        display.drawString(64, 20, provisioning.ssid + strlen("DenClock-Setup-"));
+        display.drawString(64, 30, "Setup password:");
+        display.drawString(64, 40, provisioning.password);
+        display.drawString(64, 52, "192.168.4.1");
+        display.display(); return;
+    }
+    if (setupWasActive) { setupWasActive = false; diagnostics.dirty = true; }
     if (!diagnostics.dirty) return;
     diagnostics.dirty = false;
     display.clear();
@@ -100,16 +117,11 @@ bool sendFrame(const uint8_t* frame, size_t length) {
 }
 
 void maintainConnection() {
-    if (!networkConfigured) return;
+    if (provisioning.active) { service.stop(); return; }
     const uint32_t now = millis();
-    if (WiFi.status() != WL_CONNECTED) {
+    if (!provisioning.usable()) {
         if (service.connected()) Serial.println("Wi-Fi lost; closing TCP connection");
         service.stop();
-        if (uint32_t(now - lastWifiAttempt) >= RetryMs) {
-            lastWifiAttempt = now;
-            Serial.println("Connecting to Wi-Fi...");
-            WiFi.reconnect();
-        }
         return;
     }
     if (service.connected()) return;
@@ -155,24 +167,6 @@ void onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
     }
 }
 
-void scanWiFi() {
-    Serial.println("Scanning Wi-Fi networks...");
-    int count = WiFi.scanNetworks();
-
-    for (int i = 0; i < count; i++) {
-        Serial.printf(
-            "SSID: %s  RSSI: %d  Channel: %d  Auth: %d  BSSID: %s\n",
-            WiFi.SSID(i).c_str(),
-            WiFi.RSSI(i),
-            WiFi.channel(i),
-            static_cast<int>(WiFi.encryptionType(i)),
-            WiFi.BSSIDstr(i).c_str()
-        );
-    }
-
-    WiFi.scanDelete();
-}
-
 void startRadioReceive() {
     int16_t state = radio.startReceive();
     if (state != RADIOLIB_ERR_NONE) {
@@ -204,18 +198,9 @@ void setup() {
     }
     radio.setPacketReceivedAction(packetReceived);
     startRadioReceive();
-    networkConfigured = GATEWAY_WIFI_SSID[0] != '\0' && activeConfig.host[0] != '\0';
-    if (networkConfigured) {
-        WiFi.onEvent(onWiFiEvent);
-        WiFi.mode(WIFI_STA);
-        scanWiFi();
-        WiFi.setAutoReconnect(true);
-        WiFi.begin(GATEWAY_WIFI_SSID, GATEWAY_WIFI_PASSWORD);
-        lastWifiAttempt = millis();
-        lastTcpAttempt = millis() - RetryMs;
-    } else {
-        Serial.println("Configure include/config.local.h; received packets will be discarded");
-    }
+    WiFi.onEvent(onWiFiEvent);
+    provisioning.begin();
+    lastTcpAttempt = millis() - RetryMs;
     Serial.printf("Gateway transport: %.3f MHz, sync 0x%04X, CRC on\n",
                   activeConfig.frequencyKhz / 1000.0, unsigned(activeConfig.sync));
     Serial.println("Enter config to configure the gateway.");
@@ -242,7 +227,7 @@ void loop() {
         updateDisplay();
         // OLED protocol validation is observational: preserve raw forwarding.
         if (state == RADIOLIB_ERR_NONE) {
-            if (WiFi.status() != WL_CONNECTED || !service.connected()) {
+            if (provisioning.active || WiFi.status() != WL_CONNECTED || !service.connected()) {
                 Serial.println("RX discarded: service disconnected");
             } else {
                 uint8_t frame[GatewayProtocol::MaxFrameLength];
@@ -258,6 +243,7 @@ void loop() {
     }
     updateDisplay();
     console.poll();
+    provisioning.tick();
     maintainConnection();
     delay(1);
 }

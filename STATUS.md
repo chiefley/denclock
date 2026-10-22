@@ -16,6 +16,10 @@ verified and accepted by the developer. Sensors now support persistent serial
 configuration of identity, reporting parameters, and transmit power; see the
 [sensor configuration guide](firmware/sensors/README.md#persistent-sensor-configuration).
 
+Gateway household Wi-Fi now supports temporary access-point/browser provisioning
+with device-specific setup credentials and physical recovery; see the
+[gateway setup guide](firmware/sensors/README.md#set-up-gateway-wi-fi).
+
 ## Resume Here
 
 - [Sensor Change Reporting, Heartbeat, and Randomized Sampling](firmware/sensors/docs/stories/completed/006-sensor-change-reporting-heartbeat-and-randomized-sampling.md)
