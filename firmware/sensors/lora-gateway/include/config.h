@@ -2,6 +2,7 @@
 #include <stdint.h>
 
 // Copy config.example.h to config.local.h and fill in local settings.
+// LORA_SERVICE_HOST is only the default; serial configuration (NVS) overrides it.
 #if __has_include("config.local.h")
 #include "config.local.h"
 #endif

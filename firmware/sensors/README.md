@@ -25,10 +25,10 @@ RTC memory retains the next sequence, unrounded reporting baseline, and last
 successful transmission time across timer wakes; a true reset or power-up
 starts at 0. Failed readings retry on the next wake without consuming a sequence.
 
-Both projects default to 915.000 MHz (sensor frequency is configurable), 125 kHz bandwidth, SF9, coding rate 4/7,
+Both projects default to 915.000 MHz (frequency is configurable on both), 125 kHz bandwidth, SF9, coding rate 4/7,
 10 dBm by default (sensor power is configurable),
 eight-symbol RadioLib default preamble, 1.8 V TCXO, explicit header and CRC.
-The default sync register bytes are D3 C7 (configurable on the sensor). RadioLib's
+The default sync register bytes are D3 C7 (configurable on both). RadioLib's
 [`setSyncWord(syncWord, controlBits)`](https://jgromes.github.io/RadioLib/class_s_x126x.html)
 uses split nibbles, so the call is `setSyncWord(0xDC, 0x37)`.
 
@@ -47,8 +47,10 @@ The [deep-sleep story](docs/stories/completed/003-remote-sensor-deep-sleep-opera
 is verified and accepted by the developer. Production gateway networking forwards raw packets
 to the independent LoRa Service; the DenClock time server is not involved.
 Copy `lora-gateway/include/config.example.h` to ignored `config.local.h` in the
-same directory and set Wi-Fi and service endpoint values before building the
-production gateway. An unconfigured build logs a message and discards packets.
+same directory and set Wi-Fi values before building the production gateway.
+`LORA_SERVICE_HOST` there is only the default service host; a host saved through
+the [gateway serial console](#persistent-gateway-configuration) takes precedence.
+An unconfigured build logs a message and discards packets.
 The gateway sends HELLO (ID 1) after every TCP connect, retries connections at
 five-second intervals, and discards reports while disconnected without queuing.
 RSSI is rounded to the nearest dBm; SNR to the nearest quarter dB. Metadata that
@@ -182,7 +184,8 @@ Use `set frequency 915500` for 915.500 MHz and `set sync D3C7` or
 frequency in MHz to three decimals and sync as four hexadecimal digits.
 Changes apply at the next radio initialization, after leaving configuration.
 Sensor and gateway frequency, sync and modulation settings must match to receive
-reports. Gateway configuration behavior remains unchanged in this story.
+reports. Configure the gateway to match through its
+[serial console](#persistent-gateway-configuration).
 
 Version-1 records are rejected entirely: upgrading resets **all** effective
 settings to version-2 defaults, including node ID and reporting intervals.
@@ -220,7 +223,7 @@ g++ -std=c++11 -Wall -Wextra -Werror -pedantic firmware/sensors/tests/radio_sync
 For story 010 hardware verification, confirm default gateway reception, saved
 frequency/sync persistence through reset, matched-setting reception, mismatched
 frequency/sync behavior, and unchanged sampling and sleep. Matching custom gateway
-settings may be tested after the separate gateway configuration story.
+settings use the [gateway console](#persistent-gateway-configuration).
 
 Console tests use fake serial, time and Preferences storage; they do not prove
 physical NVS durability or serial timing. Before acceptance, run the hardware
@@ -228,6 +231,100 @@ checks in story 009: power/reset entry and overlapping OLED timing, every comman
 save/reboot and power-cycle persistence, exit/timeout discard, invalid inputs,
 custom reporting/node/power settings, timer wakes with no entry delays, gateway
 reception, and two differently configured boards using the same firmware image.
+
+## Persistent gateway configuration
+
+[Persistent Serial Configuration for LoRa Gateway](docs/stories/completed/011-persistent-serial-configuration-for-lora-gateway.md)
+is accepted by the developer.
+
+One production gateway image serves every installation. The LoRa frequency, sync
+word and LoRa Service host are configured over the existing USB serial port at
+115200 baud and saved in NVS. Wi-Fi credentials remain compile-time settings in
+`config.local.h`; the TCP port stays 5210 and the gateway ID stays 1. The
+`diagnostic` environment is unchanged and always uses the radio defaults.
+
+The gateway stays in normal operation while it is configured: there is no reset
+or entry window. Type `config` and Enter in the serial monitor to enter
+configuration mode. Other lines outside configuration mode print a hint and are
+otherwise ignored. In configuration mode the gateway prints `> ` when accepting
+commands. Radio reception, TCP forwarding, the OLED and serial diagnostics carry
+on throughout, so log lines may interleave with typing. The console handles only
+characters already received and never waits inside the receive loop.
+
+Echo, Backspace/Delete, CR/LF/CRLF handling and whole-line rejection follow the
+sensor console. Disable terminal local echo if characters appear twice. Keywords
+ignore case and extra whitespace; the hostname keeps the case it was entered in.
+Lines are limited to 287 characters, enough for `set host` with a 253-character
+name. Oversized, malformed and extra-argument lines change nothing.
+
+| Command | Range / action | Default |
+| --- | --- | --- |
+| `config` | Enter configuration mode (outside configuration mode only) | |
+| `set frequency N` | 902125–927875 integer kHz | 915000 (915.000 MHz) |
+| `set sync HHHH` | Exactly four hex digits, optional `0x` prefix | D3C7 |
+| `set host NAME` | DNS hostname, `.local` mDNS name, or dotted-quad IPv4; 1–253 characters | `LORA_SERVICE_HOST` (`192.168.50.90` unless overridden locally) |
+| `?` / `help` | Commands, ranges, units and examples | |
+| `show` | Staged settings, fixed service port and saved/unsaved status | |
+| `save` | Persist all settings; remain in configuration mode | |
+| `defaults` | Restore defaults in RAM | |
+| `exit` | Discard unsaved edits and leave configuration mode | |
+| `reboot` | Restart without saving edits | |
+
+For example, enter `config`, `set frequency 915500`, `set sync D3C7`,
+`set host denclock-d3c7.local`, `save`, then `reboot`, each on its own line.
+
+Frequency is stored as integer kHz and shown in MHz to three decimals. The sync
+word is the two SX1262 sync register bytes, converted with the shared
+`radioLibSync` exactly as on the sensor. Sync words are radio synchronization
+parameters, not authentication credentials. The frequency range does not
+establish FCC compliance. A sensor and gateway receive each other only when
+frequency, sync word and the fixed modulation settings all match. Startup serial
+output reports the actual frequency, sync word and service host.
+
+Hostnames are letters, digits and interior hyphens in dot-separated labels of
+1–63 characters, with no empty labels, trailing dot, underscore, port or URL. Text
+whose last label is all digits must be a full dotted quad with octets 0–255 and
+no leading zeros. Names are stored in a fixed 254-byte field that always holds the
+whole name and its terminator; longer input is rejected rather than truncated.
+
+Edits are staged in RAM and never touch the running radio or TCP connection. Only
+`save` writes NVS (namespace `denclock-gateway`, key `config`, version-1 record);
+saved settings take effect at the next reboot or power-up. `show` reports
+`Saved` or `Modified (unsaved)`, adding `(reboot to apply)` when the saved
+settings differ from the running ones. `exit`, and five minutes without a valid
+command, discard unsaved edits; invalid commands do not extend the timeout.
+`reboot` does not save. Missing, wrong-size, wrong-version or invalid records
+fall back to defaults without writing NVS, and running on defaults counts as
+Saved. Settings survive power cycles and firmware uploads that preserve NVS; a
+flash erase restores defaults. A failed save is reported and the previous saved
+snapshot is kept.
+
+Each TCP attempt resolves the configured host again, so the gateway never holds
+on to an old address (lwIP may still cache a DNS answer for its TTL). IPv4
+literals need no lookup. DNS names use the DHCP-provided servers. `.local` names
+are sent as multicast DNS queries by lwIP's built-in support
+(`CONFIG_LWIP_DNS_SUPPORT_MDNS_QUERIES` in the pinned framework). The gateway
+does not advertise itself. A lookup failure logs `LoRa Service host ... not
+resolved; will retry`. A refused or timed-out connection logs the resolved
+address. Both retry at the existing five-second interval without a restart. A
+failed DNS lookup can block the loop for up to about 15 seconds, the same as
+the previous compile-time hostname path, and packets can be lost meanwhile. Until
+the LoRa Service advertises its `.local` name, such a host may stay unresolved.
+
+Host checks (use a local executable path on Windows):
+
+```sh
+g++ -std=c++11 -Wall -Wextra -Werror -pedantic firmware/sensors/tests/gateway_config_test.cpp -o /tmp/denclock-gateway-config-test
+/tmp/denclock-gateway-config-test
+g++ -std=c++11 -Wall -Wextra -Werror -pedantic -I firmware/sensors/tests/console_fakes firmware/sensors/tests/gateway_console_test.cpp -o /tmp/denclock-gateway-console-test
+/tmp/denclock-gateway-console-test
+g++ -std=c++11 -Wall -Wextra -Werror -pedantic -I firmware/sensors/tests/console_fakes firmware/sensors/tests/gateway_connection_test.cpp -o /tmp/denclock-gateway-connection-test
+/tmp/denclock-gateway-connection-test
+```
+
+These tests use fake serial, time, Preferences, resolver and TCP client objects.
+They do not prove NVS durability, serial timing, mDNS/DNS behavior on the
+network, or RF compatibility. Hardware verification steps are listed in the story.
 
 ## Remote sensor reset diagnostics
 
@@ -411,7 +508,8 @@ sensor initialization on the next cycle. Battery reporting continues.
 
 Radio defaults on both ends are 915.000 MHz, 125 kHz bandwidth, SF9,
 coding rate 4/7, sync registers D3 C7, 10 dBm, eight-symbol preamble, 1.8 V TCXO.
-The sensor supports configurable frequency, sync word and transmit power.
+The sensor supports configurable frequency, sync word and transmit power; the
+gateway supports configurable frequency and sync word at its fixed 10 dBm.
 Existing RadioLib CRC behavior and radio error handling remain in place.
 
 References: [Heltec battery example](https://github.com/HelTecAutomation/Heltec_ESP32/blob/master/examples/ESP32/WiFiLoRa32_battery_read/WiFiLoRa32_battery_read.ino),

@@ -4,6 +4,8 @@
 #include "config.h"
 #include "gateway_protocol.h"
 #include "gateway_diagnostics.h"
+#include "gateway_console.h"
+#include "gateway_connection.h"
 #include "../../common/radio_config.h"
 
 SX1262 radio = new Module(RadioNss, RadioDio1, RadioReset, RadioBusy);
@@ -16,6 +18,8 @@ SSD1306Wire display(0x3C, 17, 18);
 GatewayDiagnostics diagnostics;
 constexpr uint32_t WifiSignalRefreshMs = 1000;
 uint32_t lastWifiSignalRead = 0;
+GatewayConfig config; // Effective until reboot; the console edits a staged copy.
+GatewayConsole console(config);
 
 void updateConnectivity() {
     const uint32_t now = millis();
@@ -112,10 +116,18 @@ void maintainConnection() {
     if (uint32_t(now - lastTcpAttempt) < RetryMs) return;
     lastTcpAttempt = now;
     service.stop();
-    Serial.printf("Connecting to LoRa Service %s:%u\n", LORA_SERVICE_HOST, LORA_SERVICE_PORT);
-    if (!service.connect(LORA_SERVICE_HOST, LORA_SERVICE_PORT, 1000)) {
-        Serial.println("LoRa Service TCP connection attempt failed; will retry");
+    Serial.printf("Connecting to LoRa Service %s:%u\n", config.host, LORA_SERVICE_PORT);
+    IPAddress address;
+    switch (connectService(WiFi, service, config.host, LORA_SERVICE_PORT, address)) {
+    case ServiceConnect::Unresolved:
+        Serial.printf("LoRa Service host %s not resolved; will retry\n", config.host);
         return;
+    case ServiceConnect::Failed:
+        Serial.printf("LoRa Service TCP connection attempt to %s failed; will retry\n",
+                      address.toString().c_str());
+        return;
+    case ServiceConnect::Connected:
+        break;
     }
     service.setNoDelay(true);
     service.setTimeout(1); // WiFiClient uses seconds for socket I/O timeout.
@@ -185,14 +197,16 @@ void setup() {
     display.init();
     display.flipScreenVertically();
     updateDisplay();
-    int16_t state = initializeRadio(radio);
+    config = loadConfig();
+    // Transmit power stays at the existing gateway value of 10 dBm.
+    int16_t state = initializeRadio(radio, 10, config.frequencyKhz, config.sync);
     if (state != RADIOLIB_ERR_NONE) {
         Serial.printf("Radio initialization failed: %d\n", state);
         while (true) delay(1000);
     }
     radio.setPacketReceivedAction(packetReceived);
     startRadioReceive();
-    networkConfigured = GATEWAY_WIFI_SSID[0] != '\0' && LORA_SERVICE_HOST[0] != '\0';
+    networkConfigured = GATEWAY_WIFI_SSID[0] != '\0' && config.host[0] != '\0';
     if (networkConfigured) {
         WiFi.onEvent(onWiFiEvent);
         WiFi.mode(WIFI_STA);
@@ -204,7 +218,10 @@ void setup() {
     } else {
         Serial.println("Configure include/config.local.h; received packets will be discarded");
     }
-    Serial.println("Gateway transport: 915 MHz, sync 0xD3C7, CRC on");
+    Serial.printf("Gateway transport: %.3f MHz, sync 0x%04X, CRC on\n",
+                  config.frequencyKhz / 1000.0, unsigned(config.sync));
+    Serial.printf("LoRa Service host: %s:%u\n", config.host, LORA_SERVICE_PORT);
+    console.begin();
 }
 
 void loop() {
@@ -244,5 +261,6 @@ void loop() {
     }
     updateDisplay();
     maintainConnection();
+    console.poll();
     delay(1);
 }

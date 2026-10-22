@@ -4,9 +4,10 @@
 static std::string flash;
 static unsigned writes;
 static bool failSave;
+static std::string preferencesNamespace;
 class Preferences {
 public:
-    bool begin(const char*, bool) { return true; }
+    bool begin(const char* name, bool) { preferencesNamespace = name; return true; }
     void end() {}
     size_t getBytesLength(const char*) { return flash.size(); }
     size_t getBytes(const char*, void* p, size_t n) { memcpy(p, flash.data(), n); return n; }

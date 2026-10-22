@@ -15,4 +15,5 @@ struct FakeSerial {
     }
     void flush() {}
 } static Serial;
+struct IPAddress { uint32_t value = 0; };
 struct FakeEsp { bool restarted = false; void restart() { restarted = true; } } static ESP;

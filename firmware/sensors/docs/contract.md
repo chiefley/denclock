@@ -115,10 +115,11 @@ and reporting follow the policy above.
 
 Both projects default to 915.000 MHz, 10 dBm and sync registers D3 C7.
 The sensor uses configured frequency, power and sync when initializing the radio;
-the gateway retains fixed defaults. Bandwidth 125 kHz, SF9, coding rate 4/7,
-CRC enabled, eight-symbol preamble and 1.8 V TCXO remain fixed. Startup serial
-diagnostics display the actual sensor frequency and sync. Radio initialization
-errors retain existing sleep/retry handling.
+the production gateway uses configured frequency and sync at a fixed 10 dBm, and
+the gateway `diagnostic` build uses the defaults. Bandwidth 125 kHz, SF9, coding
+rate 4/7, CRC enabled, eight-symbol preamble and 1.8 V TCXO remain fixed. Startup
+serial diagnostics display the actual frequency and sync on both. Radio
+initialization errors retain existing sleep/retry or halt handling.
 
 `radioLibSync` converts register-byte representation to RadioLib's split-nibble
 arguments; 0xD3C7 produces `setSyncWord(0xDC, 0x37)`. Settings apply on the next
@@ -157,8 +158,9 @@ without waiting for a blocking receive timeout. Network operations can still
 cause packet loss; there is no application queue or persistent buffer. Packets
 received without an available service connection are discarded.
 
-Local credentials/endpoint values belong in the ignored `include/config.local.h`
-next to its checked-in example. Missing configuration logs a diagnostic and
+Wi-Fi credentials and the default service host belong in the ignored
+`include/config.local.h` next to its checked-in example; a saved serial
+configuration overrides the host. Missing configuration logs a diagnostic and
 leaves forwarding disabled. The `diagnostic` environment has no Wi-Fi dependency
 and retains the original sensor decoder source unchanged.
 
@@ -196,5 +198,42 @@ Connectivity changes during the alert are cached and restored on expiry as well.
 Reception is rearmed before OLED/TCP work. Existing synchronous networking can
 still delay loop servicing; no lossless receive guarantee is added.
 
-No MQTT, DenClock integration, or command handling is implemented.
+No MQTT, DenClock integration, or command handling beyond the serial
+configuration console is implemented.
 Sync-word matching provides network discrimination, not authentication.
+
+## Gateway serial configuration
+
+The production gateway loads a validated version-1 Preferences/NVS record
+(namespace `denclock-gateway`, key `config`) at startup. Missing, wrong-size,
+wrong-version or invalid records use defaults without writing: frequency
+915000 kHz, sync-register value 0xD3C7 and host `LORA_SERVICE_HOST`. The TCP
+port (5210) and Gateway ID (1) are fixed; Wi-Fi credentials stay compile-time.
+
+At 115200 baud, a `config` line enters configuration mode at any time without a
+reset; other lines outside the mode print a hint and change nothing. Radio
+reception, TCP forwarding, OLED and serial diagnostics continue throughout, and
+the console processes only already-received characters. Echo, Backspace/Delete,
+CR/LF/CRLF handling, the `> ` prompt and whole-line rejection match the sensor
+console. Keywords ignore case; hostnames keep their entered case. Lines are
+bounded to 287 characters.
+
+`set frequency N` accepts 902125–927875 integer kHz and `set sync HHHH` exactly
+four hex digits with optional `0x`, validated as on the sensor. `set host NAME`
+accepts DNS hostnames and `.local` names (dot-separated labels of 1–63 letters,
+digits and interior hyphens, at most 253 characters) or dotted-quad IPv4 without
+leading zeros; a numeric final label must form valid IPv4. Names are stored
+whole in a fixed 254-byte field. `show` displays staged settings, the fixed
+port, and Saved or Modified (unsaved), adding `(reboot to apply)` when saved
+settings differ from running ones.
+
+Edits are staged in RAM and never alter the running radio or connection. Only
+`save` writes NVS and remains in the mode; saved settings apply at the next
+startup. `defaults` resets RAM only. `exit` and five minutes without a valid
+command discard unsaved edits; `reboot` restarts without saving.
+
+Every TCP attempt resolves the configured host again through lwIP: IPv4
+literals directly, DNS names via DHCP-provided servers, and `.local` names via
+multicast DNS queries. Resolution failures are logged distinctly and retried at
+the existing five-second interval without restart. A blocking lookup may delay
+loop servicing. See the [configuration guide](../README.md#persistent-gateway-configuration).

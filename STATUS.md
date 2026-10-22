@@ -13,8 +13,11 @@ The independent gateway-to-LoRa-Service Wi-Fi/TCP receive path is now implemente
 and accepted by the developer after testing and verification. Semantic mapping and MQTT publishing are now implemented and accepted by the developer; production
 Mosquitto deployment and live-sensor MQTT publication on the NUC are now verified by the developer, including retained-state persistence and restart/reboot recovery. DenClock MQTT subscription and two primary sensor panels are implemented in story 008; the developer has verified and accepted the story. Remote-sensor deep sleep is
 verified and accepted by the developer. Sensors now support persistent serial
-configuration of identity, reporting parameters, and transmit power; see the
-[sensor configuration guide](firmware/sensors/README.md#persistent-sensor-configuration).
+configuration of identity, reporting parameters, transmit power, frequency and
+sync word; see the [sensor configuration guide](firmware/sensors/README.md#persistent-sensor-configuration).
+The gateway accepts persistent serial configuration of frequency, sync word and
+LoRa Service host, so one image serves every installation; see the
+[gateway configuration guide](firmware/sensors/README.md#persistent-gateway-configuration).
 
 ## Resume Here
 
