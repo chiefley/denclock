@@ -2,12 +2,16 @@
 #include <WiFi.h>
 #include <SSD1306Wire.h>
 #include "config.h"
+#include "gateway_console.h"
+#include "service_resolver.h"
 #include "gateway_protocol.h"
 #include "gateway_diagnostics.h"
 #include "../../common/radio_config.h"
 
 SX1262 radio = new Module(RadioNss, RadioDio1, RadioReset, RadioBusy);
 WiFiClient service;
+GatewayConfiguration::Config activeConfig;
+GatewayConfiguration::Console console(activeConfig);
 volatile bool received = false;
 constexpr uint32_t RetryMs = 5000;
 uint32_t lastWifiAttempt = 0, lastTcpAttempt = 0;
@@ -112,8 +116,13 @@ void maintainConnection() {
     if (uint32_t(now - lastTcpAttempt) < RetryMs) return;
     lastTcpAttempt = now;
     service.stop();
-    Serial.printf("Connecting to LoRa Service %s:%u\n", LORA_SERVICE_HOST, LORA_SERVICE_PORT);
-    if (!service.connect(LORA_SERVICE_HOST, LORA_SERVICE_PORT, 1000)) {
+    Serial.printf("Connecting to LoRa Service %s:%u\n", activeConfig.host, LORA_SERVICE_PORT);
+    IPAddress address;
+    if (!resolveServiceHost(activeConfig.host, address)) {
+        Serial.printf("LoRa Service hostname resolution failed for %s; will retry\n", activeConfig.host);
+        return;
+    }
+    if (!service.connect(address, LORA_SERVICE_PORT, 1000)) {
         Serial.println("LoRa Service TCP connection attempt failed; will retry");
         return;
     }
@@ -173,6 +182,8 @@ void startRadioReceive() {
 
 void setup() {
     Serial.begin(115200);
+    activeConfig = GatewayConfiguration::load();
+    console = GatewayConfiguration::Console(activeConfig);
     delay(1000);
     pinMode(Vext, OUTPUT);
     digitalWrite(Vext, LOW);
@@ -185,14 +196,14 @@ void setup() {
     display.init();
     display.flipScreenVertically();
     updateDisplay();
-    int16_t state = initializeRadio(radio);
+    int16_t state = initializeRadio(radio, 10, activeConfig.frequencyKhz, activeConfig.sync);
     if (state != RADIOLIB_ERR_NONE) {
         Serial.printf("Radio initialization failed: %d\n", state);
         while (true) delay(1000);
     }
     radio.setPacketReceivedAction(packetReceived);
     startRadioReceive();
-    networkConfigured = GATEWAY_WIFI_SSID[0] != '\0' && LORA_SERVICE_HOST[0] != '\0';
+    networkConfigured = GATEWAY_WIFI_SSID[0] != '\0' && activeConfig.host[0] != '\0';
     if (networkConfigured) {
         WiFi.onEvent(onWiFiEvent);
         WiFi.mode(WIFI_STA);
@@ -204,7 +215,9 @@ void setup() {
     } else {
         Serial.println("Configure include/config.local.h; received packets will be discarded");
     }
-    Serial.println("Gateway transport: 915 MHz, sync 0xD3C7, CRC on");
+    Serial.printf("Gateway transport: %.3f MHz, sync 0x%04X, CRC on\n",
+                  activeConfig.frequencyKhz / 1000.0, unsigned(activeConfig.sync));
+    Serial.println("Enter config to configure the gateway.");
 }
 
 void loop() {
@@ -243,6 +256,7 @@ void loop() {
         }
     }
     updateDisplay();
+    console.poll();
     maintainConnection();
     delay(1);
 }

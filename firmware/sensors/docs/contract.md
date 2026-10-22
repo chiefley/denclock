@@ -115,7 +115,8 @@ and reporting follow the policy above.
 
 Both projects default to 915.000 MHz, 10 dBm and sync registers D3 C7.
 The sensor uses configured frequency, power and sync when initializing the radio;
-the gateway retains fixed defaults. Bandwidth 125 kHz, SF9, coding rate 4/7,
+the production gateway uses its own saved frequency and sync with fixed 10 dBm
+power. The diagnostic gateway retains fixed defaults. Bandwidth 125 kHz, SF9, coding rate 4/7,
 CRC enabled, eight-symbol preamble and 1.8 V TCXO remain fixed. Startup serial
 diagnostics display the actual sensor frequency and sync. Radio initialization
 errors retain existing sleep/retry handling.
@@ -157,10 +158,60 @@ without waiting for a blocking receive timeout. Network operations can still
 cause packet loss; there is no application queue or persistent buffer. Packets
 received without an available service connection are discarded.
 
-Local credentials/endpoint values belong in the ignored `include/config.local.h`
-next to its checked-in example. Missing configuration logs a diagnostic and
-leaves forwarding disabled. The `diagnostic` environment has no Wi-Fi dependency
+Wi-Fi credentials and the development default destination belong in the build
+configuration (`include/config.local.h` can override checked-in defaults). An
+empty SSID disables forwarding with a diagnostic. The production gateway uses
+its saved hostname when present. The `diagnostic` environment has no Wi-Fi dependency
 and retains the original sensor decoder source unchanged.
+
+## Gateway serial configuration and destination resolution
+
+The production gateway loads a validated version-1 configuration from Preferences
+namespace `denclock-gw`, key `config`, at startup. Defaults are 915000 kHz,
+sync-register value 0xD3C7 and the existing `LORA_SERVICE_HOST` build setting.
+Missing, wrong-size, incompatible or invalid records fall back without flash
+writes. Only an explicit successful `save` updates the complete stored record.
+The diagnostic environment remains the fixed-default bench receiver.
+
+Enter `config` at 115200 baud during operation. Commands are case-insensitive;
+`set host NAME` preserves the hostname representation. The console accepts CR,
+LF and CRLF, echoes characters, handles Backspace/Delete and displays `> `.
+Input is bounded to 287 characters; invalid or oversized lines cannot partially
+modify settings. Each poll consumes at most 64 input characters and contains no
+entry wait. Diagnostic output may interleave with the console.
+
+`set frequency N` accepts 902125–927875 integer kHz. `set sync HHHH` accepts
+exactly four hexadecimal digits with an optional `0x` prefix, using the existing
+shared radio conversion. `set host NAME` accepts DNS names, `.local` names and
+IPv4 literals, capped at 253 characters. DNS labels contain 1–63 ASCII letters,
+digits or interior hyphens, with optional trailing root dot. Numeric dotted input
+must have four octets 0–255 with no leading zeroes. No port or Wi-Fi credential
+commands are provided; service port 5210 and gateway ID 1 are preserved.
+
+`?`/`help` gives ranges, units and examples; `show` displays working settings,
+MHz to three decimals, hex sync, host, fixed service port and saved/modified
+status. `set` and `defaults` modify RAM only. `save` stays in configuration;
+failed saves retain the previous saved snapshot. `exit` and five minutes without
+a valid command discard unsaved edits. Invalid commands do not refresh timeout.
+`reboot` restarts without saving. Changes, including saved ones, take effect
+only on reboot: the running radio, connection and reconnect attempts continue
+using the startup snapshot during editing and after exit.
+
+Reception, forwarding and OLED diagnostics continue during configuration. The
+console does not wait for input; existing synchronous networking, serial output
+and explicit NVS writes may delay servicing. No lossless reception guarantee is
+introduced.
+
+Each TCP connection attempt resolves the startup destination anew. IPv4 is used
+directly; ordinary DNS uses the Wi-Fi stack; `.local` uses ESPmDNS with a
+one-second query timeout after removing the suffix. Failed resolution is logged
+and retried on the existing five-second connection schedule. No permanent
+application address cache is introduced. System DNS caching may apply, and
+existing synchronous resolver/TCP calls can delay polling. Windows advertisement
+is separate work; unresolved `.local` names remain valid configuration.
+Settings persist through power cycles and uploads preserving NVS. Sync words
+are synchronization parameters, not credentials, and radio settings must match
+the sensors. See the [gateway reference](../README.md#persistent-gateway-configuration).
 
 ## Production gateway OLED
 
@@ -196,5 +247,5 @@ Connectivity changes during the alert are cached and restored on expiry as well.
 Reception is rearmed before OLED/TCP work. Existing synchronous networking can
 still delay loop servicing; no lossless receive guarantee is added.
 
-No MQTT, DenClock integration, or command handling is implemented.
+No MQTT, DenClock integration, or application command transport is implemented.
 Sync-word matching provides network discrimination, not authentication.
