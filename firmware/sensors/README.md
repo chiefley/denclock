@@ -288,26 +288,29 @@ per loop and adds no command-entry wait. Existing synchronous network operations
 serial output and flash writes can still delay servicing; no lossless reception
 or bounded response latency is guaranteed.
 
-Each TCP reconnect resolves the startup hostname again: IPv4 literals are used
-directly; ordinary DNS and `.local` names use `WiFi.hostByName` through the
-platform lwIP resolver, without starting an mDNS responder. The pinned ESP32-S3
-framework enables `CONFIG_LWIP_DNS_SUPPORT_MDNS_QUERIES`. The `.local` suffix
-is normalized to lowercase and a trailing root dot is removed for lookup. Failed resolution logs a diagnostic and is
-retried on the existing five-second schedule, without reboot. No resolved address
-is permanently cached by the application; normal system DNS caching may apply.
-Existing synchronous DNS/TCP operations may delay reception and console polling;
-the platform DNS lookup can wait about 15 seconds (longer if another lookup is
-active), replacing the former one-second ESPmDNS query timeout. The five-second
-retry gate is unchanged, measured from the start of each attempt. Each attempt
-logs the destination, resolution failure or resolved IP, and TCP failure or
-connection/HELLO success.
-Hardware verification must confirm `.local` queries reach an advertising Windows
-service, recover after temporary resolution failure and reconnect after an address
-change (allowing for platform DNS caching). Confirm with network capture that the
-gateway does not advertise `denclock-gateway`. Portable fakes verify resolver
-interface use, not multicast network behavior. Windows mDNS advertisement is
-separate work, so `.local` may remain unresolved
-until that service is available. No service advertisement is configured here.
+Each TCP reconnect resolves the startup hostname again. IPv4 literals are used
+directly and ordinary DNS names use `WiFi.hostByName`. `.local` names use the
+ESP32 mDNS client (`mdns_init` and `mdns_query_a`) with a two-second query timeout.
+Lookup strips the case-insensitive `.local` suffix and any trailing root dot
+before passing the hostname to the mDNS API. The client initializes lazily after
+Wi-Fi is connected; initialization failures are logged and retried. The library
+handles subsequent Wi-Fi/IP events. No gateway hostname is set and no services
+are registered: the gateway queries only and does not advertise its name.
+
+The dedicated client replaces lwIP's legacy one-shot `.local` queries: on the
+current Windows path those timed out while normal multicast queries succeeded.
+Failed resolution is retried through the existing five-second attempt gate,
+measured from attempt start. Ordinary DNS can still block for about 15 seconds
+(longer if another lookup is active). Network operations can delay radio and
+console polling. No permanent application address cache is added. Each attempt
+logs resolution failure or the resolved address, then TCP failure or HELLO success.
+
+Portable runtime tests cover resolver selection, initialization retry, query
+failure, address changes, and unchanged TCP/HELLO behavior. The developer has
+confirmed that the corrected firmware works with `denclock.local` on hardware.
+Recovery after Wi-Fi loss and packet-capture verification of no gateway
+advertisements have not been separately reported. See the
+[Windows deployment and acceptance procedure](../../lora-service/docs/mdns-deployment.md).
 
 Sensor and gateway frequency, sync and modulation parameters must match. Sync
 words are synchronization parameters, not authentication credentials, and custom
@@ -330,8 +333,9 @@ These use fake serial, NVS, radio and network devices. Hardware acceptance still
 requires default sensor/service communication, console use while forwarding,
 save/reboot and power-cycle persistence, exit/timeout discard, matched and
 mismatched radio settings, DNS/IPv4 connections, unresolved-name retries and
-unchanged OLED diagnostics. Windows `.local` advertisement tests may be deferred
-until the separate service feature is available.
+unchanged OLED diagnostics. The developer has confirmed the corrected `.local`
+connection works; remaining mDNS deployment checks are listed in the
+[deployment guide](../../lora-service/docs/mdns-deployment.md).
 
 ## Persistent sensor configuration
 

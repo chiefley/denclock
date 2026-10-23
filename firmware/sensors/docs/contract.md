@@ -248,20 +248,19 @@ and explicit NVS writes may delay servicing. No lossless reception guarantee is
 introduced.
 
 Each TCP connection attempt resolves the startup destination anew. IPv4 is used
-directly; ordinary DNS and `.local` use `WiFi.hostByName` through the platform
-lwIP resolver, with mDNS queries enabled in the pinned ESP32-S3 framework.
-Lookup removes a trailing root dot and normalizes the `.local` suffix to lowercase.
-No mDNS responder or gateway hostname advertisement is started. Each attempt
-reports resolution failure or the resulting IP, then TCP failure or successful
-connection and HELLO transmission. Failed resolution is logged
-and retried on the existing five-second connection schedule. No permanent
-application address cache is introduced. System DNS caching may apply, and
-existing synchronous resolver/TCP calls can delay polling. Platform DNS lookup
-can wait about 15 seconds, longer if another lookup is active; the five-second
-retry gate remains measured from attempt start. Actual `.local` multicast behavior
-and absence of gateway advertisements require hardware verification (see README).
-Windows advertisement
-is separate work; unresolved `.local` names remain valid configuration.
+directly; ordinary DNS uses `WiFi.hostByName`. `.local` destinations use the
+ESP32 mDNS client with a two-second A-query timeout. Lookup removes a trailing
+root dot and the case-insensitive `.local` suffix for the mDNS API. Initialization
+is lazy after Wi-Fi connection, retries after failure, and sets no hostname or
+services. The gateway does not advertise a name; the library handles Wi-Fi/IP
+events. Each attempt reports resolution failure or the resulting IP, then TCP
+failure or successful connection and HELLO. Failed resolution is retried through
+the existing five-second gate measured from attempt start. No permanent
+application address cache is introduced. Ordinary DNS caching may apply; its
+synchronous lookup can wait about 15 seconds, longer if another lookup is active.
+Network recovery and packet-level absence of gateway advertisements require
+deployment verification (see the README). Windows hostname ownership is separate; unresolved
+`.local` names remain valid configuration.
 Settings persist through power cycles and uploads preserving NVS. Sync words
 are synchronization parameters, not credentials, and radio settings must match
 the sensors. See the [gateway reference](../README.md#persistent-gateway-configuration).

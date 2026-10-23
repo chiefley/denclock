@@ -65,3 +65,17 @@ age retention. Files are infrastructure diagnostics, not measurement history.
 The [README](../README.md) documents paths, configuration, and validation.
 There is no persistent measurement storage, sequence deduplication, outbound
 application protocol, or generalized handler framework.
+
+## Destination hostname ownership
+
+Hostname resolution is a deployment responsibility independent of this worker.
+The LoRa Service does not register DNS-SD or run an mDNS responder. The gateway
+can explicitly target the installation's unique Windows hostname plus `.local`,
+subject to the [deployment A-query and ownership checks](mdns-deployment.md),
+or an explicitly configured ordinary DNS name/IPv4 address. Stopping this worker
+does not withdraw the computer hostname. TCP remains on port 5210 by default.
+Resolution does not authenticate the installation; duplicate names must be
+resolved administratively before deployment. No discovery or automatic fallback
+to another installation is implemented. The gateway uses the ESP32 mDNS client
+for explicit `.local` A queries, without setting a gateway mDNS hostname or
+registering services. Ordinary DNS and IPv4 remain supported.

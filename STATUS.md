@@ -20,6 +20,12 @@ Gateway household Wi-Fi now supports temporary access-point/browser provisioning
 with device-specific setup credentials and physical recovery; see the
 [gateway setup guide](firmware/sensors/README.md#set-up-gateway-wi-fi).
 
+Gateway `.local` hostname resolution is implemented and fully accepted. The
+ESP32 mDNS client queries the existing Windows hostname without advertising a
+gateway name or services; ordinary DNS and IPv4 remain supported. See the
+[accepted hostname story](lora-service/docs/stories/completed/004-reliable-mdns-hostname-resolution.md)
+and [deployment guide](lora-service/docs/mdns-deployment.md).
+
 ## Resume Here
 
 - [Sensor Change Reporting, Heartbeat, and Randomized Sampling](firmware/sensors/docs/stories/completed/006-sensor-change-reporting-heartbeat-and-randomized-sampling.md)

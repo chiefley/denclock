@@ -45,28 +45,36 @@ int main() {
     assert(WiFi.resolutions == 3 && WiFi.lastHost == "Original.Example");
     assert(service.lastAddress == 0x05060708); // Resolve again on reconnect.
     strcpy(activeConfig.host, "Windows-Host.LoCaL.");
-    service.stop(); fakeMillis += RetryMs; WiFi.resolveOk = false;
-    unsigned resolutions = WiFi.resolutions, connects = service.connects;
-    maintainConnection();
-    assert(WiFi.resolutions == resolutions + 1 && service.connects == connects);
-    assert(WiFi.lastHost == "Windows-Host.local");
-    fakeMillis += RetryMs - 1; maintainConnection();
-    assert(WiFi.resolutions == resolutions + 1);
-    ++fakeMillis; WiFi.resolveOk = true; service.connectOk = false;
-    Serial.output.clear();
-    maintainConnection();
-    assert(WiFi.resolutions == resolutions + 2 && service.connects == connects + 1);
+    service.stop(); fakeMillis += RetryMs;
+    const unsigned dnsResolutions = WiFi.resolutions, connects = service.connects;
+    maintainConnection(); // Initialization failure must be retried, without DNS fallback.
+    assert(mdnsInitializations == 1 && mdnsQueries == 0);
+    assert(Serial.output.find("mDNS client initialization failed") != std::string::npos);
+    fakeMillis += RetryMs; mdnsInitResult = ESP_OK;
+    maintainConnection(); // Missing name: no TCP connection.
+    assert(mdnsInitializations == 2 && mdnsQueries == 1 && service.connects == connects);
+    assert(mdnsLastHost == "Windows-Host");
+    fakeMillis += RetryMs - 1; maintainConnection(); assert(mdnsQueries == 1);
+    ++fakeMillis; mdnsQueryResult = ESP_OK; mdnsAddress = 0;
+    maintainConnection(); // A zero address is never used.
+    assert(mdnsQueries == 2 && service.connects == connects);
+    fakeMillis += RetryMs; mdnsAddress = 0x05060708; service.connectOk = false;
+    Serial.output.clear(); maintainConnection();
+    assert(mdnsQueries == 3 && service.connects == connects + 1);
     assert(Serial.output.find("resolved to 5.6.7.8") != std::string::npos);
     assert(Serial.output.find("TCP connection attempt failed") != std::string::npos);
     assert(Serial.output.find("HELLO sent") == std::string::npos);
-    fakeMillis += RetryMs; service.connectOk = true;
+    fakeMillis += RetryMs; service.connectOk = true; mdnsAddress = 0x090A0B0C;
     Serial.output.clear(); maintainConnection();
-    assert(service.connected() && WiFi.resolutions == resolutions + 3);
+    assert(service.connected() && mdnsQueries == 4 && mdnsInitializations == 2);
+    assert(service.lastAddress == 0x090A0B0C); // Fresh mDNS query on reconnect.
+    assert(WiFi.resolutions == dnsResolutions); // .local never uses ordinary DNS.
     assert(Serial.output.find("connected; HELLO sent") != std::string::npos);
     assert(service.frames.substr(service.frames.size() - 4) == hello);
     strcpy(activeConfig.host, "192.168.50.90");
     service.stop(); fakeMillis += RetryMs;
-    maintainConnection(); assert(WiFi.resolutions == resolutions + 3);
+    maintainConnection();
+    assert(WiFi.resolutions == dnsResolutions && mdnsQueries == 4);
     assert(service.lastAddress == 0xC0A8325A);
     // Even sustained serial input consumes only 64 characters per loop,
     // while a pending radio packet is forwarded first.
@@ -106,7 +114,7 @@ int main() {
     loop(); assert(provisioning.success && provisioning.active);
     fakeMillis += 60000; loop();
     assert(!provisioning.active && service.connected());
-    assert(WiFi.lastHost == "Staged.local");
+    assert(mdnsLastHost == "Staged");
     assert(service.frames.substr(service.frames.size() - 4) == hello);
     received = true; const size_t beforeForward = service.frames.size(); loop();
     assert(service.frames.size() > beforeForward);

@@ -209,3 +209,24 @@ primary slots through /api/presentation. Browsers poll that API, convert canonic
 Celsius to the configured display unit, and render freshness using server-derived
 UTC plus monotonic elapsed time. History remains deferred. The MQTT broker stays
 NUC-local; remote browsers use DenClock's HTTP boundary.
+
+## LoRa Destination Hostname Ownership
+
+Prefer the existing Windows computer hostname plus `.local`, validated by an
+ordinary multicast A query on the gateway LAN. The current NUC answered
+`denclock.local` at `192.168.50.90`; this avoids an additional application
+responder, address cache, or DNS-SD selection mechanism. Hostname availability
+belongs to deployment independently of LoRa Service lifetime. Installed responder
+ownership and detailed recovery/conflict observations were not individually
+reported during the accepted story; see
+[Windows hostname deployment](../lora-service/docs/mdns-deployment.md). Each
+installation uses a unique computer name and an explicitly configured gateway
+destination. Ordinary DNS/IP remains the alternative where link-local multicast
+is unavailable. No radio, MQTT namespace or protocol change is required.
+
+The gateway uses the ESP32 mDNS client for explicit `.local` A queries without
+setting its own mDNS hostname or registering services. Ordinary DNS and IPv4
+retain their separate lookup paths. This avoids the legacy one-shot query mode
+that failed on the observed Windows path. The developer confirmed the corrected
+gateway works with `denclock.local`. Responder ownership, recovery and conflict
+checks remain listed separately in the deployment procedure above.

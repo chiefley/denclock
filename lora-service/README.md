@@ -165,6 +165,19 @@ verify gateway reconnection. After a NUC reboot, verify automatic service startu
 fresh subscriber reports, and the clock display. The developer verified all
 these recovery checks, sensor warming response, and sequence zero after reset.
 
+## Windows hostname deployment
+
+Use the installation's unique Windows computer hostname with `.local` after
+verifying a direct multicast A query. The current NUC answered
+`denclock.local` as `192.168.50.90`; no LoRa application responder is added. See
+[hostname setup, firewall, diagnostics and hardware acceptance](docs/mdns-deployment.md)
+for the required ownership check and remaining deployment tests. The gateway uses
+the dedicated ESP32 mDNS client for `.local` A queries without advertising its own
+name or services; ordinary DNS and IPv4 destinations retain their existing paths.
+The developer has confirmed `denclock.local` works with the corrected firmware.
+[Story 004](docs/stories/completed/004-reliable-mdns-hostname-resolution.md) is
+fully accepted by the developer.
+
 ## Gateway setup and later integration checks
 
 1. Copy `firmware/sensors/lora-gateway/include/config.example.h` to
