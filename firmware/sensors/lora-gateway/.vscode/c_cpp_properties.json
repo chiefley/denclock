@@ -10,7 +10,6 @@
             "includePath": [
                 "/home/chief/src/denclock/firmware/sensors/lora-gateway/include",
                 "/home/chief/src/denclock/firmware/sensors/lora-gateway/src",
-                "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/ESPmDNS/src",
                 "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/Preferences/src",
                 "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src",
                 "/home/chief/src/denclock/firmware/sensors/lora-gateway/.pio/libdeps/heltec_wifi_lora_32_V3/ESP8266 and ESP32 OLED driver for SSD1306 displays/src",
@@ -223,6 +222,7 @@
                 "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/DNSServer/src",
                 "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/EEPROM/src",
                 "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/ESP32/src",
+                "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/ESPmDNS/src",
                 "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/Ethernet/src",
                 "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/FFat/src",
                 "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/FS/src",
@@ -251,7 +251,6 @@
                 "path": [
                     "/home/chief/src/denclock/firmware/sensors/lora-gateway/include",
                     "/home/chief/src/denclock/firmware/sensors/lora-gateway/src",
-                    "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/ESPmDNS/src",
                     "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/Preferences/src",
                     "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/WiFi/src",
                     "/home/chief/src/denclock/firmware/sensors/lora-gateway/.pio/libdeps/heltec_wifi_lora_32_V3/ESP8266 and ESP32 OLED driver for SSD1306 displays/src",
@@ -464,6 +463,7 @@
                     "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/DNSServer/src",
                     "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/EEPROM/src",
                     "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/ESP32/src",
+                    "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/ESPmDNS/src",
                     "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/Ethernet/src",
                     "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/FFat/src",
                     "/home/chief/.platformio/packages/framework-arduinoespressif32/libraries/FS/src",
