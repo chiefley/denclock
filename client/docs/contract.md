@@ -2,7 +2,8 @@
 
 The browser client displays 12-hour hours/minutes without a leading hour zero
 or AM/PM, subordinate two-digit seconds, and full weekday, month, and day.
-The normal display has no controls. It targets 1024 × 600, with the canonical
+The normal display includes an unobtrusive lower-left Settings gear with no
+visible button background or border. It targets 1024 × 600, with the canonical
 cabin image filling the viewport behind the clock. The decorative background
 preserves aspect ratio using centered cover scaling and cannot intercept input
 or alter the clock's layout. Background selection is static.
@@ -68,3 +69,21 @@ Freshness keeps aging through HTTP/MQTT outages and background-tab pauses.
 At age >= maxAgeSeconds, known temperature and humidity values turn red without
 being discarded. A fresh report restores normal color. Receiving the same old
 report in a new snapshot does not reset its age.
+
+## Settings Preview
+
+The Settings gear opens a full-screen modal dialog. Controls preview the
+example configuration in the [configuration specification](../../server/docs/presentation-configuration.md),
+not configuration loaded from the service. They include Celsius/Fahrenheit,
+upper-left/right sensor assignments (including Unassigned), display labels,
+and stale-reading limits in seconds.
+
+Edits stay in the form only while open. Cancel or Escape closes the dialog,
+discards edits, and restores focus to the gear. Save is disabled, with visible
+text: “Saving settings will be available in a later update.” No configuration
+requests, persistence, or live presentation changes occur.
+
+The dialog provides associated labels, native modal keyboard navigation,
+visible focus, and controls at least 48 CSS pixels high. It scrolls when needed
+and stacks sensor fields in one column at viewport widths of 600 pixels or less.
+Time synchronization, presentation polling, and rendering continue while open.

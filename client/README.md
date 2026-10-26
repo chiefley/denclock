@@ -150,3 +150,18 @@ confirm time and whole-degree values are readable across the room, supporting
 details are readable nearby, and the panels do not collide with the clock/date.
 Check a stale reading, unknown readings, and recovery. The developer verified and accepted story 008 after implementation. Local browser
 checks used fixtures; shelf/NUC verification was performed by the developer.
+
+## Display Settings Preview
+
+The lower-left gear opens a full-screen settings preview with temperature unit,
+primary sensor assignments, labels, and stale limits. Values come from the
+repository's documented example, not the running service. Save is unavailable;
+Cancel or Escape discards edits and returns focus to the gear. Time and sensor
+updates continue while the preview is open. Narrow windows stack the sensor
+fields, and the settings view scrolls as needed.
+
+[Story 004](docs/stories/completed/004-add-gear-triggered-display-settings-ui.md)
+is accepted. For browser verification, use a 1024×600 viewport, exercise Tab,
+Cancel, and Escape, reopen to check edit discard, and inspect continued API
+polling in Network tools. Also check scrolling in a smaller window. Codex did
+not perform browser, LAN, or physical touchscreen verification for this story.

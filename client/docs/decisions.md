@@ -46,3 +46,8 @@ See [client README](../README.md) for operation and verification, and the
 - Reserve upper-left/right positions for the strategic readings; defer secondary
   views and panel interactions. Use one shared primary digit size for time and
   whole-degree temperature.
+
+- Use a native modal dialog for the settings preview to provide focus containment
+  and Escape cancellation without a framework. Keep its form independent of
+  the live clients and reset it on close/open; configuration loading and saving
+  remain deferred to a subsequent story.
