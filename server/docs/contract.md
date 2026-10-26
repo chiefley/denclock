@@ -37,7 +37,8 @@ with development files excluded by the project file.
 `GET /client-settings.js` returns a no-store JavaScript module exporting
 `serverAddress`: `Client:TimeServerAddress` in Development, otherwise empty
 (same-origin). `/api/time` and `/api/presentation` grant CORS to exact origins in
-`Cors:DevelopmentOrigins`, with GET allowed and no credentials. The default list
+`Cors:DevelopmentOrigins`, with GET allowed and no credentials. Settings use the additional scoped policy
+described below. The default list
 contains `http://localhost:5000`. Unlisted origins receive no access grant.
 
 ## Evidence and Limits
@@ -53,10 +54,12 @@ its working directory. The project targets .NET 10.
 
 ## Sensor Presentation
 
-The server loads executable-local presentation.json before starting workers.
+The server initializes and loads ProgramData presentation.json before starting workers.
 See [presentation configuration](presentation-configuration.md) for validation
-and the startup/restart contract. The file is included in build/publish output.
-Missing/invalid configuration fails startup; an unavailable MQTT broker does not.
+and the initialization/runtime contract. The executable-local file is included
+in build/publish output as a first-run migration source. Invalid existing files
+or failed initialization prevent startup; absent files initialize defaults. An
+unavailable MQTT broker does not prevent startup.
 
 A separate hosted MQTTnet 5.2.0.1603 subscriber uses MQTT 3.1.1, clean sessions,
 and QoS 1 on lora/sensors/+. Mqtt:Host, Mqtt:Port, and Mqtt:ClientId default to
@@ -110,3 +113,32 @@ coherent under concurrent updates; serverUtc is sampled while creating it.
 The browser anchors this server timestamp to monotonic elapsed time, converts
 Celsius only for presentation, and keeps aging readings between API responses.
 Server restart clears memory until MQTT supplies retained or new reports.
+
+## Presentation Settings API
+
+`GET /api/settings/presentation` returns HTTP 200 with
+`{"revision":"opaque-token","configuration":{"temperatureUnit":"F","sensors":[]}}`.
+Configuration includes all primary and secondary entries and extra fields.
+Revisions change on successful saves and service restart.
+
+`PUT /api/settings/presentation` requires a JSON body with the same envelope.
+The revision must match the current read response. Configuration is validated
+with the presentation rules. Success returns 200 and the new envelope, after
+atomic disk persistence and runtime activation. HTTP 400 indicates invalid JSON,
+missing/invalid fields, or invalid configuration; 409 indicates a stale revision;
+415 indicates a non-JSON content type; 500 indicates a persistence failure.
+Errors have an `error` message without a stack trace. Read/write responses,
+including errors, use Cache-Control: no-store. Failed saves leave previous disk
+and active settings intact.
+
+Browser writes require an Origin matching the request's served origin or an
+exact configured `Cors:DevelopmentOrigins` entry; unrelated and null origins
+receive 403. Origin-less non-browser JSON requests are permitted. Settings CORS
+allows GET/PUT and Content-Type only for explicitly configured origins, with
+preflight support and no credentials. Time/presentation keep their GET-only
+policy. Settings work from server-hosted LAN clients, not just loopback. This
+origin check is not an authentication system.
+
+Configuration replacement is coherent with MQTT reception and snapshots.
+Observations are retained only for identities remaining configured, with their
+original timestamps. No service restart or MQTT reconnection is required.

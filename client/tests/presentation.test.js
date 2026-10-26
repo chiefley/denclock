@@ -120,3 +120,19 @@ test('DOM rendering uses unknown, fractional digits, labels, and stale recovery'
   now = 60000; display.render(); assert.equal(panel.stale, true);
   await client.synchronize(); display.render(); assert.equal(panel.stale, false);
 });
+
+test('post-save refresh waits for an older poll and then fetches updated presentation', async () => {
+  let release, calls = 0;
+  const client = new PresentationClient({ ...config, requestTimeoutMs: 1000 }, { fetchSnapshot: async () => {
+    calls++;
+    if (calls === 1) return new Promise(resolve => release = resolve);
+    return response(snapshot({ unit: 'C' }));
+  }});
+  const pending = client.synchronize();
+  const refreshed = client.refresh();
+  assert.equal(calls, 1);
+  release(response(snapshot({ unit: 'F' })));
+  await pending; await refreshed;
+  assert.equal(calls, 2);
+  assert.equal(client.read().temperatureUnit, 'C');
+});

@@ -47,7 +47,9 @@ See [client README](../README.md) for operation and verification, and the
   views and panel interactions. Use one shared primary digit size for time and
   whole-degree temperature.
 
-- Use a native modal dialog for the settings preview to provide focus containment
-  and Escape cancellation without a framework. Keep its form independent of
-  the live clients and reset it on close/open; configuration loading and saving
-  remain deferred to a subsequent story.
+- Use a native modal dialog for settings to provide focus containment and Escape
+  cancellation without a framework. The browser owns only a draft; the server
+  owns validation, revisions, persistence, and runtime application. Preserve
+  unedited configuration fields and secondary identities through full-document
+  round trips, and require an explicit reload after conflicts so drafts are not
+  silently discarded or newer settings overwritten.

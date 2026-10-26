@@ -11,14 +11,27 @@ public sealed class PresentationState(PresentationConfiguration configuration, I
 {
     private readonly object gate = new();
     private readonly Dictionary<string, SensorObservation> observations = new(StringComparer.Ordinal);
-    private readonly HashSet<string> configured = configuration.Sensors.Select(s => s.InternalName).ToHashSet(StringComparer.Ordinal);
+    private PresentationConfiguration configuration = configuration;
+    private HashSet<string> configured = configuration.Sensors.Select(s => s.InternalName).ToHashSet(StringComparer.Ordinal);
+
+    public void ReplaceConfiguration(PresentationConfiguration next)
+    {
+        lock (gate)
+        {
+            var names = next.Sensors.Select(s => s.InternalName).ToHashSet(StringComparer.Ordinal);
+            foreach (var name in observations.Keys.Where(name => !names.Contains(name)).ToArray())
+                observations.Remove(name);
+            configured = names;
+            configuration = next;
+        }
+    }
 
     public bool Receive(string topic, ReadOnlyMemory<byte> payload)
     {
         const string prefix = "lora/sensors/";
         if (!topic.StartsWith(prefix, StringComparison.Ordinal)) return false;
         var name = topic[prefix.Length..];
-        if (!configured.Contains(name)) return false;
+        lock (gate) { if (!configured.Contains(name)) return false; }
         try
         {
             using var doc = JsonDocument.Parse(payload);
@@ -44,6 +57,7 @@ public sealed class PresentationState(PresentationConfiguration configuration, I
             var observation = new SensorObservation(received, temperature, humidity);
             lock (gate)
             {
+                if (!configured.Contains(name)) return false;
                 if (observations.TryGetValue(name, out var previous) && received <= previous.ReceivedUtc) return false;
                 observations[name] = observation;
             }

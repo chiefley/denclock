@@ -1,12 +1,19 @@
 // Requires a server build, Node 18+, and free HTTP port 5000. Uses a local MQTT peer.
 import assert from 'node:assert/strict';
 import net from 'node:net';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { setTimeout as pause } from 'node:timers/promises';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const serverDll = fileURLToPath(new URL('../bin/Debug/net10.0/DenClock.Server.dll', import.meta.url));
+const data = await mkdtemp(join(tmpdir(), 'denclock-mqtt-'));
+await writeFile(join(data, 'presentation.json'), JSON.stringify({ temperatureUnit: 'F', sensors: [
+  { internalName: 'porch', displayName: 'Outside', position: 'upperRight', maxAgeSeconds: 60 },
+]}));
 const sockets = new Set();
 let subscriptions = 0, clientIds = [], protocolError;
 let active, processHandle, logs = '';
@@ -87,7 +94,7 @@ async function snapshot() { return (await fetch('http://127.0.0.1:5000/api/prese
 async function start() {
   logs = '';
   processHandle = spawn('dotnet', [serverDll], { cwd: root, stdio: ['ignore','pipe','pipe'], env: {
-    ...process.env, DOTNET_ENVIRONMENT: 'Production', ASPNETCORE_ENVIRONMENT: 'Production',
+    ...process.env, Presentation__ConfigurationDirectory: data, DOTNET_ENVIRONMENT: 'Production', ASPNETCORE_ENVIRONMENT: 'Production',
     Mqtt__Host: '127.0.0.1', Mqtt__Port: String(brokerPort), Mqtt__ClientId: 'denclock-integration-test',
   }});
   processHandle.stdout.on('data', b => logs += b);
@@ -95,7 +102,7 @@ async function start() {
   await waitFor(() => logs.includes('Application started.'), 'HTTP startup');
 }
 async function stop() {
-  if (!processHandle || processHandle.exitCode !== null) return;
+  if (!processHandle || (processHandle.exitCode !== null || processHandle.signalCode !== null)) return;
   const exit = new Promise(resolve => processHandle.once('exit', resolve));
   processHandle.kill('SIGTERM');
   await exit;
@@ -116,6 +123,23 @@ try {
   retained = report(newer, 24);
   publish(retained);
   await waitFor(async () => (await snapshot()).slots[1].observation.temperatureC === 24, 'fresh observation');
+  // Apply settings with MQTT connected and retain the original observation timestamp.
+  const settings = await (await fetch('http://127.0.0.1:5000/api/settings/presentation')).json();
+  settings.configuration.temperatureUnit = 'C';
+  Object.assign(settings.configuration.sensors[0], { displayName: 'Garden', maxAgeSeconds: 30 });
+  const saved = await fetch('http://127.0.0.1:5000/api/settings/presentation', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json', Origin: 'http://127.0.0.1:5000' }, body: JSON.stringify(settings),
+  });
+  assert.equal(saved.status, 200);
+  const applied = await snapshot();
+  assert.equal(applied.temperatureUnit, 'C');
+  assert.equal(applied.slots[1].displayName, 'Garden');
+  assert.equal(applied.slots[1].maxAgeSeconds, 30);
+  assert.equal(applied.slots[1].observation.receivedUtc.replace('+00:00', 'Z'), newer);
+  const duringSave = new Date(Date.now() - 500).toISOString();
+  retained = report(duringSave, 24);
+  publish(retained);
+  await waitFor(async () => (await snapshot()).slots[1].observation.receivedUtc.replace('+00:00','Z') === duringSave, 'MQTT continues after save');
   // Simulate a real broker outage, while checking the time service remains available.
   for (const socket of sockets) socket.destroy();
   await new Promise(resolve => peer.close(resolve));
@@ -129,10 +153,11 @@ try {
   await stop(); await start();
   await waitFor(() => subscriptions > prior, 'resubscribe after server restart');
   await waitFor(async () => (await snapshot()).slots[1].observation?.temperatureC === 24, 'retained state after server restart');
-  assert.equal((await snapshot()).slots[1].observation.receivedUtc.replace('+00:00','Z'), newer);
+  assert.equal((await snapshot()).slots[1].observation.receivedUtc.replace('+00:00','Z'), duringSave);
   console.log('PASS: real MQTT client subscription/QoS1, retained MQTT-to-HTTP values, malformed/duplicate/older rejection, broker outage recovery, server restart, and preserved timestamps.');
 } finally {
   await stop();
   for (const socket of sockets) socket.destroy();
   if (peer.listening) await new Promise(resolve => peer.close(resolve));
+  await rm(data, { recursive: true, force: true });
 }

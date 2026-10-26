@@ -9,7 +9,7 @@ an NTP server or verify that Windows has recently synchronized.
 Install the .NET 10 SDK, then run from the repository root:
 
 ```powershell
-dotnet run --project server/DenClock.Server.csproj
+dotnet run --project server/DenClock.Server.csproj -- --Presentation:ConfigurationDirectory=../artifacts/dev-settings
 ```
 
 Open `http://localhost:5000/api/time` or use PowerShell:
@@ -47,10 +47,15 @@ the API. See [architecture and rationale](../docs/ARCHITECTURE.md).
 ## Development Browser Access (CORS)
 
 `Cors:DevelopmentOrigins` in `appsettings.json` lists exact browser origins
-(scheme, hostname, port; no trailing slash) allowed to read `GET /api/time`.
+(scheme, hostname, port; no trailing slash) allowed to read `GET /api/time` and `GET /api/presentation`.
 The default is `http://localhost:5000`, the XPS browser's development URL.
 This policy applies on the NUC in Production as well as during development,
-but only to `/api/time` and `/api/presentation`. It permits no credentials or arbitrary origins.
+but only to the time, presentation, and presentation-settings endpoints.
+`/api/settings/presentation` additionally permits GET/PUT and the Content-Type
+header, including preflight. It permits no credentials or arbitrary origins.
+Writes require JSON and independently reject Origin headers other than the
+served origin or these explicitly configured origins. Requests without Origin
+are allowed for non-browser tools; this is not authentication.
 Unapproved origins receive no CORS access header; CORS is a browser read
 restriction, not API authentication.
 
@@ -132,12 +137,34 @@ Story 008 implements the server/browser path and is verified and accepted by
 the developer. Configuration is described in
 [the presentation specification](docs/presentation-configuration.md).
 
-Edit server/presentation.json before building/publishing. The deployed copy lives
-beside DenClock.Server.exe. Restart the server after edits; missing/invalid files
-fail startup clearly. Default: F, Outside from porch in upperRight, 60-second
-freshness. To populate upperLeft, add the actual den sensor's MQTT node name with
-displayName Den, position upperLeft, and its chosen maxAgeSeconds. Secondary
-entries are allowed but have no view in this increment.
+Display settings are service-owned in `%ProgramData%\DenClock\Server\presentation.json`.
+Use the gear in a server-hosted browser on the NUC or LAN to change units,
+primary assignments, labels, and stale limits without restarting. The browser
+loads actual settings on each open; Cancel/Escape discards the draft. Save
+persists before applying. Concurrent edits produce a conflict and an explicit
+reload action; failures keep the draft open. Secondary entries and fields not
+edited by this view are preserved; displaced primary sensors become secondary.
+
+On first run only, the server validates and copies executable-local
+`presentation.json` unchanged into ProgramData. If both files are absent, it
+creates Fahrenheit with no assigned sensors. An existing invalid file fails
+startup with its path and diagnostic; it is never silently replaced. The bundled
+file is only an initialization source. Subsequent publishing/copying to
+`C:\DenClock\Server` leaves ProgramData settings intact. Do not mirror/delete
+or copy bundled examples into the ProgramData directory during deployment.
+
+The service account needs read, create, write, replace, and delete permissions
+in `%ProgramData%\DenClock\Server` (including creating that directory on first
+run). The documented LocalSystem account normally has these rights; for a custom
+service account, provision the directory and grant it Modify permission. A write
+or initialization failure is reported; no successful save is claimed.
+
+For development/tests, explicitly set `Presentation:ConfigurationDirectory`
+(CLI as above or `Presentation__ConfigurationDirectory` environment variable)
+to an isolated directory. Relative override paths resolve from the process's
+working directory. Development and non-Windows runs require this override so
+they cannot accidentally touch production settings. Automated tests use unique
+temporary directories. Neither appsettings.json nor LoRa Service settings move.
 
 Mqtt settings in appsettings.json default to localhost:1883 and client ID
 denclock-server, distinct from lora-service. Environment overrides use Mqtt__Host,
@@ -163,10 +190,12 @@ node server/tests/mqtt.mjs
 ~~~
 
 The executable .NET harness checks configuration and state validation. The
-hosting test checks publishing, CORS, and real-host missing/invalid config failure.
+hosting test checks publishing, scoped CORS/preflight, settings validation,
+conflicts, disk failures, runtime application, restart/deployment preservation,
+and invalid authoritative configuration failure.
 The MQTT test uses an ephemeral loopback peer to exercise the real subscriber,
 retained state, broker restart and server restart. It never contacts the NUC.
 
-Continue full-output deployment. Confirm the installed presentation.json after
-copying, then verify real Outside readings, stop sensor reports long enough to
+Continue full-output deployment. Confirm the ProgramData settings survive
+copying and restarting, then verify real sensor readings, stop reports long enough to
 observe red stale values, restore reports, and assess shelf readability.

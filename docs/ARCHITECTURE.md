@@ -203,7 +203,8 @@ Repository hardware references are in [HARDWARE.md](HARDWARE.md) and the
 
 ## Primary Presentation Boundary
 
-DenClock loads its own executable-local presentation.json and subscribes to
+DenClock owns ProgramData presentation.json, initializes it from an executable-local
+file (or defaults) on first run, and subscribes to
 semantic MQTT reports. It keeps latest observations in memory and supplies two
 primary slots through /api/presentation. Browsers poll that API, convert canonical
 Celsius to the configured display unit, and render freshness using server-derived
@@ -230,3 +231,24 @@ retain their separate lookup paths. This avoids the legacy one-shot query mode
 that failed on the observed Windows path. The developer confirmed the corrected
 gateway works with `denclock.local`. Responder ownership, recovery and conflict
 checks remain listed separately in the deployment procedure above.
+
+## Runtime Display Configuration
+
+The server owns presentation settings independently of deployment assets and
+LoRa Service configuration. Windows CommonApplicationData provides production
+storage; an explicit directory override isolates development and automated tests.
+A bundled presentation.json is a migration source only, preserving installed
+settings across deployment.
+
+The HTTP settings API uses opaque revisions and serialized saves to prevent
+silent lost updates across LAN clients. It flushes a same-directory temporary
+file and atomically replaces the destination before publishing one active
+configuration. Presentation snapshots and MQTT reception share a short state
+lock; disk writes do not stop reception. Identity-preserving edits retain
+observations and timestamps. File watching is deliberately omitted.
+
+The browser edits a temporary draft and preserves fields outside its primary
+panel editor. Explicit reload resolves conflicts. JSON-only writes check browser
+origins and use narrowly scoped development CORS; authentication remains out of
+scope. Implementation is accepted in
+[story 009](stories/completed/009-load-save-and-apply-display-settings.md).

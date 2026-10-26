@@ -15,7 +15,7 @@ are included automatically by the existing recursive publish configuration.
 From the repository root:
 
 ```powershell
-dotnet run --project server/DenClock.Server.csproj
+dotnet run --project server/DenClock.Server.csproj -- --Presentation:ConfigurationDirectory=../artifacts/dev-settings
 ```
 
 Open `http://localhost:5000/` in Edge or Chromium on the XPS. Leave the terminal
@@ -38,10 +38,13 @@ The development profile in `server/Properties/launchSettings.json` sets
 the NUC address for one run, without changing production configuration:
 
 ```powershell
-dotnet run --project server/DenClock.Server.csproj -- --Client:TimeServerAddress=http://DenClock:5000
+dotnet run --project server/DenClock.Server.csproj -- --Presentation:ConfigurationDirectory=../artifacts/dev-settings --Client:TimeServerAddress=http://DenClock:5000
 ```
 
-For an intentional local-API test, pass `--Client:TimeServerAddress=` instead.
+For an intentional local-API test, keep the directory override and pass
+`--Client:TimeServerAddress=` instead. The directory is isolated local server
+settings; when the API address selects the NUC, settings edits are saved by
+the NUC service. Deploy story 009 on the NUC before testing its settings API.
 The default source path is `../client` relative to the server process working
 directory (`server/` under `dotnet run`). Other launchers can pass an absolute
 `--Client:SourcePath=...` while using the Development environment. A missing
@@ -142,8 +145,8 @@ Sensor data comes from /api/presentation on the same configured server as time.
 The browser polls every five seconds; stale values turn red based on original
 observation time, even if requests fail. No MQTT connection is made by the browser.
 See the [configuration specification](../server/docs/presentation-configuration.md)
-and [client contract](docs/contract.md). Configuration changes require a server
-restart; CSS/layout edits retain the existing save/refresh development workflow.
+and [client contract](docs/contract.md). Settings saved through the gear apply without a server restart. CSS/layout
+edits retain the existing save/refresh development workflow.
 
 For human verification, inspect the display on the 1024 x 600 shelf monitor:
 confirm time and whole-degree values are readable across the room, supporting
@@ -151,17 +154,36 @@ details are readable nearby, and the panels do not collide with the clock/date.
 Check a stale reading, unknown readings, and recovery. The developer verified and accepted story 008 after implementation. Local browser
 checks used fixtures; shelf/NUC verification was performed by the developer.
 
-## Display Settings Preview
+## Display Settings
 
-The lower-left gear opens a full-screen settings preview with temperature unit,
-primary sensor assignments, labels, and stale limits. Values come from the
-repository's documented example, not the running service. Save is unavailable;
-Cancel or Escape discards edits and returns focus to the gear. Time and sensor
-updates continue while the preview is open. Narrow windows stack the sensor
-fields, and the settings view scrolls as needed.
+The lower-left gear opens settings and fetches actual service configuration on
+every open. Loading or load failure keeps Save disabled; reload retries loading.
+Sensor choices come from configured identities, including secondary entries.
+Unassigned disables that position's label and stale-limit inputs. Assignments,
+labels, freshness limits, and temperature units stay in a local draft until Save.
+Both positions cannot select the same sensor.
 
-[Story 004](docs/stories/completed/004-add-gear-triggered-display-settings-ui.md)
-is accepted. For browser verification, use a 1024×600 viewport, exercise Tab,
-Cancel, and Escape, reopen to check edit discard, and inspect continued API
-polling in Network tools. Also check scrolling in a smaller window. Codex did
-not perform browser, LAN, or physical touchscreen verification for this story.
+Save applies to all displays without a service restart. It retains secondary
+configuration and extra fields; displaced or unassigned primary sensors remain
+configured as secondary. During Save the fields and Cancel are disabled, Escape
+is blocked, and duplicate submissions are ignored. Successful Save closes the
+view, restores gear focus, and requests fresh presentation immediately after any
+older poll finishes. Normal time synchronization and polling continue throughout.
+Cancel or Escape otherwise discards unsaved edits.
+
+Save errors leave the draft open. A conflict means another client saved first;
+an explicit “Reload service settings (discard draft)” action fetches current
+settings. There is no automatic overwrite or reload. If a save times out or the
+connection fails, the outcome may be uncertain; reload to check before retrying.
+Narrow windows stack sensor fields, and the view scrolls as needed.
+
+The initial UI is accepted in
+[story 004](docs/stories/completed/004-add-gear-triggered-display-settings-ui.md).
+Live settings are accepted in
+[story 009](../docs/stories/completed/009-load-save-and-apply-display-settings.md).
+For human verification, use a 1024×600 browser viewport and the touchscreen;
+exercise Tab, Cancel, Escape, smaller-window scrolling, and edit discard. Open
+two clients before saving to check conflict/reload. Watch Network tools for
+continued time/presentation polling, and verify updated readings on another
+client. See [server storage and deployment](../server/README.md#primary-sensor-display)
+for ProgramData, permissions, migration, and the development-directory override.

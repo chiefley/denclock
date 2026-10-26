@@ -70,4 +70,93 @@ Check(Send("attic", Report("attic", stamp, Values(15))), "secondary accepted");
 Check(state.Snapshot().Slots.Count == 2 && state.Snapshot().Slots[0].Observation!.TemperatureC == -10, "only primary snapshots");
 var single = new PresentationState(PresentationConfiguration.Parse(config.Replace("upperLeft","secondary")), NullLogger<PresentationState>.Instance);
 Check(single.Snapshot().Slots[0] is { InternalName: null, DisplayName: "", Observation: null, MaxAgeSeconds: null }, "unassigned left");
-Console.WriteLine($"PASS: {count} configuration and sensor-state checks");
+// Runtime replacement retains identities and timestamps, removes deleted identities.
+var before = state.Snapshot().Slots[1].Observation;
+var changed = PresentationConfiguration.Parse(config.Replace("\"F\"", "\"C\"")
+    .Replace("upperLeft", "secondary").Replace("upperRight", "upperLeft").Replace("Outside", "Garden").Replace("120", "30"));
+state.ReplaceConfiguration(changed);
+var applied = state.Snapshot();
+Check(applied.TemperatureUnit == "C" && applied.Slots[0].DisplayName == "Garden" && applied.Slots[0].MaxAgeSeconds == 30,
+    "all configuration fields applied together");
+Check(applied.Slots[0].Observation == before, "runtime change retains observation and timestamp");
+state.ReplaceConfiguration(PresentationConfiguration.Parse("""{"temperatureUnit":"F","sensors":[]}"""));
+Check(!Send("porch", Report("porch", stamp.AddSeconds(10), Values())), "removed identity ignored");
+state.ReplaceConfiguration(configuration);
+Check(state.Snapshot().Slots.All(s => s.Observation is null), "removed and re-added identities start unknown");
+
+var inconsistent = 0;
+Parallel.Invoke(
+    () => { for (var i = 0; i < 500; i++) state.ReplaceConfiguration(i % 2 == 0 ? configuration : changed); },
+    () => {
+        for (var i = 0; i < 500; i++)
+        {
+            Send("porch", Report("porch", stamp.AddMilliseconds(i), Values()));
+            var snapshot = state.Snapshot();
+            if (snapshot.TemperatureUnit == "C" ? snapshot.Slots[0].DisplayName != "Garden" || snapshot.Slots[0].MaxAgeSeconds != 30
+                : snapshot.Slots[0].DisplayName != "Den" || snapshot.Slots[0].MaxAgeSeconds != 60)
+                Interlocked.Increment(ref inconsistent);
+        }
+    });
+Check(inconsistent == 0, "configuration snapshots remain coherent during replacement and MQTT reception");
+
+var temporary = Path.Combine(Path.GetTempPath(), "denclock-settings-" + Guid.NewGuid());
+Directory.CreateDirectory(temporary);
+try
+{
+    var legacy = Path.Combine(temporary, "legacy.json");
+    var directory = Path.Combine(temporary, "data");
+    var file = Path.Combine(directory, "presentation.json");
+    var original = config.Replace("\"sensors\":", "\"future\":{\"flag\":true},\"sensors\":")
+        .Replace("\"displayName\":\"Attic\"", "\"extra\":42,\"displayName\":\"Attic\"");
+    File.WriteAllText(legacy, original);
+    var store = new PresentationSettings(directory, legacy);
+    Check(File.ReadAllText(file) == original && File.ReadAllText(legacy) == original, "migration preserves exact legacy content");
+    var first = store.Read();
+    File.WriteAllText(legacy, "invalid bundled replacement");
+    var restarted = new PresentationSettings(directory, legacy);
+    Check(restarted.Read().Configuration.Sensors.Count == 3, "stored configuration wins over changed deployment bundle");
+    var live = new PresentationState(first.Configuration, NullLogger<PresentationState>.Instance);
+    var saved = store.Save(first.Revision, original.Replace("\"F\"", "\"C\""), live);
+    Check(saved.Revision != first.Revision && live.Snapshot().TemperatureUnit == "C", "persist then publish with new revision");
+    var persisted = File.ReadAllText(file);
+    Check(JsonNode.Parse(persisted)!["future"]!["flag"]!.GetValue<bool>() &&
+        JsonNode.Parse(persisted)!["sensors"]![2]!["extra"]!.GetValue<int>() == 42, "unknown fields survive save");
+    Check(new PresentationSettings(directory, legacy).Read().Configuration.TemperatureUnit == "C", "saved settings survive restart");
+    try { store.Save(first.Revision, config, live); throw new Exception("stale save accepted"); }
+    catch (SettingsConflictException) { count++; }
+    try { store.Save(saved.Revision, "{}", live); throw new Exception("invalid save accepted"); }
+    catch (InvalidDataException) { count++; }
+    Check(File.ReadAllText(file) == persisted && store.Read().Revision == saved.Revision && live.Snapshot().TemperatureUnit == "C",
+        "conflict and validation failures preserve disk and active settings");
+    Directory.Move(directory, directory + "-away");
+    try { store.Save(saved.Revision, config, live); throw new Exception("failed persistence accepted"); }
+    catch (IOException) { count++; }
+    Check(File.ReadAllText(Path.Combine(directory + "-away", "presentation.json")) == persisted &&
+        store.Read().Revision == saved.Revision && live.Snapshot().TemperatureUnit == "C", "failed write preserves file revision and state");
+    Directory.Move(directory + "-away", directory);
+    Check(Directory.GetFiles(directory).Length == 1, "temporary files cleaned up");
+    // Two simultaneous clients at one revision: exactly one save succeeds.
+    var successes = 0; var conflicts = 0;
+    Parallel.For(0, 2, _ => {
+        try { store.Save(saved.Revision, config, live); Interlocked.Increment(ref successes); }
+        catch (SettingsConflictException) { Interlocked.Increment(ref conflicts); }
+    });
+    Check(successes == 1 && conflicts == 1, "simultaneous saves serialized");
+    File.WriteAllText(file, "{}");
+    try { _ = new PresentationSettings(directory, legacy); throw new Exception("invalid authoritative file accepted"); }
+    catch (InvalidDataException ex) { Check(ex.Message.Contains(file), "invalid authoritative path diagnostic"); }
+    Check(File.ReadAllText(file) == "{}", "invalid file not replaced");
+    File.Delete(file);
+    try { _ = new PresentationSettings(directory, legacy); throw new Exception("invalid migration source accepted"); }
+    catch (InvalidDataException ex) { Check(ex.Message.Contains(legacy), "invalid legacy path diagnostic"); }
+    Check(!File.Exists(file), "invalid migration does not create destination");
+    File.Delete(legacy);
+    var defaults = new PresentationSettings(directory, legacy).Read().Configuration;
+    Check(defaults.TemperatureUnit == "F" && defaults.Sensors.Count == 0, "missing files initialize F with no sensors");
+    var blocked = Path.Combine(temporary, "blocked");
+    File.WriteAllText(blocked, "not a directory");
+    try { _ = new PresentationSettings(blocked, legacy); throw new Exception("initialization failure accepted"); }
+    catch (InvalidDataException ex) { Check(ex.Message.Contains(blocked), "initialization failure has destination diagnostic"); }
+}
+finally { Directory.Delete(temporary, recursive: true); }
+Console.WriteLine($"PASS: {count} configuration, persistence, and sensor-state checks");

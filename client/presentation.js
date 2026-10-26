@@ -58,8 +58,18 @@ export class PresentationClient {
     this.timer = setInterval(() => void this.synchronize(), this.config.presentationIntervalMs);
   }
   stop() { clearInterval(this.timer); this.timer = null; }
-  async synchronize() {
-    if (this.pending) return false;
+  async refresh() {
+    // A poll already in flight may contain the previous configuration. Finish it
+    // before requesting the post-save snapshot rather than overlapping requests.
+    if (this.pending) await this.inFlight;
+    return this.synchronize();
+  }
+  synchronize() {
+    if (this.pending) return Promise.resolve(false);
+    this.inFlight = this.fetchCurrent();
+    return this.inFlight;
+  }
+  async fetchCurrent() {
     this.pending = true;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.config.requestTimeoutMs);

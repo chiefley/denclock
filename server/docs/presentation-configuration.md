@@ -1,6 +1,7 @@
 # DenClock Presentation Configuration
 
-Status: Implemented in story 008; verified and accepted by the developer.
+The sensor presentation baseline is accepted in story 008. Runtime settings
+loading/saving is accepted in [story 009](../../docs/stories/completed/009-load-save-and-apply-display-settings.md).
 
 ## Purpose
 
@@ -10,11 +11,34 @@ The LoRa Service supplies normalized measurements. DenClock selects sensors, ass
 
 ## File Location and Loading
 
-The file resides beside the DenClock server executable and is loaded at startup, independently of the process’s working directory.
+Production uses `%ProgramData%\DenClock\Server\presentation.json`, resolving
+ProgramData through Windows CommonApplicationData, independent of the working
+directory. `Presentation:ConfigurationDirectory` explicitly overrides the directory
+for development/tests; Development and non-Windows runs require the override.
 
-Configuration changes require restarting the DenClock server. Hot reload and browser-based configuration editing are outside this MVP.
+Before accepting requests, load and validate the destination if present. If
+absent, validate executable-local `presentation.json` and atomically copy its
+exact contents without changing the source. If both are absent, atomically
+create `{"temperatureUnit":"F","sensors":[]}`. Invalid existing destination
+files fail startup without fallback. Invalid legacy files, permission failures,
+and initialization failures also fail clearly with path diagnostics.
 
-A missing file or invalid configuration prevents successful server startup and produces a clear diagnostic identifying the problem.
+Once initialized, the destination is authoritative. Bundled files remain
+initialization sources only and deployments must leave ProgramData intact.
+The service account needs directory Modify permissions for same-directory
+atomic replacement; see the [server deployment guide](../README.md).
+
+The browser reads settings on each open and PUTs a revision and configuration.
+Server validation and revision comparison precede persistence. Saves are
+serialized, flushed to a temporary file in the same directory, and atomically
+replace the destination before activation. Validation, conflict, and disk
+failures preserve prior active settings and the file. The server logs disk
+errors while returning a useful error without stack traces.
+
+All fields apply together without restart. Existing configured identities retain
+observations and their original timestamps; removed identities lose observations.
+New identities start unknown. External file edits are not watched: use the API
+for runtime changes, or stop the service before manual edits and restart it.
 
 ## Example
 
@@ -161,7 +185,7 @@ Time moves lower on the page and becomes bolder and somewhat smaller than the ex
 
 - Clicking temperature panels for diagnostics or additional information.
 - Secondary-sensor views and navigation.
-- Browser-based configuration editing or hot reload.
+- External file watching and hot reload.
 - Arbitrary layout coordinates or configurable typography.
 - Measurement history, charts, alarms, or equipment control.
 - Changes to the LoRa protocol or MQTT measurement units.
@@ -170,7 +194,8 @@ Time moves lower on the page and becomes bolder and somewhat smaller than the ex
 
 Duplicate JSON properties are rejected. Internal names must be one literal MQTT
 topic level (no slash, wildcard, or NUL). Extra configuration properties are
-ignored; the required field names remain exact and case-sensitive.
+preserved through API round trips and browser primary edits; they do not affect
+current presentation. Required field names remain exact and case-sensitive.
 
 Reports require an explicit UTC timestamp ending in Z or +00:00. Invalid or future
 timestamps are rejected, leaving the prior observation to age normally. Equal
@@ -181,5 +206,6 @@ Temperature requires canonical C units and a finite numeric value. Humidity
 requires percent units and a finite value from 0 to 100. Invalid measurements
 are independently unavailable in an otherwise valid report.
 
-The default file assigns porch to Outside in upperRight, selects F, and sets
-maxAgeSeconds to 60. No den sensor identity is assumed.
+The no-source first-run default selects F with no sensors. The bundled file may
+contain installation-specific identities; migration preserves those values.
+Sensor discovery and creation of identities in the browser remain deferred.

@@ -27,48 +27,47 @@
     <div id="sync-status" class="sync-status" role="status">Waiting for time</div>
   </main>
   <button id="settings-button" class="settings-button" type="button" aria-label="Settings" aria-haspopup="dialog" aria-controls="settings-view">⚙</button>
-  <dialog id="settings-view" aria-labelledby="settings-title" aria-describedby="settings-preview">
-    <form id="settings-form" method="dialog">
+  <dialog id="settings-view" aria-labelledby="settings-title" aria-describedby="settings-status">
+    <form id="settings-form" novalidate>
       <h1 id="settings-title">Display settings</h1>
-      <p id="settings-preview"><strong>Example configuration preview</strong> — these example values are not read from the service. Changes here do not affect the clock and are discarded when you close this view.</p>
+      <p id="settings-status" role="status" tabindex="-1">Loading settings…</p>
+      <button id="settings-reload" type="button" hidden>Reload service settings (discard draft)</button>
       <label for="settings-unit">Temperature unit</label>
-      <select id="settings-unit" name="temperatureUnit" autofocus>
-        <option value="C">Celsius (°C)</option><option value="F" selected>Fahrenheit (°F)</option>
+      <select id="settings-unit" name="temperatureUnit" disabled>
+        <option value="C">Celsius (°C)</option><option value="F">Fahrenheit (°F)</option>
       </select>
       <div class="settings-positions">
-        <fieldset>
+        <fieldset class="settings-fields" disabled>
           <legend>Upper-left sensor</legend>
           <label for="settings-left-sensor">Sensor assignment</label>
           <select id="settings-left-sensor" name="leftSensor">
-            <option value="">Unassigned</option><option value="den" selected>Den (den)</option><option value="porch">Outside (porch)</option><option value="attic">Attic (attic)</option>
+            <option value="">Unassigned</option>
           </select>
           <label for="settings-left-label">Display label</label>
-          <input id="settings-left-label" name="leftLabel" type="text" value="Den">
+          <input id="settings-left-label" name="leftLabel" type="text" disabled>
           <label for="settings-left-age">Stale-reading limit (seconds)</label>
-          <input id="settings-left-age" name="leftAge" type="number" value="60" inputmode="decimal" step="any">
+          <input id="settings-left-age" name="leftAge" type="number" disabled inputmode="decimal" step="any">
         </fieldset>
-        <fieldset>
+        <fieldset class="settings-fields" disabled>
           <legend>Upper-right sensor</legend>
           <label for="settings-right-sensor">Sensor assignment</label>
           <select id="settings-right-sensor" name="rightSensor">
-            <option value="">Unassigned</option><option value="den">Den (den)</option><option value="porch" selected>Outside (porch)</option><option value="attic">Attic (attic)</option>
+            <option value="">Unassigned</option>
           </select>
           <label for="settings-right-label">Display label</label>
-          <input id="settings-right-label" name="rightLabel" type="text" value="Outside">
+          <input id="settings-right-label" name="rightLabel" type="text" disabled>
           <label for="settings-right-age">Stale-reading limit (seconds)</label>
-          <input id="settings-right-age" name="rightAge" type="number" value="60" inputmode="decimal" step="any">
+          <input id="settings-right-age" name="rightAge" type="number" disabled inputmode="decimal" step="any">
         </fieldset>
       </div>
-      <p id="settings-save-note">Saving settings will be available in a later update.</p>
       <div class="settings-actions">
-        <button type="button" disabled aria-describedby="settings-save-note">Save</button>
+        <button id="settings-save" type="submit" disabled>Save</button>
         <button id="settings-cancel" type="button">Cancel</button>
       </div>
     </form>
   </dialog>
   <script type="module">
     import { initializeSettings } from './settings.js';
-    initializeSettings(document);
 
     import { config } from './config.js';
     import { serverAddress } from './client-settings.js';
@@ -82,6 +81,7 @@
     const presentation = new PresentationClient({ ...config, serverAddress });
     presentation.start();
     new SensorDisplay(presentation, document).start();
+    initializeSettings(document, { ...config, serverAddress }, () => presentation.refresh());
   </script>
 </body>
 </html>

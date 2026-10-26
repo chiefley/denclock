@@ -28,6 +28,13 @@ and [deployment guide](lora-service/docs/mdns-deployment.md).
 
 ## Resume Here
 
+- [Load, Save, and Apply Display Settings](docs/stories/completed/009-load-save-and-apply-display-settings.md)
+  is accepted by the developer. Presentation settings now live in ProgramData,
+  with first-run migration, revision-protected saves, and runtime application
+  through the gear-triggered browser editor. See the
+  [server guide](server/README.md#primary-sensor-display) for storage permissions
+  and the required development/test directory override.
+
 - [Sensor Change Reporting, Heartbeat, and Randomized Sampling](firmware/sensors/docs/stories/completed/006-sensor-change-reporting-heartbeat-and-randomized-sampling.md)
   is verified and accepted. Nodes suppress stable-temperature reports, retain
   heartbeat/change state through deep sleep, and randomize sampling intervals.

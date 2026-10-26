@@ -1,10 +1,17 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace DenClock.Server;
 
-public sealed record SensorConfiguration(string InternalName, string DisplayName, string Position, double MaxAgeSeconds);
+public sealed record SensorConfiguration(string InternalName, string DisplayName, string Position, double MaxAgeSeconds)
+{
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Extra { get; init; }
+}
 public sealed record PresentationConfiguration(string TemperatureUnit, IReadOnlyList<SensorConfiguration> Sensors)
 {
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? Extra { get; init; }
     public static PresentationConfiguration Load(string path)
     {
         try { return Parse(File.ReadAllText(path)); }
@@ -39,13 +46,19 @@ public sealed record PresentationConfiguration(string TemperatureUnit, IReadOnly
                 var age = item.GetProperty("maxAgeSeconds").GetDouble();
                 if (!double.IsFinite(age) || age <= 0)
                     throw new InvalidDataException($"Sensor {name}: maxAgeSeconds must be positive and finite.");
-                sensors.Add(new(name, label, position, age));
+                sensors.Add(new(name, label, position, age) {
+                    Extra = Extras(item, "internalName", "displayName", "position", "maxAgeSeconds")
+                });
             }
-            return new(unit, sensors.AsReadOnly());
+            return new(unit, sensors.AsReadOnly()) { Extra = Extras(root, "temperatureUnit", "sensors") };
         }
         catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException or FormatException)
         { throw new InvalidDataException($"Invalid presentation configuration: {ex.Message}", ex); }
     }
+
+    private static Dictionary<string, JsonElement> Extras(JsonElement item, params string[] known) =>
+        item.EnumerateObject().Where(p => !known.Contains(p.Name))
+            .ToDictionary(p => p.Name, p => p.Value.Clone(), StringComparer.Ordinal);
 
     private static string Text(JsonElement item, string field)
     {

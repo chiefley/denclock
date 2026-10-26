@@ -70,18 +70,29 @@ At age >= maxAgeSeconds, known temperature and humidity values turn red without
 being discarded. A fresh report restores normal color. Receiving the same old
 report in a new snapshot does not reset its age.
 
-## Settings Preview
+## Display Settings
 
-The Settings gear opens a full-screen modal dialog. Controls preview the
-example configuration in the [configuration specification](../../server/docs/presentation-configuration.md),
-not configuration loaded from the service. They include Celsius/Fahrenheit,
-upper-left/right sensor assignments (including Unassigned), display labels,
-and stale-reading limits in seconds.
+The lower-left gear opens a full-screen native modal dialog and fetches fresh
+`/api/settings/presentation` from the same configured server as time. Controls
+edit Celsius/Fahrenheit, upper-left/right assignments, display labels, and
+stale limits. Sensor options include all configured identities, including
+secondary entries, plus Unassigned. Unassigned disables label/limit fields.
+No browser discovery or identity creation is provided.
 
-Edits stay in the form only while open. Cancel or Escape closes the dialog,
-discards edits, and restores focus to the gear. Save is disabled, with visible
-text: “Saving settings will be available in a later update.” No configuration
-requests, persistence, or live presentation changes occur.
+Loading and failed loading disable Save. Edits remain local until successful
+Save. Primary reassignment demotes displaced sensors to secondary; untouched
+secondary entries and unknown configuration fields are preserved. Duplicate
+primary identities, blank labels, and nonpositive/nonfinite limits are rejected
+locally and the server validates all updates.
+
+Save PUTs JSON with the read revision. While pending it disables editing/Cancel,
+blocks Escape, and prevents duplicate saves. Success closes settings, restores
+gear focus, and refreshes presentation after any older in-flight poll finishes.
+Failures retain the draft with an error. Conflicts expose an explicit reload
+that discards the draft; the browser never automatically overwrites newer
+settings. Network failures/timeouts may leave save outcome uncertain, with reload
+offered to check. Cancel/Escape otherwise discard edits and restore gear focus.
+Closing during loading invalidates late responses. Drafts use no browser storage.
 
 The dialog provides associated labels, native modal keyboard navigation,
 visible focus, and controls at least 48 CSS pixels high. It scrolls when needed
