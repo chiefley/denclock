@@ -6,7 +6,7 @@ The host selects the Windows Service lifetime when launched by the Windows servi
 manager. Configuration loads from the executable directory. Deployment is
 framework-dependent and requires the .NET 10 runtime on the Windows host.
 There is no dependency on the DenClock server. The receive path now feeds
-configured semantic mapping and an MQTT publisher. The developer has verified
+fixed protocol normalization and an MQTT publisher. The developer has verified
 NUC deployment with Mosquitto, live publications, retained-state persistence,
 and service/broker restart and NUC reboot recovery.
 
@@ -41,21 +41,21 @@ LoRa errors (including unsupported classes) are logged and dropped without
 closing a correctly initialized gateway connection. Valid reports preserve Gateway ID, UTC time, Node ID, sequence, measurements,
 RSSI and SNR in the semantic MQTT message. Routine successful values are not logged.
 
-## Semantic mapping and publication
+## Normalization and publication
 
-The startup-loaded JSON mapping supplies gateway/node names and measurement
-names, signed/unsigned 16-bit decoding, scale, units, and precision metadata.
-Assigned types are validated against immutable LoRa definitions. Mapping/config
-errors stop startup before listeners start. Runtime unknown identifiers warn;
-gateways fall back to decimal ID strings, nodes to `node-{id}`, and unmapped TLVs
-are skipped. Mapped duplicate measurements are rejected as ambiguous. Unknown
-unmapped TLVs remain skippable. Values use decimal arithmetic without presentation
-rounding. Mapping changes require restart.
+No semantic mapping configuration is loaded or validated. Gateway and node
+names are neither resolved nor generated. Assigned TLVs normalize directly to
+`temperature` (C), `relativeHumidity` (percent), and `batteryVoltage` (V), each
+with precision 4 metadata. Values use decimal arithmetic without rounding.
+Unknown TLVs warn and are skipped; missing measurements remain absent.
 
-The [semantic mapping](../../docs/Lora%20Service%20Semantic%20Mapping.md) and
-[MQTT interface](../../docs/MQTT-INTERFACE.md) own detailed definitions. The service
-attempts one JSON publication per valid report on `lora/sensors/{node-name}`,
-QoS 1, retained. MQTTnet connects independently with clean sessions and retries
+The [MQTT interface](../../docs/MQTT-INTERFACE.md) defines the payload. Integer
+`gatewayId` and `nodeId` identify a sensor as a pair. Node numbers need only be
+unique within a gateway; distinct gateway IDs are a deployment responsibility.
+The service attempts one JSON publication per valid report on
+`lora/sensors/{gatewayId}/{nodeId}`, QoS 1, retained. No previous named-topic
+publication is emitted. Device/location naming belongs to applications.
+MQTTnet connects independently with clean sessions and retries
 at five-second polling intervals. Direct publishes time out after five seconds;
 unavailable/failed attempts are logged and discarded. Gateway reception continues,
 without an offline queue, spool, or replay. MQTT failure is not a LoRa framing error.

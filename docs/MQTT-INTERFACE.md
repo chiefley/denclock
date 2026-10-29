@@ -1,9 +1,8 @@
 # MQTT Interface
 
 The [current LoRa worker](../lora-service/docs/contract.md) implements this
-publishing contract. The developer has verified live sensor publications through
-Mosquitto on the Windows NUC, retained delivery/persistence, and restart/reboot
-recovery. DenClock subscription remains separate work.
+publishing contract. Numeric identity replaces the previous named-topic contract;
+existing DenClock consumption requires adaptation in Story 2.
 
 ## 1. Purpose
 
@@ -30,11 +29,11 @@ Gateway
     v
 LoRa Service
     |
-    | semantic mapping
+    | protocol normalization
     v
 MQTT Broker
     |
-    | MQTT semantic interface
+    | MQTT normalized interface
     v
 Applications
 ```
@@ -47,15 +46,10 @@ The LoRa Service is an MQTT publisher. DenClock is initially an MQTT subscriber,
 
 The MQTT interface contains application-friendly semantic information rather than LoRa wire-protocol representations.
 
-The LoRa Service uses its semantic mapping configuration to translate:
-
-- Gateway IDs to gateway names.
-- Node IDs to node names.
-- Measurement Type IDs to measurement names.
-- Wire-format numeric values to normalized numeric values.
-- Measurement definitions to canonical units and presentation precision metadata.
-
-Numeric protocol identifiers may be included where useful for identity and diagnostics, but MQTT consumers shall not need to interpret those identifiers to understand a message.
+The LoRa Service decodes the fixed measurement definitions from the LoRa protocol
+into canonical values, units, and precision metadata. It publishes integer
+`gatewayId` and `nodeId` without device names or location interpretation.
+Applications own semantic naming. No mapping file is loaded.
 
 The original raw LoRa packet is not included in normal MQTT sensor messages.
 
@@ -64,43 +58,32 @@ The original raw LoRa packet is not included in normal MQTT sensor messages.
 The initial sensor topic namespace is:
 
 ```text
-lora/sensors/{node-name}
+lora/sensors/{gatewayId}/{nodeId}
 ```
 
 For example:
 
 ```text
-lora/sensors/porch
-lora/sensors/attic
+lora/sensors/1/1
+lora/sensors/2/1
 ```
 
 A subscriber interested in all sensor nodes may subscribe using the MQTT wildcard:
 
 ```text
-lora/sensors/+
+lora/sensors/+/+
 ```
 
 The `lora` root is intentionally independent of DenClock. DenClock is one consumer of the LoRa infrastructure rather than its owner.
 
-## 5. Unknown Node IDs
+## 5. Numeric Sensor Identity
 
-When a received sensor report contains a Node ID that has no configured semantic mapping, the report should not be discarded solely because the friendly node name is unknown.
-
-The fallback topic name shall be:
-
-```text
-node-{id}
-```
-
-For example, unknown Node ID 37 is published to:
-
-```text
-lora/sensors/node-37
-```
-
-The LoRa Service shall generate an infrastructure warning for the missing node mapping.
-
-The payload shall retain the numeric Node ID.
+The pair `(gatewayId, nodeId)` uniquely identifies a sensor. Node IDs need only
+be unique within a gateway. Topics use decimal integers without leading zeros;
+Gateway 1 / Node 1 and Gateway 2 / Node 1 use distinct retained topics.
+IDs need no configured names and generate no missing-name warnings.
+Gateway IDs must be assigned distinctly by deployment; the service does not
+authenticate IDs, enforce unique gateway sessions, or deduplicate RF receptions.
 
 ## 6. Message Granularity
 
@@ -118,14 +101,8 @@ A representative payload is:
 
 ```json
 {
-  "gateway": {
-    "id": 1,
-    "name": "den-gateway"
-  },
-  "node": {
-    "id": 1,
-    "name": "porch"
-  },
+  "gatewayId": 1,
+  "nodeId": 1,
   "messageType": "sensor-report",
   "sequence": 47,
   "receivedUtc": "2026-09-21T20:42:17.123Z",
@@ -155,32 +132,14 @@ A representative payload is:
 
 ## 8. Gateway Identity
 
-The `gateway` object identifies the gateway through which the LoRa Service received the packet.
-
-It contains:
-
-- `id` — numeric Gateway ID from the Gateway Protocol.
-- `name` — friendly gateway name from semantic mapping configuration, or the
-  ID fallback defined by [Gateway Mapping](Lora%20Service%20Semantic%20Mapping.md#31-gateway-mapping).
-
-Gateway naming is configuration rather than a property of the Gateway Protocol.
-
-The architecture permits more than one gateway even though the initial installation uses only one.
-
-No additional multi-gateway routing or duplicate-reception behavior is required by this MVP.
+`gatewayId` is an integer (1–255) from the gateway connection's HELLO.
+No gateway name is published.
 
 ## 9. Node Identity
 
-The `node` object identifies the source sensor node.
-
-It contains:
-
-- `id` — numeric LoRa Source Node ID.
-- `name` — friendly node name from semantic mapping configuration or the fallback `node-{id}` name.
-
-The friendly name is also used in the MQTT topic.
-
-Including both ID and name makes the MQTT payload self-contained even when viewed independently of its topic.
+`nodeId` is an integer (1–239) from the sensor report. Consumers must key sensors
+by both identifiers, including retained state and any future name configuration.
+No node name is published. Payload identity remains usable independently of topics.
 
 ## 10. Message Type
 
@@ -227,12 +186,17 @@ This information is included because it is inexpensive and may be useful for dia
 
 `measurements` contains all known and successfully decoded measurement TLVs in the received `SENSOR_REPORT`.
 
-Each measurement is keyed by its semantic name from the mapping configuration.
+Measurements use fixed protocol-defined keys: `temperature` (C),
+`relativeHumidity` (percent), and `batteryVoltage` (V). Values are decoded with
+scales 0.01, 0.01, and 0.001 respectively; temperature is signed int16, the others
+unsigned uint16. Precision remains 4 significant figures for each measurement.
+Missing measurements remain absent. New measurement types require protocol
+support in LoRaService, rather than configuration.
 
 Each measurement initially contains:
 
 - `value` — normalized numeric value.
-- `units` — canonical units from the mapping configuration.
+- `units` — canonical protocol units.
 - `precision` — recommended presentation precision in significant figures.
 
 The LoRa Service preserves numeric fidelity. `precision` is metadata and does not require the service to round the underlying value.
@@ -260,10 +224,10 @@ Each newly published report replaces the previous retained message for that node
 For example:
 
 ```text
-lora/sensors/porch
+lora/sensors/1/1
 ```
 
-always retains the most recently successfully published report from the porch node.
+always retains the most recently successfully published report from Gateway 1 / Node 1.
 
 This allows a newly started or restarted subscriber to immediately obtain the last known sensor report without waiting for the next LoRa transmission.
 
@@ -378,7 +342,7 @@ These shall be defined only when an actual requirement exists.
 The MQTT interface MVP is complete when a valid `SENSOR_REPORT` received and decoded by the LoRa Service can be published as semantic JSON to:
 
 ```text
-lora/sensors/{node-name}
+lora/sensors/{gatewayId}/{nodeId}
 ```
 
 using:

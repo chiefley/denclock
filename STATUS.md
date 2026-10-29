@@ -10,7 +10,9 @@ assets. Codex has not independently reverified the NUC/LAN browser or touchscree
 The remote LoRa sensor and diagnostic gateway are implemented and accepted by
 the developer. Temperature, humidity, and battery reports work over LoRa.
 The independent gateway-to-LoRa-Service Wi-Fi/TCP receive path is now implemented
-and accepted by the developer after testing and verification. Semantic mapping and MQTT publishing are now implemented and accepted by the developer; production
+and accepted by the developer after testing and verification. MQTT publishing is implemented and accepted by the developer. LoRaService now
+publishes numeric gateway/node identity without semantic mapping; DenClock
+subscriber and naming adaptation remain Story 2. Production
 Mosquitto deployment and live-sensor MQTT publication on the NUC are now verified by the developer, including retained-state persistence and restart/reboot recovery. DenClock MQTT subscription and two primary sensor panels are implemented in story 008; the developer has verified and accepted the story. Remote-sensor deep sleep is
 verified and accepted by the developer. Sensors now support persistent serial
 configuration of identity, reporting parameters, and transmit power; see the
@@ -43,8 +45,11 @@ and [deployment guide](lora-service/docs/mdns-deployment.md).
   is verified and accepted by the developer. Local automated checks cover
   data flow and presentation; shelf/NUC verification was confirmed by the developer.
 
-- [Implement LoRa Service Semantic Mapping and MQTT Publishing](lora-service/docs/stories/completed/002-implement-semantic-mapping-and-mqtt-publishing.md)
-  is implemented and accepted by the developer. Live MQTT deployment checks are recorded in
+- [Remove Semantic Mapping from LoRaService](lora-service/docs/stories/completed/005-remove-semantic-mapping-from-loraservice.md)
+  is accepted. MQTT now uses `lora/sensors/{gatewayId}/{nodeId}` with integer
+  identity fields and fixed measurement normalization. Existing DenClock consumption
+  requires adaptation in Story 2; no compatibility publishing is provided.
+  Prior live MQTT deployment checks are recorded in
   [the accepted integration story](docs/stories/completed/007-deploy-mosquitto-and-verify-live-sensor-publishing.md).
 
 - [Support Windows Service Hosting](lora-service/docs/stories/completed/001-support-windows-service-hosting.md)

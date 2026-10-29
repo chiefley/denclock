@@ -21,9 +21,7 @@ try
                 retainedFileCountLimit: null, retainedFileTimeLimit: TimeSpan.FromDays(7));
         if (!WindowsServiceHelpers.IsWindowsService()) config.WriteTo.Console();
     });
-    var mappingPath = Path.GetFullPath(builder.Configuration["SemanticMapping:Path"] ?? "semantic-mapping.json", AppContext.BaseDirectory);
-    builder.Services.AddSingleton(_ => SemanticMapping.Load(mappingPath));
-    builder.Services.AddSingleton<SemanticMapper>();
+    builder.Services.AddSingleton<ReportNormalizer>();
     builder.Services.AddSingleton<LoRaPacketHandler>();
     builder.Services.AddSingleton<GatewaySession>();
     builder.Services.AddOptions<GatewayOptions>()
@@ -42,11 +40,9 @@ try
     builder.Services.AddHostedService(services => services.GetRequiredService<MqttPublisher>());
     builder.Services.AddHostedService<GatewayWorker>();
     using var host = builder.Build();
-    var logger = host.Services.GetRequiredService<ILogger<SemanticMapper>>();
+    var logger = host.Services.GetRequiredService<ILogger<ReportNormalizer>>();
     try
     {
-        _ = host.Services.GetRequiredService<SemanticMapping>(); // Fail before either network worker starts.
-        logger.LogInformation("Semantic mapping loaded and validated from {Path}", mappingPath);
         await host.RunAsync();
     }
     catch (Exception ex)

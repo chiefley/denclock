@@ -14,7 +14,7 @@ public sealed class MqttOptions
 
 public interface IReportPublisher
 {
-    Task PublishAsync(SemanticReport report, CancellationToken cancellationToken);
+    Task PublishAsync(NormalizedReport report, CancellationToken cancellationToken);
 }
 
 public sealed class MqttPublisher : BackgroundService, IReportPublisher
@@ -40,8 +40,8 @@ public sealed class MqttPublisher : BackgroundService, IReportPublisher
         };
     }
 
-    public static MqttApplicationMessage CreateMessage(SemanticReport report) =>
-        new MqttApplicationMessageBuilder().WithTopic($"lora/sensors/{report.Node.Name}")
+    public static MqttApplicationMessage CreateMessage(NormalizedReport report) =>
+        new MqttApplicationMessageBuilder().WithTopic($"lora/sensors/{report.GatewayId}/{report.NodeId}")
             .WithPayload(JsonSerializer.SerializeToUtf8Bytes(report, JsonOptions))
             .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce).WithRetainFlag().Build();
 
@@ -78,11 +78,11 @@ public sealed class MqttPublisher : BackgroundService, IReportPublisher
         }
     }
 
-    public async Task PublishAsync(SemanticReport report, CancellationToken cancellationToken)
+    public async Task PublishAsync(NormalizedReport report, CancellationToken cancellationToken)
     {
         if (!client.IsConnected)
         {
-            logger.LogWarning("MQTT unavailable; report discarded for Node {NodeId}", report.Node.Id);
+            logger.LogWarning("MQTT unavailable; report discarded for Gateway {GatewayId} Node {NodeId}", report.GatewayId, report.NodeId);
             return;
         }
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -93,7 +93,7 @@ public sealed class MqttPublisher : BackgroundService, IReportPublisher
             if (!result.IsSuccess) logger.LogWarning("MQTT publish rejected: {Reason}", result.ReasonCode);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-        catch (Exception ex) { logger.LogWarning(ex, "MQTT publish failed; report discarded for Node {NodeId}", report.Node.Id); }
+        catch (Exception ex) { logger.LogWarning(ex, "MQTT publish failed; report discarded for Gateway {GatewayId} Node {NodeId}", report.GatewayId, report.NodeId); }
     }
 
     public override void Dispose()

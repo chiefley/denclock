@@ -12,12 +12,11 @@ byte[] hello = [1, 0, 1, 1];
 byte[] sensor = [1, 12, 0x0f, 0x1f, 1, 2, 0x08, 0x5f, 2, 2, 0x10, 0xe1, 3, 2, 0x0f, 0x48];
 byte[] rx = [2, 0, 18, 0xb8, 38, .. sensor];
 var count = 0;
-var mapping = SemanticMapping.Load(Path.Combine(AppContext.BaseDirectory, "semantic-mapping.json"));
-var mapper = new SemanticMapper(mapping, NullLogger<SemanticMapper>.Instance);
+var mapper = new ReportNormalizer(NullLogger<ReportNormalizer>.Instance);
 LegacyReport Decode(byte[] bytes)
 {
     var decoded = SensorReportDecoder.Decode(bytes);
-    var result = mapper.Map(decoded, new(1, DateTimeOffset.UtcNow, -72, 9.5m, bytes));
+    var result = mapper.Normalize(decoded, new(1, DateTimeOffset.UtcNow, -72, 9.5m, bytes));
     decimal? Value(string name) => result.Measurements.TryGetValue(name, out var value) ? value.Value : null;
     return new(decoded.NodeId, decoded.Sequence, Value("temperature"), Value("relativeHumidity"), Value("batteryVoltage"));
 }
@@ -162,7 +161,7 @@ using (var bad = new TcpClient())
 using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5))) await worker.StopAsync(timeout.Token);
 Check(worker.ExecuteTask?.IsCompletedSuccessfully == true, "worker stops with a partial-frame client");
 Console.WriteLine($"PASS: {count} protocol, session, and TCP checks");
-await SemanticTests.RunAsync();
+await MqttTests.RunAsync();
 
 static async Task WaitUntil(Func<bool> condition)
 {
@@ -180,7 +179,7 @@ sealed class FragmentedStream(byte[] data, int boundary, int chunkSize) : Memory
     }
 }
 
-sealed class CaptureLogger : ILogger<GatewayWorker>, ILogger<GatewaySession>, ILogger<LoRaPacketHandler>, ILogger<SemanticMapper>, ILogger<MqttPublisher>
+sealed class CaptureLogger : ILogger<GatewayWorker>, ILogger<GatewaySession>, ILogger<LoRaPacketHandler>, ILogger<ReportNormalizer>, ILogger<MqttPublisher>
 {
     public ConcurrentQueue<string> Lines { get; } = new();
     public ConcurrentQueue<DateTimeOffset> Timestamps { get; } = new();
@@ -203,8 +202,8 @@ sealed record LegacyReport(byte NodeId, ushort Sequence, decimal? TemperatureC,
     decimal? RelativeHumidityPercent, decimal? BatteryVolts);
 sealed class CapturePublisher : IReportPublisher
 {
-    public ConcurrentQueue<SemanticReport> Reports { get; } = new();
-    public Task PublishAsync(SemanticReport report, CancellationToken cancellationToken)
+    public ConcurrentQueue<NormalizedReport> Reports { get; } = new();
+    public Task PublishAsync(NormalizedReport report, CancellationToken cancellationToken)
     {
         Reports.Enqueue(report);
         return Task.CompletedTask;

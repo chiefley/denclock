@@ -23,7 +23,7 @@ public static class SensorReportDecoder
             if (type == 0) throw new InvalidDataException("TLV Type zero is invalid.");
             if (length > packet.Length - position) throw new InvalidDataException("TLV extends beyond packet.");
             var value = packet.Slice(position, length);
-            // Preserve accepted wire validation independently of configured mapping.
+            // Preserve accepted wire validation before normalization.
             if (type is >= 1 and <= 3)
             {
                 if (length != 2) throw new InvalidDataException("Known measurement TLV length must be 2.");

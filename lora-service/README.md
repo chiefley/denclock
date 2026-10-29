@@ -1,13 +1,13 @@
 # LoRa Service
 
 An independent .NET 10 Generic Host worker that accepts gateway TCP connections,
-timestamps received packets in UTC, maps SENSOR_REPORT to semantic values, and
+timestamps received packets in UTC, normalizes SENSOR_REPORT measurements, and
 publishes retained QoS 1 JSON to a configured MQTT broker. It does not require
 the DenClock time server or a database. Broker outages leave gateway reception
 running; reports that cannot be published are discarded.
 [Story 004](../docs/stories/completed/004-end-to-end-lora-receive-path.md) is accepted after developer testing and verification
-of the receive path. [Semantic mapping and MQTT publishing](docs/stories/completed/002-implement-semantic-mapping-and-mqtt-publishing.md)
-is implemented and accepted by the developer. The developer has verified live MQTT
+of the receive path. [Numeric MQTT identity without semantic mapping](docs/stories/completed/005-remove-semantic-mapping-from-loraservice.md)
+is accepted by the developer. The developer has verified live MQTT
 publication on the NUC, retained delivery and persistence, and restart/reboot recovery.
 See [deployment verification](../docs/stories/completed/007-deploy-mosquitto-and-verify-live-sensor-publishing.md)
 for the accepted integration results.
@@ -46,20 +46,18 @@ the executable and read from that directory, independent of the working folder.
 For `dotnet run`, edit the source JSON and rebuild; for a published copy, edit
 its JSON or pass overrides. Ctrl+C stops the listener and active connections.
 
-## Mapping, MQTT, and logging configuration
+## MQTT and logging configuration
 
-The published `semantic-mapping.json` is loaded and validated before network
-workers start. The supplied example maps Gateway 1 to `den-gateway`, Node 1 to
-`porch`, and TLVs 1–3 to temperature (C), relativeHumidity (percent), and
-batteryVoltage (V). Edit identities for your installation. See the
-[semantic-mapping contract](../docs/Lora%20Service%20Semantic%20Mapping.md).
+No semantic mapping configuration is required. Gateway and node identifiers are
+published as integers; application consumers own device names and locations.
+The fixed LoRa measurement definitions preserve temperature (C), relativeHumidity
+(percent), batteryVoltage (V), and precision 4 metadata.
 
 `appsettings.json` provides these settings, also overridable by command line or
 .NET environment keys such as `Mqtt__Host`:
 
 | Setting | Default | Purpose |
 | --- | --- | --- |
-| `SemanticMapping:Path` | `semantic-mapping.json` | Mapping file; relative to executable directory |
 | `Mqtt:Host` | `localhost` | Broker hostname/address |
 | `Mqtt:Port` | `1883` | Broker TCP port |
 | `Mqtt:ClientId` | `lora-service` | Client identity; distinct for each concurrent service instance |
@@ -71,21 +69,10 @@ For example, with an already available broker:
 dotnet run --project lora-service/LoRa.Service.csproj -- --Mqtt:Host=192.168.1.100
 ```
 
-All three mapping domains must be JSON objects. IDs and names must be unambiguous;
-node names must be one literal MQTT topic level and cannot take another node's
-`node-{id}` fallback. Measurements require name, valueType, length, scale, and
-units; precision defaults to four significant figures. Only int16/uint16 and
-length 2 are supported. Scale must be nonzero and fit decimal arithmetic for the
-wire range; precision must be positive. Assigned TLVs must retain their specified
-wire representation, scale, and canonical units. Invalid configuration prevents
-startup with a diagnostic. There is no hot reload; restart after changes.
-
-Unmapped gateways use the decimal ID string; unmapped nodes use `node-{id}`.
 Unknown measurement types are skipped with warnings. No stale/default measurement
-is substituted. The generic normalization path applies configured types/scales
-without rounding values to the presentation precision.
+is substituted. Normalization uses decimal arithmetic without presentation rounding.
 
-Each valid report attempts one publication on `lora/sensors/{node-name}`, QoS 1,
+Each valid report attempts one publication on `lora/sensors/{gatewayId}/{nodeId}`, QoS 1,
 retained, using the [MQTT JSON contract](../docs/MQTT-INTERFACE.md). The publisher
 uses MQTTnet 5.2.0.1603 with MQTT 3.1.1, clean sessions, a five-second operation
 timeout, and a five-second reconnect polling interval. It publishes directly;
@@ -149,7 +136,7 @@ deployment remains in effect under the deployment-preservation decision below.
 On the NUC, observe reports with PowerShell:
 
 ```powershell
-& 'C:\Program Files\Mosquitto\mosquitto_sub.exe' -h 127.0.0.1 -p 1883 -t 'lora/sensors/+' -q 1 -v
+& 'C:\Program Files\Mosquitto\mosquitto_sub.exe' -h 127.0.0.1 -p 1883 -t 'lora/sensors/+/+' -q 1 -v
 ```
 
 To repeat the retained-state check, stop sensor transmissions after a report,
@@ -226,8 +213,9 @@ no additional test framework or broker installation. It exits nonzero on failure
 fixtures, all split positions in a multi-frame stream, one-byte reads, coalesced
 frames, length bounds, validation, signed values, scaling, optional/unknown TLVs,
 UTC timestamps, and a real loopback listener with concurrent clients, reconnect,
-and cancellation. It also validates mapping/JSON, direct MQTT wire publication,
-reconnect/no replay, and real-host invalid-mapping startup. It requires permission
+and cancellation. It also validates numeric identity/JSON, duplicate node IDs across gateways,
+direct MQTT wire publication, reconnect/no replay, and real-host startup without
+a mapping file. It requires permission
 to open local TCP sockets and launch the local dotnet host.
 
 Portable gateway encoder tests (host C++ compiler, choose your local output path):

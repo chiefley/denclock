@@ -96,21 +96,21 @@ MQTT belongs after the LoRa Service. The gateway never communicates with MQTT.
 - **MQTT is the specified application distribution boundary.** The
   [MQTT interface](MQTT-INTERFACE.md) defines the SENSOR_REPORT topic structure,
   payload, QoS, retention, and basic reconnect/delivery behavior. Sensor reports
-  use `lora/sensors/{node-name}`, QoS 1, and retained messages. Retained state is
+  use `lora/sensors/{gatewayId}/{nodeId}`, QoS 1, and retained messages. Retained state is
   the last-known observation, not measurement history. Publishing is implemented; live integration with Mosquitto on the NUC is verified by the developer.
 - **LoRa Service owns the custom LoRa protocol.** It accepts gateway TCP
   connections, assigns UTC reception timestamps, validates and parses
   message-class headers and TLVs, and interprets Node IDs and sequence numbers.
-  Its [semantic mapping](Lora%20Service%20Semantic%20Mapping.md) resolves Gateway
-  IDs to friendly gateway names, Node IDs to friendly node names, and TLV Type
-  IDs to measurement names and normalized values. Configured semantic mapping and MQTT publishing are implemented; routine
+  Fixed protocol normalization resolves TLV types to measurement keys, canonical
+  units, and values. Integer gatewayId and nodeId identify sensors as a pair;
+  no device naming configuration is loaded. Routine
   observations go to MQTT and operational logs describe infrastructure events. It preserves relevant source and
   reception context so applications need not decode packet bytes. Unknown TLVs
   and malformed packets follow the wire specification. This shared protocol
   knowledge is independent of DenClock and future ham-radio applications.
 - **DenClock owns environmental history and presentation.** It consumes normalized
   LoRa Service outputs, maintains application state/history, and supplies clock
-  and weather information to browsers. Friendly node and gateway names are resolved by the LoRa Service semantic mapping. Display-unit preferences/conversion, history retention, alarms, and display behavior belong to applications. DenClock does not parse the LoRa wire protocol.
+  and weather information to browsers. Device names and locations belong to DenClock; adapting its subscriber and naming configuration is deferred to Story 2. Display-unit preferences/conversion, history retention, alarms, and display behavior belong to applications. DenClock does not parse the LoRa wire protocol.
 - **Future ham-radio applications consume LoRa Service outputs.** They own their
   equipment-specific behavior and application transactions. Shared wire-protocol
   understanding stays in the LoRa Service. Future outbound commands would be

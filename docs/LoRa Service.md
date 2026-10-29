@@ -2,7 +2,7 @@
 
 ## Implementation status
 
-The receive path, Windows Service hosting, configuration-driven semantic mapping,
+The receive path, Windows Service hosting, fixed measurement normalization,
 Serilog infrastructure logging, and MQTT publishing are implemented. Production
 broker installation and deployment/acceptance of the MQTT path on the NUC remain
 separate work.
@@ -274,25 +274,12 @@ This includes converting protocol-specific representations such as:
 
 into useful application-level values.
 
-The semantic-mapping and MQTT contracts define normalized measurements and
-reception context, including:
-
-- Gateway ID
-- Source Node ID
-- Sequence Number
-- UTC reception timestamp
-- RSSI
-- SNR
-
-The [semantic-mapping contract](Lora%20Service%20Semantic%20Mapping.md) defines
-Gateway ID to gateway-name mapping, Node ID to node-name mapping, and TLV Type
-to measurement-name and normalized-value mapping. The
-[MQTT interface](MQTT-INTERFACE.md) defines the application-facing representation.
-The flow is LoRa wire representation → LoRa Service semantic mapping → normalized
-semantic representation → MQTT interface. Consumers need no LoRa or Gateway
-wire-protocol knowledge to interpret the published data.
-
-Wire-protocol definitions must not be exposed to applications merely because they are convenient to the first implementation.
+The [MQTT interface](MQTT-INTERFACE.md) defines normalized measurements and
+reception context: integer gatewayId and nodeId, sequence, UTC timestamp, RSSI,
+and SNR. The pair of identifiers is sensor identity; node numbers need only be
+unique within a gateway. No gateway/node names or semantic mapping file are used.
+Fixed protocol decoding supplies measurement keys, units, scales, and precision.
+Consumers need no wire-packet decoding; they own device names and locations.
 
 ---
 
@@ -351,10 +338,8 @@ Battery 3.912 V
 Received 2026-09-20T14:38:27.123Z
 ```
 
-Shared infrastructure naming is now defined by the
-[semantic-mapping contract](Lora%20Service%20Semantic%20Mapping.md): the LoRa
-Service resolves gateway and node names (for example, Node 1 to `porch`) and
-measurement identities. This is distinct from application-specific presentation.
+Device names and physical locations belong to applications. LoRaService publishes
+numeric identity and normalized measurements without resolving device names.
 
 Likewise, the LoRa Service does not decide:
 
@@ -427,7 +412,7 @@ The service uses the [semantic-mapping logging policy](Lora%20Service%20Semantic
 and [MQTT logging policy](MQTT-INTERFACE.md#20-logging). Application ILogger calls
 flow through Serilog to interactive console and daily rolling files retained for
 seven days. Logs describe startup/shutdown, configuration validation, gateway and
-MQTT connectivity, malformed packets, unknown identifiers, and operational errors.
+MQTT connectivity, malformed packets, unknown TLV types, and operational errors.
 Routine successful measurements are published through MQTT, not logged.
 
 The original receive increment used measurement diagnostics before MQTT existed;
@@ -487,8 +472,8 @@ The first increment does **not** require:
 - Remote antenna control
 - Production service installation
 
-Windows Service hosting has since been implemented and accepted. Semantic mapping
-and MQTT publishing are now implemented and accepted by the developer. The other capabilities remain
+Windows Service hosting and MQTT publishing have since been implemented and accepted.
+Semantic mapping has now been removed in favor of numeric device identity. The other capabilities remain
 for later increments; see the implemented contract above.
 
 ---
@@ -543,8 +528,7 @@ Defines the TCP/IP protocol used between gateways and the LoRa Service, includin
 
 [LoRa Service Semantic Mapping](Lora%20Service%20Semantic%20Mapping.md)
 
-Defines numeric identifier mapping, canonical measurement normalization, and the
-logging policy for the specified mapping increment.
+Describes removal of configuration-driven naming and the current normalization boundary.
 
 [MQTT Interface](MQTT-INTERFACE.md)
 
@@ -552,4 +536,4 @@ Defines semantic sensor publication, including topics, payloads, QoS, retention,
 and basic failure/recovery behavior.
 
 This document defines the responsibilities of the **LoRa Service component**
-that connects transport, wire interpretation, semantic mapping, and publication.
+that connects transport, wire interpretation, normalization, and publication.
