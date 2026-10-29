@@ -40,14 +40,17 @@ See the [README](../README.md) for operation and verification limitations.
 
 ## Primary Sensor Panels
 
-The upper-left and upper-right panels show whole-degree temperature with bold
-digits at the main time's size. The time is lower and uses a 700-weight face;
-main digits use min(16.5vw, 28vh), or 168 CSS pixels at 1024 x 600. Visible glyph
-height, rather than CSS font size, targets approximately one inch. The developer verified and accepted the display; subsequent layout changes should
-still be checked on the physical shelf monitor.
+The clock sits at the upper left, with both primary sensor panels alongside it
+in the top approximately 230 pixels of the 1024 × 600 display. The lower cabin
+view remains unobstructed apart from the Settings gear. Main time and whole-degree
+temperature digits use a condensed font stack, weight 600, and
+`min(15vw, 15vw)` (153.6 CSS pixels at the target width). Transparent panels and
+text shadows preserve readability over the background. Subsequent layout changes
+should still be checked on the physical shelf monitor.
 
 Tenths, unit, sensor label, humidity, day/date, and seconds are subordinate.
-Temperature tenths have the same color as whole-degree digits. Humidity is rounded
+Each sensor has a temperature line and a single label · humidity RH line; long
+labels truncate with an ellipsis. Temperature tenths have the same color as whole-degree digits. Humidity is rounded
 to whole percent for presentation. The cabin background remains a separate layer.
 Panels have no click action; secondary sensors have no view.
 

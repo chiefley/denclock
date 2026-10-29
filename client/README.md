@@ -137,7 +137,9 @@ workflow story.
 
 ## Sensor Panels (Story 008)
 
-The updated layout puts two configured temperatures above the clock. Fahrenheit
+The [accepted compact layout](docs/stories/completed/005-compact-top-display.md)
+places the clock at the upper left and two configured temperatures alongside it
+in the top approximately 230 pixels, leaving the lower cabin view open. Fahrenheit
 is selected by the shipped server presentation.json. Only porch/Outside is
 assigned initially; the left panel stays unknown until the den sensor is assigned.
 

@@ -43,9 +43,10 @@ See [client README](../README.md) for operation and verification, and the
   loss cannot freeze an old reading in the fresh color.
 - Convert and format temperatures only in the browser, preserving Celsius in
   MQTT and the API. Round before splitting the whole and fractional glyphs.
-- Reserve upper-left/right positions for the strategic readings; defer secondary
-  views and panel interactions. Use one shared primary digit size for time and
-  whole-degree temperature.
+- Group the clock and two primary readings across the top to preserve the cabin
+  view below. Use condensed typography and one primary digit size for time and
+  whole-degree temperature; keep sensor labels and humidity on one supporting
+  line. Secondary views and panel interactions remain deferred.
 
 - Use a native modal dialog for settings to provide focus containment and Escape
   cancellation without a framework. The browser owns only a draft; the server
