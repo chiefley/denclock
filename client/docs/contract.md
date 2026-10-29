@@ -77,7 +77,11 @@ The lower-left gear opens a full-screen native modal dialog and fetches fresh
 edit Celsius/Fahrenheit, upper-left/right assignments, display labels, and
 stale limits. Sensor options include all configured identities, including
 secondary entries, plus Unassigned. Unassigned disables label/limit fields.
-No browser discovery or identity creation is provided.
+Options show numeric gateway/node pairs and configured names. Sensor mapping rows
+support add/edit/remove, integer gatewayId/nodeId, logical name, display label,
+and stale limit. Gateway rows support numeric IDs and optional logical/display
+names. Changes share the existing revision-protected Save/Cancel workflow.
+No sensor discovery is implemented; numeric identities are entered manually.
 
 Loading and failed loading disable Save. Edits remain local until successful
 Save. Primary reassignment demotes displaced sensors to secondary; untouched

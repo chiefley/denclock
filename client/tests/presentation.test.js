@@ -7,8 +7,8 @@ function snapshot({ age = 0, temperatureC = 22.15, relativeHumidity = 52, unit =
   return {
     serverUtc: new Date(base).toISOString(), temperatureUnit: unit,
     slots: [
-      { position: 'upperLeft', internalName: null, displayName: '', maxAgeSeconds: null, observation: null },
-      { position: 'upperRight', internalName: 'porch', displayName: 'Outside', maxAgeSeconds: 60,
+      { position: 'upperLeft', gatewayId: null, nodeId: null, name: null, displayName: '', maxAgeSeconds: null, observation: null },
+      { position: 'upperRight', gatewayId: 2, nodeId: 1, name: 'porch', displayName: 'Outside', maxAgeSeconds: 60,
         observation: { receivedUtc: new Date(base - age * 1000).toISOString(), temperatureC, relativeHumidity } },
     ],
   };
@@ -30,6 +30,8 @@ test('snapshot validation rejects malformed and ambiguous API data', () => {
     d => d.slots.pop(),
     d => d.slots[1].position = 'upperLeft',
     d => d.slots[1].maxAgeSeconds = 0,
+    d => d.slots[1].gatewayId = '2',
+    d => d.slots[1].nodeId = 240,
     d => d.slots[1].observation.temperatureC = '22',
     d => d.slots[1].observation.relativeHumidity = 101,
     d => d.slots[1].observation.receivedUtc = '2026-09-23T12:00:00Z',
@@ -135,4 +137,13 @@ test('post-save refresh waits for an older poll and then fetches updated present
   await pending; await refreshed;
   assert.equal(calls, 2);
   assert.equal(client.read().temperatureUnit, 'C');
+});
+
+
+test('snapshot identity distinguishes matching node numbers across gateways', () => {
+  const data = snapshot();
+  data.slots[0] = { ...data.slots[1], position: 'upperLeft', gatewayId: 1, name: 'den', displayName: 'Den' };
+  assert.equal(validateSnapshot(data).slots.length, 2);
+  data.slots[0].gatewayId = 2;
+  assert.throws(() => validateSnapshot(data), /identity/);
 });

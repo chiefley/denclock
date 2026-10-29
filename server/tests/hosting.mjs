@@ -112,7 +112,7 @@ try {
   assert.equal(await readFile(join(data, 'presentation.json'), 'utf8'), stored);
   const changedSettings = structuredClone(settings);
   changedSettings.configuration.temperatureUnit = 'C';
-  changedSettings.configuration.sensors.push({ internalName: 'test-secondary', displayName: 'Preserved', position: 'secondary', maxAgeSeconds: 300, extra: { flag: true } });
+  changedSettings.configuration.sensors.push({ gatewayId: 2, nodeId: 1, name: 'test-secondary', displayName: 'Preserved', position: 'secondary', maxAgeSeconds: 300, extra: { flag: true } });
   changedSettings.configuration.future = 'preserved';
   const savedResponse = await update(changedSettings, 'http://dev.denclock.test:8080');
   assert.equal(savedResponse.status, 200);

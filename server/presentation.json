@@ -1,14 +1,19 @@
 {
   "temperatureUnit": "F",
+  "gateways": [],
   "sensors": [
     {
-      "internalName": "back-porch",
+      "gatewayId": 1,
+      "nodeId": 2,
+      "name": "back-porch",
       "displayName": "Back Porch",
       "position": "upperRight",
       "maxAgeSeconds": 60
     },
     {
-      "internalName": "den",
+      "gatewayId": 1,
+      "nodeId": 1,
+      "name": "den",
       "displayName": "Den",
       "position": "upperLeft",
       "maxAgeSeconds": 60

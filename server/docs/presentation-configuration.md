@@ -5,7 +5,7 @@ loading/saving is accepted in [story 009](../../docs/stories/completed/009-load-
 
 ## Purpose
 
-`presentation.json` configures how DenClock presents sensor readings. It belongs to DenClock, separately from the LoRa Service’s semantic mapping.
+`presentation.json` configures how DenClock presents sensor readings. It belongs to DenClock and owns gateway/sensor semantic names. LoRaService supplies numeric identifiers only.
 
 The LoRa Service supplies normalized measurements. DenClock selects sensors, assigns display positions and labels, converts temperature units for presentation, and identifies stale readings.
 
@@ -45,21 +45,28 @@ for runtime changes, or stop the service before manual edits and restart it.
 ```json
 {
   "temperatureUnit": "F",
+  "gateways": [{"gatewayId": 1, "name": "house", "displayName": "House gateway"}],
   "sensors": [
     {
-      "internalName": "den",
+      "gatewayId": 1,
+      "nodeId": 1,
+      "name": "den",
       "displayName": "Den",
       "position": "upperLeft",
       "maxAgeSeconds": 60
     },
     {
-      "internalName": "porch",
+      "gatewayId": 2,
+      "nodeId": 1,
+      "name": "porch",
       "displayName": "Outside",
       "position": "upperRight",
       "maxAgeSeconds": 60
     },
     {
-      "internalName": "attic",
+      "gatewayId": 1,
+      "nodeId": 3,
+      "name": "attic",
       "displayName": "Attic",
       "position": "secondary",
       "maxAgeSeconds": 300
@@ -68,7 +75,7 @@ for runtime changes, or stop the service before manual edits and restart it.
 }
 ```
 
-These names and age limits are illustrative. The deployed configuration must use the installation’s actual MQTT sensor names and intended freshness limits.
+These names and age limits are illustrative. The deployed configuration must use the installation’s actual numeric sensor identities and intended freshness limits.
 
 ## Configuration Fields
 
@@ -78,7 +85,9 @@ All fields shown below are required.
 |---|---|---|
 | `temperatureUnit` | String | `"C"` or `"F"`; applies to all displayed temperatures. |
 | `sensors` | Array | Sensors selected for presentation. May be empty. |
-| `internalName` | String | Nonempty sensor identity matching the MQTT node name. Must be unique within the array. |
+| `gatewayId` | Integer | Gateway ID 1–255; together with nodeId uniquely identifies a sensor. |
+| `nodeId` | Integer | Node ID 1–239; unique within its gateway. |
+| `name` | String | Nonempty stable DenClock logical name, unique across configured sensors. |
 | `displayName` | String | Nonempty user-facing label, such as “Den” or “Outside.” |
 | `position` | String | `"upperLeft"`, `"upperRight"`, or `"secondary"`. |
 | `maxAgeSeconds` | Number | Positive, finite maximum age of an observation before it becomes stale. |
@@ -91,16 +100,36 @@ Wrong field types, missing required fields, duplicate sensor identities, duplica
 
 ## Sensor Identity
 
-`internalName` matches both:
+Sensor identity is the pair `(gatewayId, nodeId)`, matching the integer MQTT
+payload fields and `lora/sensors/{gatewayId}/{nodeId}`. Topic and payload must
+agree. Reports from unconfigured sensors are ignored; discovery is not implemented.
+Users can add numeric identities manually in the existing settings dialog.
+No permanent names are invented from incoming reports.
 
-- The MQTT payload’s `node.name`.
-- The node-name suffix in `lora/sensors/{node-name}`.
+`name` is the DenClock logical name, independent of MQTT topics. `displayName`
+is the client label. Both can change without losing an observation for the same
+numeric identity. Changing numeric identity starts with no observation; removing
+and re-adding it also clears its observation.
 
-A report whose topic and payload identities disagree must not update a displayed sensor. Reports from sensors absent from the configuration are ignored.
+The optional `gateways` array contains entries with required integer `gatewayId`
+(1–255), and optional `name` and `displayName`. Optional names may be omitted or
+null; when supplied they must be nonempty strings. Gateway IDs and supplied
+logical names must be unique within this array. A sensor does not require a
+gateway-name entry. Gateway names are configuration metadata exposed through the
+settings API and editor; they do not alter MQTT routing or sensor identity.
 
-`displayName` is a DenClock presentation label. It does not rename the MQTT node or change the LoRa Service’s mapping.
+### One-time configuration adjustment
 
-DenClock consumes the semantic MQTT interface; it does not decode LoRa packets.
+Stop DenClock before upgrading an installation with the old presentation format.
+In its authoritative ProgramData presentation.json, change each sensor's
+`internalName` field to `name`, and add its actual numeric `gatewayId` and
+`nodeId`. Preserve labels, positions, stale limits, unit choice, and other fields.
+Restart with the new build. No automatic ID inference or old-format compatibility
+is provided. Invalid existing settings fail startup with a path diagnostic.
+The bundled example uses Gateway 1 / Node 1 for Den and Gateway 1 / Node 2 for
+Back Porch; confirm those identities match the installation.
+
+DenClock consumes normalized MQTT measurements; it does not decode LoRa packets.
 
 ## Display Positions
 
@@ -192,8 +221,8 @@ Time moves lower on the page and becomes bolder and somewhat smaller than the ex
 
 ## Implemented Validation Details
 
-Duplicate JSON properties are rejected. Internal names must be one literal MQTT
-topic level (no slash, wildcard, or NUL). Extra configuration properties are
+Duplicate JSON properties, duplicate numeric sensor pairs, and duplicate logical
+sensor names are rejected. Logical names are independent of MQTT topic syntax. Extra configuration properties are
 preserved through API round trips and browser primary edits; they do not affect
 current presentation. Required field names remain exact and case-sensitive.
 
@@ -208,4 +237,6 @@ are independently unavailable in an otherwise valid report.
 
 The no-source first-run default selects F with no sensors. The bundled file may
 contain installation-specific identities; migration preserves those values.
-Sensor discovery and creation of identities in the browser remain deferred.
+Sensor discovery remains deferred. The existing settings dialog supports manual
+add/edit/remove of sensor mappings and optional gateway names using the same
+revision-protected Save/Cancel workflow.

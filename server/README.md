@@ -139,11 +139,18 @@ the developer. Configuration is described in
 
 Display settings are service-owned in `%ProgramData%\DenClock\Server\presentation.json`.
 Use the gear in a server-hosted browser on the NUC or LAN to change units,
-primary assignments, labels, and stale limits without restarting. The browser
+primary assignments, labels, stale limits, numeric sensor mappings, and optional
+gateway names without restarting. The browser
 loads actual settings on each open; Cancel/Escape discards the draft. Save
 persists before applying. Concurrent edits produce a conflict and an explicit
 reload action; failures keep the draft open. Secondary entries and fields not
 edited by this view are preserved; displaced primary sensors become secondary.
+
+For the numeric MQTT upgrade, stop the service and manually update authoritative
+ProgramData settings: rename sensor `internalName` to `name` and add actual integer
+`gatewayId` and `nodeId` to every entry. Preserve other settings. The old format
+cannot infer numeric identity and fails validation; see the
+[configuration adjustment](docs/presentation-configuration.md#one-time-configuration-adjustment).
 
 On first run only, the server validates and copies executable-local
 `presentation.json` unchanged into ProgramData. If both files are absent, it

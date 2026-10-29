@@ -11,8 +11,8 @@ The remote LoRa sensor and diagnostic gateway are implemented and accepted by
 the developer. Temperature, humidity, and battery reports work over LoRa.
 The independent gateway-to-LoRa-Service Wi-Fi/TCP receive path is now implemented
 and accepted by the developer after testing and verification. MQTT publishing is implemented and accepted by the developer. LoRaService now
-publishes numeric gateway/node identity without semantic mapping; DenClock
-subscriber and naming adaptation remain Story 2. Production
+publishes numeric gateway/node identity without semantic mapping; DenClock owns
+sensor and gateway names in its presentation settings. Production
 Mosquitto deployment and live-sensor MQTT publication on the NUC are now verified by the developer, including retained-state persistence and restart/reboot recovery. DenClock MQTT subscription and two primary sensor panels are implemented in story 008; the developer has verified and accepted the story. Remote-sensor deep sleep is
 verified and accepted by the developer. Sensors now support persistent serial
 configuration of identity, reporting parameters, and transmit power; see the
@@ -29,6 +29,11 @@ gateway name or services; ordinary DNS and IPv4 remain supported. See the
 and [deployment guide](lora-service/docs/mdns-deployment.md).
 
 ## Resume Here
+
+- [Move Gateway and Sensor Semantic Mapping into DenClock](docs/stories/completed/010-move-gateway-and-sensor-semantic-mapping-into-denclock.md)
+  is accepted. DenClock consumes numeric MQTT identity and owns mappings in the
+  existing settings dialog. Existing installations require a
+  [one-time settings adjustment](server/docs/presentation-configuration.md#one-time-configuration-adjustment).
 
 - [Load, Save, and Apply Display Settings](docs/stories/completed/009-load-save-and-apply-display-settings.md)
   is accepted by the developer. Presentation settings now live in ProgramData,
@@ -47,8 +52,8 @@ and [deployment guide](lora-service/docs/mdns-deployment.md).
 
 - [Remove Semantic Mapping from LoRaService](lora-service/docs/stories/completed/005-remove-semantic-mapping-from-loraservice.md)
   is accepted. MQTT now uses `lora/sensors/{gatewayId}/{nodeId}` with integer
-  identity fields and fixed measurement normalization. Existing DenClock consumption
-  requires adaptation in Story 2; no compatibility publishing is provided.
+  identity fields and fixed measurement normalization. DenClock consumes this
+  contract; no compatibility publishing is provided.
   Prior live MQTT deployment checks are recorded in
   [the accepted integration story](docs/stories/completed/007-deploy-mosquitto-and-verify-live-sensor-publishing.md).
 

@@ -19,7 +19,7 @@ public sealed class SensorSubscriber : BackgroundService
     private readonly ILogger<SensorSubscriber> logger;
     private readonly SensorMqttOptions settings;
     private readonly MqttClientSubscribeOptions subscription = new MqttClientSubscribeOptionsBuilder()
-        .WithTopicFilter(f => f.WithTopic("lora/sensors/+").WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce)).Build();
+        .WithTopicFilter(f => f.WithTopic("lora/sensors/+/+").WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce)).Build();
 
     public SensorSubscriber(IOptions<SensorMqttOptions> options, PresentationState state, ILogger<SensorSubscriber> logger)
     {

@@ -1,10 +1,34 @@
 const positions = ['upperLeft', 'upperRight'];
+export const sensorKey = sensor => `${sensor.gatewayId}/${sensor.nodeId}`;
+
+export function validateMappings(configuration) {
+  const identities = new Set(), names = new Set(), gatewayIds = new Set(), gatewayNames = new Set();
+  const id = (value, max) => Number.isInteger(value) && value >= 1 && value <= max;
+  for (const sensor of configuration.sensors) {
+    if (!id(sensor.gatewayId, 255) || !id(sensor.nodeId, 239)) throw new Error('Enter valid integer gateway (1–255) and node (1–239) IDs.');
+    if (!sensor.name?.trim() || !sensor.displayName?.trim())
+      throw new Error('Each sensor needs a logical name and display label.');
+    if (identities.has(sensorKey(sensor)) || names.has(sensor.name)) throw new Error('Sensor identities and logical names must be unique.');
+    identities.add(sensorKey(sensor)); names.add(sensor.name);
+    if (!Number.isFinite(Number(sensor.maxAgeSeconds)) || Number(sensor.maxAgeSeconds) <= 0)
+      throw new Error('Stale-reading limits must be positive numbers in seconds.');
+    sensor.maxAgeSeconds = Number(sensor.maxAgeSeconds);
+  }
+  for (const gateway of configuration.gateways ?? []) {
+    if (!id(gateway.gatewayId, 255)) throw new Error('Enter a gateway ID from 1 to 255.');
+    if (gatewayIds.has(gateway.gatewayId) || (gateway.name && gatewayNames.has(gateway.name)))
+      throw new Error('Gateway IDs and logical names must be unique.');
+    gatewayIds.add(gateway.gatewayId);
+    if (gateway.name) gatewayNames.add(gateway.name);
+  }
+  return configuration;
+}
 
 // Preserve all sensors and fields the primary-panel editor does not own.
 export function buildConfiguration(original, temperatureUnit, slots) {
   if (!['C', 'F'].includes(temperatureUnit)) throw new Error('Choose Celsius or Fahrenheit.');
-  const assigned = slots.filter(slot => slot.internalName);
-  if (new Set(assigned.map(slot => slot.internalName)).size !== assigned.length)
+  const assigned = slots.filter(slot => slot.sensorKey);
+  if (new Set(assigned.map(slot => slot.sensorKey)).size !== assigned.length)
     throw new Error('Choose a different sensor for each position.');
   const configuration = structuredClone(original);
   configuration.temperatureUnit = temperatureUnit;
@@ -12,7 +36,7 @@ export function buildConfiguration(original, temperatureUnit, slots) {
     if (positions.includes(sensor.position)) sensor.position = 'secondary';
   }
   for (const slot of assigned) {
-    const sensor = configuration.sensors.find(sensor => sensor.internalName === slot.internalName);
+    const sensor = configuration.sensors.find(sensor => sensorKey(sensor) === slot.sensorKey);
     if (!sensor) throw new Error('Choose a configured sensor.');
     if (!slot.displayName.trim()) throw new Error('Each assigned sensor needs a display label.');
     const age = Number(slot.maxAgeSeconds);
@@ -20,7 +44,7 @@ export function buildConfiguration(original, temperatureUnit, slots) {
       throw new Error('Stale-reading limits must be positive numbers in seconds.');
     Object.assign(sensor, { position: slot.position, displayName: slot.displayName, maxAgeSeconds: age });
   }
-  return configuration;
+  return validateMappings(configuration);
 }
 
 export function initializeSettings(root, config, refreshPresentation, fetchSettings = (...args) => fetch(...args)) {
@@ -34,7 +58,7 @@ export function initializeSettings(root, config, refreshPresentation, fetchSetti
     assignment: get(`settings-${side}-sensor`), label: get(`settings-${side}-label`), age: get(`settings-${side}-age`),
   }));
   const endpoint = config.serverAddress.replace(/\/$/, '') + '/api/settings/presentation';
-  let loaded = null, draftSensors = null, saving = false, generation = 0, loadController = null;
+  let loaded = null, draftSensors = null, draftGateways = null, saving = false, generation = 0, loadController = null;
 
   function message(text, focus = false) {
     status.textContent = text;
@@ -52,7 +76,7 @@ export function initializeSettings(root, config, refreshPresentation, fetchSetti
     form.setAttribute('aria-busy', String(saving || (!loaded && loadController !== null)));
   }
   function populatePanel(panel) {
-    const sensor = draftSensors?.find(sensor => sensor.internalName === panel.assignment.value);
+    const sensor = draftSensors?.find(sensor => sensorKey(sensor) === panel.assignment.value);
     panel.label.value = sensor?.displayName ?? '';
     panel.age.value = sensor?.maxAgeSeconds ?? '';
     enableControls();
@@ -61,7 +85,7 @@ export function initializeSettings(root, config, refreshPresentation, fetchSetti
     const session = ++generation;
     loadController?.abort();
     const controller = loadController = new AbortController();
-    loaded = draftSensors = null;
+    loaded = draftSensors = draftGateways = null;
     reload.hidden = true;
     unit.value = '';
     for (const panel of panels) {
@@ -80,13 +104,10 @@ export function initializeSettings(root, config, refreshPresentation, fetchSetti
       if (generation !== session || !dialog.open) return;
       loaded = result;
       draftSensors = structuredClone(result.configuration.sensors);
+      draftGateways = structuredClone(result.configuration.gateways ?? []);
       unit.value = result.configuration.temperatureUnit;
-      for (const panel of panels) {
-        for (const sensor of draftSensors)
-          panel.assignment.add(new Option(`${sensor.displayName} (${sensor.internalName})`, sensor.internalName));
-        panel.assignment.value = draftSensors.find(sensor => sensor.position === panel.position)?.internalName ?? '';
-        populatePanel(panel);
-      }
+      renderMappings();
+      refreshAssignments();
       message('Edit display settings. Changes apply to all displays only after Save succeeds.');
       unit.focus();
     } catch (error) {
@@ -99,11 +120,61 @@ export function initializeSettings(root, config, refreshPresentation, fetchSetti
     }
   }
 
+  function refreshAssignments() {
+    for (const panel of panels) {
+      panel.assignment.replaceChildren(new Option('Unassigned', ''));
+      for (const sensor of draftSensors ?? [])
+        panel.assignment.add(new Option(`${sensor.displayName || 'Unnamed'} (${sensorKey(sensor)} · ${sensor.name || 'no logical name'})`, sensorKey(sensor)));
+      const assigned = draftSensors?.find(sensor => sensor.position === panel.position);
+      panel.assignment.value = assigned ? sensorKey(assigned) : '';
+      populatePanel(panel);
+    }
+  }
+  function renderMappings() {
+    for (const [kind, entries, fields] of [
+      ['sensors', draftSensors, [['gatewayId', 'Gateway ID', 'number'], ['nodeId', 'Node ID', 'number'], ['name', 'Logical name', 'text'], ['displayName', 'Display label', 'text'], ['maxAgeSeconds', 'Stale limit (seconds)', 'number']]],
+      ['gateways', draftGateways, [['gatewayId', 'Gateway ID', 'number'], ['name', 'Logical name (optional)', 'text'], ['displayName', 'Display label (optional)', 'text']]],
+    ]) {
+      const list = get(`settings-${kind}`);
+      list.replaceChildren();
+      for (const entry of entries ?? []) {
+        const row = root.createElement('div'); row.className = 'mapping-row';
+        for (const [key, title, type] of fields) {
+          const label = root.createElement('label'); label.textContent = title;
+          const input = root.createElement('input'); input.type = type; input.value = entry[key] ?? '';
+          if (type === 'number') { input.min = '1'; input.step = key === 'maxAgeSeconds' ? 'any' : '1'; }
+          input.addEventListener('input', () => {
+            entry[key] = type === 'number' ? Number(input.value) : (kind === 'gateways' && !input.value.trim() ? null : input.value);
+            refreshAssignments();
+          });
+          label.append(input); row.append(label);
+        }
+        const remove = root.createElement('button'); remove.type = 'button'; remove.textContent = 'Remove';
+        remove.addEventListener('click', () => { entries.splice(entries.indexOf(entry), 1); renderMappings(); refreshAssignments(); });
+        row.append(remove); list.append(row);
+      }
+    }
+  }
+  get('settings-add-sensor').addEventListener('click', () => {
+    draftSensors.push({ gatewayId: 1, nodeId: 1, name: '', displayName: '', position: 'secondary', maxAgeSeconds: 60 });
+    renderMappings(); refreshAssignments();
+  });
+  get('settings-add-gateway').addEventListener('click', () => {
+    draftGateways.push({ gatewayId: 1, name: null, displayName: null });
+    renderMappings();
+  });
+
   for (const panel of panels) {
-    panel.assignment.addEventListener('change', () => populatePanel(panel));
+    panel.assignment.addEventListener('change', () => {
+      for (const sensor of draftSensors ?? []) {
+        if (sensor.position === panel.position) sensor.position = 'secondary';
+        if (sensorKey(sensor) === panel.assignment.value) sensor.position = panel.position;
+      }
+      populatePanel(panel);
+    });
     for (const input of [panel.label, panel.age]) input.addEventListener('input', () => {
-      const sensor = draftSensors?.find(sensor => sensor.internalName === panel.assignment.value);
-      if (sensor) { sensor.displayName = panel.label.value; sensor.maxAgeSeconds = panel.age.value; }
+      const sensor = draftSensors?.find(sensor => sensorKey(sensor) === panel.assignment.value);
+      if (sensor) { sensor.displayName = panel.label.value; sensor.maxAgeSeconds = panel.age.value; renderMappings(); }
     });
   }
   gear.addEventListener('click', () => { dialog.showModal(); dialog.scrollTop = 0; void load(); });
@@ -113,12 +184,14 @@ export function initializeSettings(root, config, refreshPresentation, fetchSetti
   dialog.addEventListener('close', () => {
     ++generation;
     loadController?.abort();
-    loadController = loaded = draftSensors = null;
+    loadController = loaded = draftSensors = draftGateways = null;
     form.reset();
     for (const panel of panels) {
       panel.assignment.replaceChildren(new Option('Unassigned', ''));
       panel.label.value = panel.age.value = '';
     }
+    get('settings-sensors').replaceChildren();
+    get('settings-gateways').replaceChildren();
     enableControls();
     gear.focus();
   });
@@ -127,8 +200,8 @@ export function initializeSettings(root, config, refreshPresentation, fetchSetti
     if (!loaded || saving) return;
     let configuration;
     try {
-      configuration = buildConfiguration(loaded.configuration, unit.value, panels.map(panel => ({
-        position: panel.position, internalName: panel.assignment.value,
+      configuration = buildConfiguration({ ...loaded.configuration, sensors: draftSensors, gateways: draftGateways }, unit.value, panels.map(panel => ({
+        position: panel.position, sensorKey: panel.assignment.value,
         displayName: panel.label.value, maxAgeSeconds: panel.age.value,
       })));
     } catch (error) { message(error.message, true); return; }

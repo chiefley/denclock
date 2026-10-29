@@ -8,9 +8,9 @@ int count = 0;
 void Check(bool condition, string name) { if (!condition) throw new Exception(name); count++; }
 const string config = """
 {"temperatureUnit":"F","sensors":[
-{"internalName":"den","displayName":"Den","position":"upperLeft","maxAgeSeconds":60},
-{"internalName":"porch","displayName":"Outside","position":"upperRight","maxAgeSeconds":120},
-{"internalName":"attic","displayName":"Attic","position":"secondary","maxAgeSeconds":300}]}
+{"gatewayId":1,"nodeId":1,"name":"den","displayName":"Den","position":"upperLeft","maxAgeSeconds":60},
+{"gatewayId":2,"nodeId":1,"name":"porch","displayName":"Outside","position":"upperRight","maxAgeSeconds":120},
+{"gatewayId":1,"nodeId":3,"name":"attic","displayName":"Attic","position":"secondary","maxAgeSeconds":300}]}
 """;
 void Invalid(string text)
 {
@@ -24,10 +24,10 @@ foreach (var text in new[] { "{}", "[]", "null", "not-json", config.Replace("\"F
     config.Replace("60", "0"), config.Replace("60", "-1"), config.Replace("60", "1e999"),
     config.Replace("60", "\"60\""), config.Replace("upperRight", "upperLeft"),
     config.Replace("upperRight", "elsewhere"), config.Replace("\"porch\"", "\"den\""),
-    config.Replace("\"Den\"", "\"\""), config.Replace("\"den\"", "\"a/b\""),
+    config.Replace("\"Den\"", "\"\""),
     config.Replace("\"temperatureUnit\":\"F\"", "\"temperatureUnit\":\"F\",\"temperatureUnit\":\"C\"") })
     Invalid(text);
-foreach (var field in new[] { "internalName", "displayName", "position", "maxAgeSeconds" })
+foreach (var field in new[] { "gatewayId", "nodeId", "name", "displayName", "position", "maxAgeSeconds" })
 {
     var node = JsonNode.Parse(config)!; node["sensors"]![0]!.AsObject().Remove(field); Invalid(node.ToJsonString());
 }
@@ -38,13 +38,13 @@ var state = new PresentationState(configuration, NullLogger<PresentationState>.I
 Check(state.Snapshot().Slots.All(s => s.Observation is null), "startup unknown");
 var stamp = DateTimeOffset.UtcNow.AddMinutes(-5);
 string Report(string name, DateTimeOffset timestamp, object measurements) => JsonSerializer.Serialize(new {
-    messageType = "sensor-report", node = new { name }, receivedUtc = timestamp, measurements
+    messageType = "sensor-report", gatewayId = name == "porch" ? 2 : 1, nodeId = name == "attic" ? 3 : 1, receivedUtc = timestamp, measurements
 });
 object Values(double temperature = 22.15, double humidity = 52) => new {
     temperature = new { value = temperature, units = "C" },
     relativeHumidity = new { value = humidity, units = "percent" }
 };
-bool Send(string name, string text) => state.Receive("lora/sensors/" + name, Encoding.UTF8.GetBytes(text));
+bool Send(string name, string text) => state.Receive("lora/sensors/" + (name == "porch" ? "2/1" : name == "den" ? "1/1" : name == "attic" ? "1/3" : "9/9"), Encoding.UTF8.GetBytes(text));
 Check(Send("porch", Report("porch", stamp, Values())), "retained report");
 var snap = state.Snapshot();
 Check(snap.Slots[1].Observation!.TemperatureC == 22.15 && snap.Slots[1].Observation!.ReceivedUtc == stamp, "canonical value and original timestamp");
@@ -56,9 +56,9 @@ Check(!Send("porch", "{"), "malformed JSON");
 foreach (var malformed in new[] {
     Report("porch", stamp, Values()).Replace("sensor-report","other"),
     Report("porch", stamp, Values()).Replace(stamp.ToString("O"),"bad"),
-    """{"messageType":"sensor-report","node":{"name":"porch"},"receivedUtc":"2026-01-01T00:00:00","measurements":{}}""",
+    """{"messageType":"sensor-report","node":{"gatewayId":2,"nodeId":1,"name":"porch"},"receivedUtc":"2026-01-01T00:00:00","measurements":{}}""",
     Report("porch", DateTimeOffset.UtcNow.AddDays(1), Values()),
-    """{"messageType":"sensor-report","node":{"name":"porch"},"measurements":{}}"""
+    """{"messageType":"sensor-report","node":{"gatewayId":2,"nodeId":1,"name":"porch"},"measurements":{}}"""
 }) Check(!Send("porch", malformed), "invalid envelope");
 Check(state.Snapshot().Slots[1].Observation!.TemperatureC == 22.15, "bad envelope preserves observation");
 Check(Send("porch", Report("porch", stamp.AddSeconds(2), new { relativeHumidity = new { value = 55, units = "percent" } })), "partial report accepted");
@@ -69,7 +69,26 @@ Check(Send("den", Report("den", stamp, Values(-10))), "second sensor");
 Check(Send("attic", Report("attic", stamp, Values(15))), "secondary accepted");
 Check(state.Snapshot().Slots.Count == 2 && state.Snapshot().Slots[0].Observation!.TemperatureC == -10, "only primary snapshots");
 var single = new PresentationState(PresentationConfiguration.Parse(config.Replace("upperLeft","secondary")), NullLogger<PresentationState>.Instance);
-Check(single.Snapshot().Slots[0] is { InternalName: null, DisplayName: "", Observation: null, MaxAgeSeconds: null }, "unassigned left");
+Check(single.Snapshot().Slots[0] is { Name: null, DisplayName: "", Observation: null, MaxAgeSeconds: null }, "unassigned left");
+Check(state.Snapshot().Slots[1].Observation!.TemperatureC is null &&
+    state.Snapshot().Slots[0].Observation!.TemperatureC == -10, "identical node IDs across gateways remain distinct");
+var renamed = PresentationConfiguration.Parse(config.Replace("\"porch\"", "\"garden\""));
+var priorNameChange = state.Snapshot().Slots[1].Observation;
+state.ReplaceConfiguration(renamed);
+Check(state.Snapshot().Slots[1].Name == "garden" && state.Snapshot().Slots[1].Observation == priorNameChange,
+    "logical rename preserves physical observation");
+state.ReplaceConfiguration(PresentationConfiguration.Parse(config.Replace("\"gatewayId\":2", "\"gatewayId\":3")));
+Check(state.Snapshot().Slots[1].Observation is null && state.Snapshot().Slots[0].Observation!.TemperatureC == -10,
+    "changing numeric identity cannot reuse another sensor's reading");
+state.ReplaceConfiguration(configuration);
+foreach (var replacement in new[] { "0", "256", "1.5", "\"1\"" })
+    Invalid(config.Replace("\"gatewayId\":1", "\"gatewayId\":" + replacement));
+Invalid(config.Replace("\"nodeId\":3", "\"nodeId\":1"));
+Invalid(config.Replace("\"nodeId\":3", "\"nodeId\":240"));
+var gatewaysJson = config.Replace("\"sensors\":", "\"gateways\":[{\"gatewayId\":1,\"name\":\"house\",\"displayName\":\"House gateway\"},{\"gatewayId\":2}],\"sensors\":");
+Check(PresentationConfiguration.Parse(gatewaysJson).Gateways[1].Name is null, "gateway names optional");
+Invalid(gatewaysJson.Replace("\"gatewayId\":2}", "\"gatewayId\":1}"));
+Invalid(gatewaysJson.Replace("\"gatewayId\":2}", "\"gatewayId\":2,\"name\":\"house\"}"));
 // Runtime replacement retains identities and timestamps, removes deleted identities.
 var before = state.Snapshot().Slots[1].Observation;
 var changed = PresentationConfiguration.Parse(config.Replace("\"F\"", "\"C\"")
@@ -106,7 +125,7 @@ try
     var legacy = Path.Combine(temporary, "legacy.json");
     var directory = Path.Combine(temporary, "data");
     var file = Path.Combine(directory, "presentation.json");
-    var original = config.Replace("\"sensors\":", "\"future\":{\"flag\":true},\"sensors\":")
+    var original = gatewaysJson.Replace("\"sensors\":", "\"future\":{\"flag\":true},\"sensors\":")
         .Replace("\"displayName\":\"Attic\"", "\"extra\":42,\"displayName\":\"Attic\"");
     File.WriteAllText(legacy, original);
     var store = new PresentationSettings(directory, legacy);
@@ -121,7 +140,9 @@ try
     var persisted = File.ReadAllText(file);
     Check(JsonNode.Parse(persisted)!["future"]!["flag"]!.GetValue<bool>() &&
         JsonNode.Parse(persisted)!["sensors"]![2]!["extra"]!.GetValue<int>() == 42, "unknown fields survive save");
-    Check(new PresentationSettings(directory, legacy).Read().Configuration.TemperatureUnit == "C", "saved settings survive restart");
+    var restartConfiguration = new PresentationSettings(directory, legacy).Read().Configuration;
+    Check(restartConfiguration.TemperatureUnit == "C" && restartConfiguration.Gateways[0].DisplayName == "House gateway" &&
+        restartConfiguration.Sensors[1].Identity == new SensorIdentity(2, 1), "saved numeric mappings and gateway names survive restart");
     try { store.Save(first.Revision, config, live); throw new Exception("stale save accepted"); }
     catch (SettingsConflictException) { count++; }
     try { store.Save(saved.Revision, "{}", live); throw new Exception("invalid save accepted"); }

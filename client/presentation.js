@@ -11,20 +11,24 @@ export function validateSnapshot(data) {
   if (!data || !['C', 'F'].includes(data.temperatureUnit) || !Array.isArray(data.slots) || data.slots.length !== 2)
     throw new Error('Invalid presentation snapshot');
   const utc = utcMilliseconds(data.serverUtc);
-  const names = new Set();
+  const names = new Set(), identities = new Set();
   const slots = positions.map(position => {
     const matches = data.slots.filter(slot => slot?.position === position);
     if (matches.length !== 1) throw new Error('Invalid presentation positions');
     const slot = matches[0];
     if (typeof slot.displayName !== 'string') throw new Error('Invalid sensor label');
-    if (slot.internalName === null) {
-      if (slot.displayName !== '' || slot.maxAgeSeconds !== null || slot.observation !== null)
+    if (slot.name === null) {
+      if (slot.gatewayId !== null || slot.nodeId !== null || slot.displayName !== '' || slot.maxAgeSeconds !== null || slot.observation !== null)
         throw new Error('Invalid empty slot');
     } else {
-      if (typeof slot.internalName !== 'string' || !slot.internalName.trim() || !slot.displayName.trim()
-          || names.has(slot.internalName) || !isNumber(slot.maxAgeSeconds) || slot.maxAgeSeconds <= 0)
+      if (typeof slot.name !== 'string' || !slot.name.trim() || !slot.displayName.trim()
+          || names.has(slot.name) || !isNumber(slot.maxAgeSeconds) || slot.maxAgeSeconds <= 0)
         throw new Error('Invalid sensor configuration');
-      names.add(slot.internalName);
+      if (!Number.isInteger(slot.gatewayId) || slot.gatewayId < 1 || slot.gatewayId > 255 ||
+          !Number.isInteger(slot.nodeId) || slot.nodeId < 1 || slot.nodeId > 239 || identities.has(`${slot.gatewayId}/${slot.nodeId}`))
+        throw new Error('Invalid sensor identity');
+      identities.add(`${slot.gatewayId}/${slot.nodeId}`);
+      names.add(slot.name);
     }
     let observation = null;
     if (slot.observation !== null) {

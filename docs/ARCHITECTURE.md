@@ -110,7 +110,7 @@ MQTT belongs after the LoRa Service. The gateway never communicates with MQTT.
   knowledge is independent of DenClock and future ham-radio applications.
 - **DenClock owns environmental history and presentation.** It consumes normalized
   LoRa Service outputs, maintains application state/history, and supplies clock
-  and weather information to browsers. Device names and locations belong to DenClock; adapting its subscriber and naming configuration is deferred to Story 2. Display-unit preferences/conversion, history retention, alarms, and display behavior belong to applications. DenClock does not parse the LoRa wire protocol.
+  and weather information to browsers. Device names and locations belong to DenClock. Its presentation settings and existing gear dialog own sensor mappings keyed by numeric gateway/node pairs, with independent logical and display names and optional gateway names. Display-unit preferences/conversion, history retention, alarms, and display behavior belong to applications. DenClock does not parse the LoRa wire protocol.
 - **Future ham-radio applications consume LoRa Service outputs.** They own their
   equipment-specific behavior and application transactions. Shared wire-protocol
   understanding stays in the LoRa Service. Future outbound commands would be
@@ -205,7 +205,8 @@ Repository hardware references are in [HARDWARE.md](HARDWARE.md) and the
 
 DenClock owns ProgramData presentation.json, initializes it from an executable-local
 file (or defaults) on first run, and subscribes to
-semantic MQTT reports. It keeps latest observations in memory and supplies two
+numeric-identity MQTT reports. It resolves names from its own presentation settings,
+keeps latest observations in memory and supplies two
 primary slots through /api/presentation. Browsers poll that API, convert canonical
 Celsius to the configured display unit, and render freshness using server-derived
 UTC plus monotonic elapsed time. History remains deferred. The MQTT broker stays

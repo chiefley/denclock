@@ -187,3 +187,10 @@ two clients before saving to check conflict/reload. Watch Network tools for
 continued time/presentation polling, and verify updated readings on another
 client. See [server storage and deployment](../server/README.md#primary-sensor-display)
 for ProgramData, permissions, migration, and the development-directory override.
+
+The existing gear dialog also edits DenClock-owned sensor mappings (numeric
+Gateway/Node IDs, logical name, display label) and optional gateway names.
+Use Add/Remove in the mapping sections, then Save to persist all edits together.
+Cancel discards the draft. Sensor assignment options show numeric pairs so the
+same node number on different gateways remains distinguishable. Discovery is
+not implemented; enter identifiers manually.

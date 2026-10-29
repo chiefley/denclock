@@ -62,12 +62,14 @@ or failed initialization prevent startup; absent files initialize defaults. An
 unavailable MQTT broker does not prevent startup.
 
 A separate hosted MQTTnet 5.2.0.1603 subscriber uses MQTT 3.1.1, clean sessions,
-and QoS 1 on lora/sensors/+. Mqtt:Host, Mqtt:Port, and Mqtt:ClientId default to
+and QoS 1 on lora/sensors/+/+. Mqtt:Host, Mqtt:Port, and Mqtt:ClientId default to
 localhost, 1883, and denclock-server. Use unique client IDs for concurrent
 DenClock instances. Operations time out after five seconds; the worker retries
 at five-second intervals and resubscribes after reconnect.
 
-Latest configured observations are held in memory. No wire-protocol decoding,
+Sensor identity is `(gatewayId, nodeId)`, matching integer payload fields and
+the decimal numeric topic segments. Names come exclusively from DenClock's
+presentation configuration. Latest configured observations are held in memory. No wire-protocol decoding,
 history, or raw-packet interpretation occurs here. Malformed envelopes and
 topic/payload identity disagreements are logged and ignored. Partial valid
 reports replace the whole observation; omitted/invalid measurements become null.
@@ -84,14 +86,18 @@ exact-origin development CORS policy as /api/time. Example:
   "slots": [
     {
       "position": "upperLeft",
-      "internalName": null,
+      "gatewayId": null,
+      "nodeId": null,
+      "name": null,
       "displayName": "",
       "maxAgeSeconds": null,
       "observation": null
     },
     {
       "position": "upperRight",
-      "internalName": "porch",
+      "gatewayId": 2,
+      "nodeId": 1,
+      "name": "porch",
       "displayName": "Outside",
       "maxAgeSeconds": 60,
       "observation": {
@@ -118,7 +124,9 @@ Server restart clears memory until MQTT supplies retained or new reports.
 
 `GET /api/settings/presentation` returns HTTP 200 with
 `{"revision":"opaque-token","configuration":{"temperatureUnit":"F","sensors":[]}}`.
-Configuration includes all primary and secondary entries and extra fields.
+Configuration includes all primary/secondary sensor mappings, optional gateway
+names, and extra fields. See the presentation configuration specification for
+numeric IDs, unique logical names, and the one-time old-format adjustment.
 Revisions change on successful saves and service restart.
 
 `PUT /api/settings/presentation` requires a JSON body with the same envelope.
@@ -140,5 +148,6 @@ policy. Settings work from server-hosted LAN clients, not just loopback. This
 origin check is not an authentication system.
 
 Configuration replacement is coherent with MQTT reception and snapshots.
+Logical/display name edits retain observations for the same numeric pair.
 Observations are retained only for identities remaining configured, with their
 original timestamps. No service restart or MQTT reconnection is required.
