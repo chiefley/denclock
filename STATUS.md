@@ -28,6 +28,12 @@ gateway name or services; ordinary DNS and IPv4 remain supported. See the
 [accepted hostname story](lora-service/docs/stories/completed/004-reliable-mdns-hostname-resolution.md)
 and [deployment guide](lora-service/docs/mdns-deployment.md).
 
+The developer has verified and accepted the transparent 24-hour client forecast
+and the Linux deployment helper for bensclock. See the
+[client guide](client/README.md#hourly-forecast) and
+[Linux deployment guide](docs/deploy-to-bensclock.md). The existing Windows
+deployment procedures remain available.
+
 ## Resume Here
 
 - [Move Gateway and Sensor Semantic Mapping into DenClock](docs/stories/completed/010-move-gateway-and-sensor-semantic-mapping-into-denclock.md)

@@ -8,6 +8,7 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="clock.css">
   <link rel="stylesheet" href="background.css">
+  <link rel="stylesheet" href="forecast.css">
 </head>
 <body>
   <div class="display-background" aria-hidden="true"></div>
@@ -26,6 +27,12 @@
     <div id="date" class="date"></div>
     <div id="sync-status" class="sync-status" role="status">Waiting for time</div>
   </main>
+  <section class="forecast" aria-labelledby="forecast-title">
+    <div class="forecast-heading"><h2 id="forecast-title">Next 24 hours</h2><span class="forecast-key">Blue bars · precipitation chance</span></div>
+    <p id="forecast-status" role="status">Loading forecast…</p>
+    <svg id="forecast-graph" viewBox="0 0 960 290" role="img" aria-label="Hourly temperature forecast" hidden></svg>
+    <span class="forecast-credit">Granger Township · <a href="https://open-meteo.com/" target="_blank" rel="noopener">Weather by Open-Meteo</a></span>
+  </section>
   <button id="settings-button" class="settings-button" type="button" aria-label="Settings" aria-haspopup="dialog" aria-controls="settings-view">⚙</button>
   <dialog id="settings-view" aria-labelledby="settings-title" aria-describedby="settings-status">
     <form id="settings-form" novalidate>
@@ -77,6 +84,7 @@
     </form>
   </dialog>
   <script type="module">
+    import { ForecastClient, initializeForecast } from './forecast.js';
     import { initializeSettings } from './settings.js';
 
     import { config } from './config.js';
@@ -90,6 +98,7 @@
     display.start();
     const presentation = new PresentationClient({ ...config, serverAddress });
     presentation.start();
+    initializeForecast(document, new ForecastClient(config.forecastLocation), timeClient, presentation);
     new SensorDisplay(presentation, document).start();
     initializeSettings(document, { ...config, serverAddress }, () => presentation.refresh());
   </script>

@@ -196,3 +196,17 @@ Use Add/Remove in the mapping sections, then Save to persist all edits together.
 Cancel discards the draft. Sensor assignment options show numeric pairs so the
 same node number on different gateways remains distinguishable. Discovery is
 not implemented; enter identifiers manually.
+
+
+## Hourly forecast
+
+The lower transparent graph shows 24 hourly temperatures from the current hour,
+with three-hour labels and blue precipitation-probability bars. The location in
+config.js is Granger Township, Ohio. Open-Meteo is requested directly over HTTPS
+every 15 minutes, with eight-second timeouts and no overlapping requests.
+See https://open-meteo.com/en/docs. Displayed units follow presentation settings.
+Forecast selection uses synchronized server UTC; labels use the location timezone.
+Failed updates retain usable data with a delay message; expired data is hidden.
+Retries recover automatically. Missing temperatures break the line. Ten-day
+forecast and radar remain deferred. The developer has verified and accepted
+[Transparent Hourly Forecast](docs/stories/completed/006-hourly-forecast.md).

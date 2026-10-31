@@ -1,0 +1,17 @@
+.forecast {
+  position: absolute; z-index: 1; top: 41vh; left: 6vw; right: 3vw;
+  height: 57vh; background: transparent; color: #f6f1e6;
+  font-family: var(--display-font); text-shadow: 0 2px 4px #000, 0 0 8px #000;
+}
+.forecast-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.forecast h2 { margin: 0; font-size: 23px; font-weight: 500; }
+.forecast-key { font-size: 16px; color: #bce3ef; }
+#forecast-status { position: absolute; top: 29px; left: 58px; margin: 0; font-size: 17px; color: #f4cfa2; }
+#forecast-graph { width: 100%; height: calc(100% - 50px); overflow: visible; }
+#forecast-graph[hidden] { display: none; }
+#forecast-graph text { fill: #f6f1e6; font-size: 21px; paint-order: stroke; stroke: #15110ccc; stroke-width: 3px; stroke-linejoin: round; }
+.forecast-grid { stroke: #ffffff26; stroke-dasharray: 3 7; }
+.forecast-line { fill: none; stroke: #ffe0a3; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; filter: drop-shadow(0 2px 2px #000); }
+.forecast-rain { fill: #9bdbed; opacity: .42; }
+.forecast-credit { position: absolute; right: 0; bottom: 0; font-size: 12px; color: #ddd; }
+.forecast-credit a { color: inherit; }
