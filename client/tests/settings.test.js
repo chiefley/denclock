@@ -67,7 +67,7 @@ const response = (status = 200, body = { revision: 'r1', configuration: structur
 });
 const settle = () => new Promise(resolve => setImmediate(resolve));
 function setup(fetch) {
-  const ids = ['button', 'view', 'form', 'unit', 'save', 'cancel', 'status', 'reload',
+  const ids = ['button', 'view', 'form', 'location', 'unit', 'save', 'cancel', 'status', 'reload',
     'left-sensor', 'left-label', 'left-age', 'right-sensor', 'right-label', 'right-age', 'sensors', 'gateways', 'add-sensor', 'add-gateway'];
   const elements = new Map(ids.map(id => ['settings-' + id, new Element()]));
   elements.get('settings-form').querySelectorAll = () => [new Element(), new Element()];

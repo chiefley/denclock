@@ -44,7 +44,7 @@ export function validateSnapshot(data) {
     }
     return { ...slot, observation };
   });
-  return { utc, temperatureUnit: data.temperatureUnit, slots };
+  return { utc, temperatureUnit: data.temperatureUnit, slots, forecastLocation: data.forecastLocation };
 }
 export class PresentationClient {
   constructor(config, { now = () => performance.now(), fetchSnapshot = (...args) => fetch(...args) } = {}) {
@@ -104,6 +104,7 @@ export class PresentationClient {
     const utc = this.sample.utc + this.now() - this.sample.receivedAt;
     return {
       temperatureUnit: this.sample.temperatureUnit,
+      forecastLocation: this.sample.forecastLocation,
       slots: this.sample.slots.map(slot => ({
         ...slot,
         stale: slot.observation !== null && (utc - slot.observation.receivedAt) / 1000 >= slot.maxAgeSeconds,

@@ -54,3 +54,9 @@ See [client README](../README.md) for operation and verification, and the
   unedited configuration fields and secondary identities through full-document
   round trips, and require an explicit reload after conflicts so drafts are not
   silently discarded or newer settings overwritten.
+
+- Keep forecast geocoding and retrieval in the existing browser weather path.
+  Persist the resolved location with server-owned presentation settings so all
+  displays share it and restarts do not require geocoding. Validate changed
+  locations before saving; preserve legacy coordinates when no setting exists.
+  Keep the location beside the weather credit to preserve the unobtrusive layout.

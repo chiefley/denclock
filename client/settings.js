@@ -1,3 +1,4 @@
+import { resolveForecastLocation } from './forecast.js';
 const positions = ['upperLeft', 'upperRight'];
 export const sensorKey = sensor => `${sensor.gatewayId}/${sensor.nodeId}`;
 
@@ -50,6 +51,7 @@ export function buildConfiguration(original, temperatureUnit, slots) {
 export function initializeSettings(root, config, refreshPresentation, fetchSettings = (...args) => fetch(...args)) {
   const get = id => root.getElementById(id);
   const gear = get('settings-button'), dialog = get('settings-view'), form = get('settings-form');
+  const location = get('settings-location');
   const unit = get('settings-unit'), save = get('settings-save'), cancel = get('settings-cancel');
   const status = get('settings-status'), reload = get('settings-reload');
   const fields = [...form.querySelectorAll('fieldset')];
@@ -65,7 +67,7 @@ export function initializeSettings(root, config, refreshPresentation, fetchSetti
     if (focus) status.focus();
   }
   function enableControls() {
-    unit.disabled = !loaded || saving;
+    unit.disabled = location.disabled = !loaded || saving;
     for (const field of fields) field.disabled = !loaded || saving;
     for (const panel of panels) {
       panel.label.disabled = panel.age.disabled = !panel.assignment.value || !loaded || saving;
@@ -106,6 +108,7 @@ export function initializeSettings(root, config, refreshPresentation, fetchSetti
       draftSensors = structuredClone(result.configuration.sensors);
       draftGateways = structuredClone(result.configuration.gateways ?? []);
       unit.value = result.configuration.temperatureUnit;
+      location.value = result.configuration.forecastLocation?.query ?? "Granger Township, Ohio";
       renderMappings();
       refreshAssignments();
       message('Edit display settings. Changes apply to all displays only after Save succeeds.');
@@ -210,8 +213,11 @@ export function initializeSettings(root, config, refreshPresentation, fetchSetti
     reload.hidden = true;
     message('Saving settings… Please wait.');
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), config.requestTimeoutMs);
+    let timeout;
     try {
+      if (location.value.trim() !== (loaded.configuration.forecastLocation?.query ?? 'Granger Township, Ohio'))
+        configuration.forecastLocation = await resolveForecastLocation(location.value);
+      timeout = setTimeout(() => controller.abort(), config.requestTimeoutMs);
       const response = await fetchSettings(endpoint, {
         method: 'PUT', cache: 'no-store', signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },

@@ -151,3 +151,9 @@ Configuration replacement is coherent with MQTT reception and snapshots.
 Logical/display name edits retain observations for the same numeric pair.
 Observations are retained only for identities remaining configured, with their
 original timestamps. No service restart or MQTT reconnection is required.
+
+Presentation configuration and `/api/presentation` also include `forecastLocation`
+with `query`, `displayName`, `latitude`, and `longitude`. Absent persisted location
+uses the legacy Granger Township coordinates. Location saves apply without restart
+and persist using the same settings mechanism; see the
+[presentation configuration specification](presentation-configuration.md#forecast-location).

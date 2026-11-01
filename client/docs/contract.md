@@ -105,3 +105,19 @@ The dialog provides associated labels, native modal keyboard navigation,
 visible focus, and controls at least 48 CSS pixels high. It scrolls when needed
 and stacks sensor fields in one column at viewport widths of 600 pixels or less.
 Time synchronization, presentation polling, and rendering continue while open.
+
+## Configurable forecast location
+
+Forecast Location in settings accepts a city/state or five-digit US ZIP code.
+Changed input is resolved through Open-Meteo's US geocoding search, with exact
+city-name matching, then checked by retrieving a usable forecast before PUT.
+Lookup and forecast failures leave the draft open and previous saved settings
+intact. Unchanged input requires no lookup. The saved query and coordinates are
+restored on restart through presentation polling, independently of sensor settings.
+
+A changed coordinate pair triggers forecast retrieval and clears old-location
+data. Older in-flight results cannot replace the new location's forecast.
+The configured display name appears beside the lower-right Open-Meteo credit;
+the heading remains “Next 24 hours” and the unit. Normal weather failures retain
+usable same-location data and retry automatically. Open-Meteo indexes the default
+area as “Granger, OH”; “Granger Township, OH” does not resolve.

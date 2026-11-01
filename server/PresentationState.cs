@@ -5,7 +5,10 @@ namespace DenClock.Server;
 public sealed record SensorObservation(DateTimeOffset ReceivedUtc, double? TemperatureC, double? RelativeHumidity);
 public sealed record PresentationSlot(string Position, int? GatewayId, int? NodeId, string? Name, string DisplayName,
     double? MaxAgeSeconds, SensorObservation? Observation);
-public sealed record PresentationSnapshot(DateTimeOffset ServerUtc, string TemperatureUnit, IReadOnlyList<PresentationSlot> Slots);
+public sealed record PresentationSnapshot(DateTimeOffset ServerUtc, string TemperatureUnit, IReadOnlyList<PresentationSlot> Slots)
+{
+    public ForecastLocation ForecastLocation { get; init; } = ForecastLocation.Default;
+}
 
 public sealed class PresentationState(PresentationConfiguration configuration, ILogger<PresentationState> logger)
 {
@@ -95,7 +98,7 @@ public sealed class PresentationState(PresentationConfiguration configuration, I
                 observations.TryGetValue(sensor.Identity, out var observation);
                 return new PresentationSlot(position, sensor.GatewayId, sensor.NodeId, sensor.Name, sensor.DisplayName, sensor.MaxAgeSeconds, observation);
             }).ToArray();
-            return new(DateTimeOffset.UtcNow, configuration.TemperatureUnit, slots);
+            return new(DateTimeOffset.UtcNow, configuration.TemperatureUnit, slots) { ForecastLocation = configuration.ForecastLocation };
         }
     }
 }

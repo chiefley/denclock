@@ -16,10 +16,15 @@ public sealed record GatewayConfiguration(int GatewayId, string? Name, string? D
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Extra { get; init; }
 }
+public sealed record ForecastLocation(string Query, string DisplayName, double Latitude, double Longitude)
+{
+    public static ForecastLocation Default { get; } = new("Granger Township, Ohio", "Granger Township, Ohio", 41.16722, -81.73889);
+}
 public sealed record PresentationConfiguration(string TemperatureUnit, IReadOnlyList<SensorConfiguration> Sensors)
 {
     [JsonExtensionData]
     public Dictionary<string, JsonElement>? Extra { get; init; }
+    public ForecastLocation ForecastLocation { get; init; } = ForecastLocation.Default;
     public IReadOnlyList<GatewayConfiguration> Gateways { get; init; } = [];
     public static PresentationConfiguration Load(string path)
     {
@@ -76,8 +81,19 @@ public sealed record PresentationConfiguration(string TemperatureUnit, IReadOnly
                         Extra = Extras(item, "gatewayId", "name", "displayName")
                     });
                 }
+            var location = ForecastLocation.Default;
+            if (root.TryGetProperty("forecastLocation", out var place))
+            {
+                location = new(Text(place, "query"), Text(place, "displayName"),
+                    place.GetProperty("latitude").GetDouble(), place.GetProperty("longitude").GetDouble());
+                if (location.Query.Length > 200 || location.DisplayName.Length > 200 ||
+                    !double.IsFinite(location.Latitude) || Math.Abs(location.Latitude) > 90 ||
+                    !double.IsFinite(location.Longitude) || Math.Abs(location.Longitude) > 180)
+                    throw new InvalidDataException("Invalid forecast location.");
+            }
             return new(unit, sensors.AsReadOnly()) {
-                Gateways = gateways.AsReadOnly(), Extra = Extras(root, "temperatureUnit", "sensors", "gateways")
+                ForecastLocation = location,
+                Gateways = gateways.AsReadOnly(), Extra = Extras(root, "temperatureUnit", "sensors", "gateways", "forecastLocation")
             };
         }
         catch (Exception ex) when (ex is JsonException or KeyNotFoundException or InvalidOperationException or FormatException)

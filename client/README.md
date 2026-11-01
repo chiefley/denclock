@@ -201,8 +201,12 @@ not implemented; enter identifiers manually.
 ## Hourly forecast
 
 The lower transparent graph shows 24 hourly temperatures from the current hour,
-with three-hour labels and blue precipitation-probability bars. The location in
-config.js is Granger Township, Ohio. Open-Meteo is requested directly over HTTPS
+with three-hour labels and blue precipitation-probability bars. Forecast Location in the gear settings accepts a city/state or five-digit US ZIP
+code. Open-Meteo resolves coordinates and a successful forecast is required before
+saving a changed location. Lookup failures retain the draft and previous saved
+settings. Location and coordinates persist with presentation settings and appear
+beside the lower-right Open-Meteo credit; all displays refresh when settings polling detects a
+change. Existing installations default to Granger Township, Ohio. Open-Meteo is requested directly over HTTPS
 every 15 minutes, with eight-second timeouts and no overlapping requests.
 See https://open-meteo.com/en/docs. Displayed units follow presentation settings.
 Forecast selection uses synchronized server UTC; labels use the location timezone.

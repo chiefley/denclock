@@ -240,3 +240,16 @@ contain installation-specific identities; migration preserves those values.
 Sensor discovery remains deferred. The existing settings dialog supports manual
 add/edit/remove of sensor mappings and optional gateway names using the same
 revision-protected Save/Cancel workflow.
+
+## Forecast location
+
+The optional `forecastLocation` object is independent of sensor mappings. It has
+nonempty `query` and `displayName` strings (at most 200 characters), numeric
+`latitude` from -90 to 90, and numeric `longitude` from -180 to 180. Coordinates
+must be finite. Missing location uses Granger Township, Ohio at 41.16722,
+-81.73889, preserving existing installations without a network lookup.
+
+The object uses the same revision-protected, atomic persistence as other display
+settings and is included in `/api/presentation`. The browser resolves a changed
+query and verifies forecast retrieval before submitting settings; the server
+validates the stored object structurally without contacting the weather service.

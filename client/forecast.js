@@ -43,8 +43,17 @@ export class ForecastClient {
     this.fetchData = fetchData; this.now = now;
     this.sample = null; this.lastError = null; this.pending = false; this.timer = null;
   }
+  setLocation(location) {
+    const url = forecastUrl(location);
+    if (!url || url === this.url) { if (url) this.location = location; return; }
+    this.location = location;
+    this.url = url;
+    this.sample = null; this.lastError = null;
+    // Finish any old request before starting the newly configured location.
+    if (!this.pending) void this.refresh();
+  }
   start() {
-    if (this.timer !== null || !this.url) return;
+    if (this.timer !== null) return;
     void this.refresh();
     this.timer = setInterval(() => void this.refresh(), 15 * 60_000);
   }
@@ -52,17 +61,19 @@ export class ForecastClient {
   async refresh() {
     if (!this.url || this.pending) return false;
     this.pending = true;
+    const requestedUrl = this.url;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8_000);
     try {
-      const response = await this.fetchData(this.url, { signal: controller.signal, cache: 'no-store' });
+      const response = await this.fetchData(requestedUrl, { signal: controller.signal, cache: 'no-store' });
       if (!response.ok) throw new Error('Forecast request failed');
       const parsed = parseForecast(await response.json());
       if (parsed.hours.filter(h => h.temperature !== null).length < 24) throw new Error('Incomplete forecast');
+      if (requestedUrl !== this.url) return false;
       this.sample = { ...parsed, receivedAt: this.now() }; this.lastError = null;
       return true;
-    } catch (error) { this.lastError = error; return false; }
-    finally { clearTimeout(timeout); this.pending = false; }
+    } catch (error) { if (requestedUrl === this.url) this.lastError = error; return false; }
+    finally { clearTimeout(timeout); this.pending = false; if (requestedUrl !== this.url) void this.refresh(); }
   }
 }
 
@@ -95,18 +106,21 @@ export function chartMarkup(hours, unit, timezone) {
 export function initializeForecast(root, client, timeClient, presentation) {
   const status = root.getElementById('forecast-status'), graph = root.getElementById('forecast-graph');
   const title = root.getElementById('forecast-title');
+  const location = root.getElementById('forecast-location');
   let previous = '';
   const render = () => {
+    client.setLocation(presentation.read().forecastLocation);
     const clock = timeClient.sample;
     const utc = clock ? clock.utcMilliseconds + timeClient.now() - clock.receivedAt : null;
     const hours = utc === null ? [] : selectHours(client.sample, utc);
     const usable = hours.length === 24 && hours.some(h => h.temperature !== null);
     const unit = presentation.read().temperatureUnit ?? 'F';
-    status.textContent = !client.url ? 'Set the forecast location in config.js' : utc === null ? 'Waiting for synchronized time' :
+    status.textContent = !client.url ? 'Waiting for forecast settings' : utc === null ? 'Waiting for synchronized time' :
       !client.sample ? (client.lastError ? 'Forecast unavailable · retrying automatically' : 'Loading forecast…') :
       !usable ? 'Forecast expired · waiting for an update' : client.lastError || client.now() - client.sample.receivedAt >= HOUR ?
       'Forecast update delayed · showing last available data' : '';
     title.textContent = `Next 24 hours · °${unit}`;
+    location.textContent = client.location?.displayName ? `${client.location.displayName} · ` : '';
     const markup = usable ? chartMarkup(hours, unit, client.sample.timezone) : '';
     if (markup !== previous) { graph.innerHTML = markup; previous = markup; }
     graph.toggleAttribute('hidden', !usable);
@@ -118,4 +132,31 @@ export function initializeForecast(root, client, timeClient, presentation) {
   client.start(); render();
   const timer = setInterval(render, 1000);
   return () => { clearInterval(timer); client.stop(); };
+}
+
+// Validate before PUT so failed lookups or forecasts leave persisted settings intact.
+export async function resolveForecastLocation(query, fetchData = (...args) => fetch(...args)) {
+  query = query.trim();
+  if (!/^\d{5}$/.test(query) && !/^[^,]+,\s*[^,]+$/.test(query))
+    throw new Error('Enter a city, state or a five-digit US ZIP code.');
+  if (query.length > 200) throw new Error('Forecast location is too long.');
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8_000);
+  try {
+    const response = await fetchData('https://geocoding-api.open-meteo.com/v1/search?' +
+      new URLSearchParams({ name: query, count: 10, language: 'en', countryCode: 'US' }),
+      { signal: controller.signal, cache: 'no-store' });
+    if (!response.ok) throw new Error('Location service unavailable. Previous settings remain saved.');
+    const results = (await response.json()).results;
+    if (!results?.length) throw new Error('Location not found. Check the city/state or ZIP code.');
+    const candidates = /^\d{5}$/.test(query) ? results : results.filter(place =>
+      place.name?.localeCompare(query.split(',')[0].trim(), 'en', { sensitivity: 'base' }) === 0);
+    if (!candidates.length) throw new Error('Location not found. Enter the full city name and state.');
+    const place = candidates[0];
+    const location = { query, displayName: `${place.name}, ${place.admin1}`, latitude: place.latitude, longitude: place.longitude };
+    if (!forecastUrl(location) || !place.name || !place.admin1) throw new Error('Invalid location service response.');
+    const forecast = new ForecastClient(location, { fetchData });
+    if (!await forecast.refresh()) throw new Error('Forecast unavailable for this location. Previous settings remain saved; try again later.');
+    return location;
+  } finally { clearTimeout(timeout); }
 }

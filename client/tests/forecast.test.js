@@ -30,3 +30,33 @@ test('outage and malformed payload retain sample; retry recovers without overlap
  mode='wait'; const pending=c.refresh(); assert.equal(await c.refresh(),false); release(); await pending;
  assert.equal(c.lastError,null);
 });
+
+test('location lookup supports city/state and ZIP and checks forecast before returning', async () => {
+ const { resolveForecastLocation } = await import('../forecast.js');
+ for (const query of ['Akron, OH', '44308']) {
+  const urls=[];
+  const location=await resolveForecastLocation(query,async url=>{
+   urls.push(url);
+   return {ok:true,json:async()=>url.includes('geocoding') ? {results:[{name:'Akron',admin1:'Ohio',latitude:41.08,longitude:-81.52}]} : data()};
+  });
+  assert.equal(location.query,query); assert.equal(location.displayName,'Akron, Ohio');
+  assert.match(urls[1],/latitude=41.08/);
+ }
+ await assert.rejects(resolveForecastLocation('missing comma'),/city/);
+ await assert.rejects(resolveForecastLocation('Nowhere, OH',async()=>({ok:true,json:async()=>({})})),/not found/);
+ await assert.rejects(resolveForecastLocation('44308',async url=>({ok:url.includes('geocoding'),json:async()=>({results:[{name:'Akron',admin1:'Ohio',latitude:41,longitude:-81}]})})),/Forecast unavailable/);
+});
+
+test('a location change discards an older in-flight forecast and fetches the new coordinates',async()=>{
+ let release; const urls=[];
+ const client=new ForecastClient({latitude:41,longitude:-81},{fetchData:async url=>{
+  urls.push(url); if(urls.length===1) await new Promise(r=>release=r);
+  return {ok:true,json:async()=>data()};
+ }});
+ const old=client.refresh();
+ client.setLocation({latitude:40,longitude:-80,displayName:'New place'});
+ release(); await old;
+ await new Promise(r=>setImmediate(r));
+ assert.equal(urls.length,2); assert.match(urls[1],/latitude=40/);
+ assert.equal(client.location.displayName,'New place'); assert.ok(client.sample);
+});

@@ -181,3 +181,23 @@ try
 }
 finally { Directory.Delete(temporary, recursive: true); }
 Console.WriteLine($"PASS: {count} configuration, persistence, and sensor-state checks");
+
+var forecastConfig = PresentationConfiguration.Parse(config);
+Check(forecastConfig.ForecastLocation == ForecastLocation.Default, "legacy forecast default");
+var forecastJson = JsonNode.Parse(config)!;
+forecastJson["forecastLocation"] = JsonSerializer.SerializeToNode(new { query = "44308", displayName = "Akron, Ohio", latitude = 41.08, longitude = -81.52 });
+var forecastDirectory = Path.Combine(Path.GetTempPath(), "denclock-forecast-" + Guid.NewGuid());
+try
+{
+    var store = new PresentationSettings(forecastDirectory, Path.Combine(forecastDirectory, "missing.json"));
+    var forecastState = new PresentationState(store.Read().Configuration, NullLogger<PresentationState>.Instance);
+    store.Save(store.Read().Revision, forecastJson.ToJsonString(), forecastState);
+    var restarted = new PresentationSettings(forecastDirectory, "missing.json");
+    Check(restarted.Read().Configuration.ForecastLocation.Query == "44308", "forecast persisted across restart");
+    Check(forecastState.Snapshot().ForecastLocation.Latitude == 41.08, "forecast applied to presentation");
+    forecastJson["forecastLocation"]!["latitude"] = 100;
+    try { store.Save(store.Read().Revision, forecastJson.ToJsonString(), forecastState); throw new Exception("invalid forecast saved"); }
+    catch (InvalidDataException) { }
+    Check(store.Read().Configuration.ForecastLocation.Query == "44308", "invalid forecast preserves settings");
+}
+finally { Directory.Delete(forecastDirectory, recursive: true); }
