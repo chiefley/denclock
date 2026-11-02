@@ -32,7 +32,8 @@ See [client README](../README.md) for operation and verification, and the
 [story](stories/completed/001-time-display.md) for the requested behavior.
 
 - Keep the cabin background in its own fixed decorative layer and stylesheet.
-  Cover scaling fills the display without distorting the image; disabled pointer
+  Cover scaling fills the display without distorting the image; bottom-right
+  anchoring with small offsets keeps the embedded logo positioned on the Surface. Disabled pointer
   events and separate stacking keep it independent of clock layout and input.
   Dynamic image selection remains deferred.
 
@@ -59,4 +60,5 @@ See [client README](../README.md) for operation and verification, and the
   Persist the resolved location with server-owned presentation settings so all
   displays share it and restarts do not require geocoding. Validate changed
   locations before saving; preserve legacy coordinates when no setting exists.
-  Keep the location beside the weather credit to preserve the unobtrusive layout.
+  Place the location before the forecast heading and center the weather credit
+  beneath the time axis to keep it clear of the cabin logo.

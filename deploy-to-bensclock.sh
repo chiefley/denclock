@@ -30,6 +30,24 @@ for tool in dotnet ssh rsync mktemp; do
 done
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PASSWORD_FILE="$SCRIPT_DIR/.bensclock-password"
+password_runner=()
+if [[ -e "$PASSWORD_FILE" ]]; then
+    if [[ ! -f "$PASSWORD_FILE" || ! -s "$PASSWORD_FILE" || ! -O "$PASSWORD_FILE" || "$(stat -c %a "$PASSWORD_FILE")" != 600 ]]; then
+        echo "Password file must be nonempty, owned by you, and have permissions 600: chmod 600 .bensclock-password" >&2
+        exit 1
+    fi
+    command -v sshpass >/dev/null || { echo "Required command missing: sshpass" >&2; exit 1; }
+    password_runner=(sshpass -f "$PASSWORD_FILE")
+fi
+
+remote_admin() {
+    if (( ${#password_runner[@]} )); then
+        "${password_runner[@]}" ssh -T "$REMOTE" "sudo -S -p '' -v && $1" < "$PASSWORD_FILE"
+    else
+        ssh -t "$REMOTE" "sudo -v && $1"
+    fi
+}
 REMOTE="ben@bensclock"
 PUBLISH_DIR="$(mktemp -d -t denclock-bensclock.XXXXXXXX)"
 cleanup() { rm -rf -- "$PUBLISH_DIR"; }
@@ -49,21 +67,20 @@ for component in server lora-service; do
 done
 
 echo "Preparing directories on $REMOTE (SSH and sudo may prompt for passwords)..."
-# Force a terminal so sudo can prompt; do not pipe passwords or use sudo -S.
-ssh -t "$REMOTE" 'set -eu; command -v rsync >/dev/null; sudo mkdir -p /opt/denclock/server /opt/denclock/lora-service; sudo chown -R ben:$(id -gn ben) /opt/denclock/server /opt/denclock/lora-service; test -w /opt/denclock/server; test -w /opt/denclock/lora-service'
+remote_admin 'set -eu; command -v rsync >/dev/null; sudo -n mkdir -p /opt/denclock/server /opt/denclock/lora-service; sudo -n chown -R ben:$(id -gn ben) /opt/denclock/server /opt/denclock/lora-service; test -w /opt/denclock/server; test -w /opt/denclock/lora-service'
 
 for component in server lora-service; do
     echo "Deploying $component..."
     # Mirror the complete publish output, including dotfiles and executable bits.
     # Destination-only files are deleted; keep persistent settings/logs elsewhere.
-    rsync -rtp --delete --delay-updates -e ssh \
+    "${password_runner[@]}" rsync -rtp --delete --delay-updates -e ssh \
         "$PUBLISH_DIR/$component/" "$REMOTE:/opt/denclock/$component/"
 done
 
 if (( ${#restart_units[@]} )); then
     # Unit names are restricted above so they are safe in the remote command.
     printf -v units ' %s' "${restart_units[@]}"
-    ssh -t "$REMOTE" "sudo systemctl restart --$units && systemctl is-active --$units"
+    remote_admin "sudo -n systemctl restart --$units && systemctl is-active --$units"
 else
     echo "Files deployed. No systemd services were restarted."
 fi

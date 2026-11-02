@@ -88,7 +88,7 @@ export function chartMarkup(hours, unit, timezone) {
   let svg = '', pen = false, path = '';
   for (let i = 0; i <= 2; i++) {
     const t = low + (high - low) * i / 2;
-    svg += `<line class="forecast-grid" x1="58" x2="922" y1="${y(t)}" y2="${y(t)}"/><text x="44" y="${y(t) + 6}" text-anchor="end">${Math.round(t)}°</text>`;
+    svg += `<line class="forecast-grid" x1="58" x2="922" y1="${y(t)}" y2="${y(t)}"/>`;
   }
   hours.forEach((h, i) => {
     const t = temp(h);
@@ -96,7 +96,9 @@ export function chartMarkup(hours, unit, timezone) {
     else { path += `${pen ? 'L' : 'M'}${x(i)},${y(t)} `; pen = true; }
     if (h.precipitation > 0) svg += `<rect class="forecast-rain" x="${x(i) - 7}" y="${238 - h.precipitation * .24}" width="14" height="${h.precipitation * .24}" rx="3"/>`;
     if (i % 3 === 0) {
-      svg += `<text x="${x(i)}" y="270" text-anchor="middle">${label.format(h.time)}</text>`;
+      const timeLabel = label.formatToParts(h.time).map(part => part.type === 'dayPeriod'
+        ? `<tspan class="forecast-day-period">${part.value}</tspan>` : part.value).join('');
+      svg += `<text x="${x(i)}" y="270" text-anchor="middle">${timeLabel}</text>`;
       if (t !== null) svg += `<text class="forecast-value" x="${x(i)}" y="${y(t) - 12}" text-anchor="middle">${Math.round(t)}°</text>`;
     }
   });
@@ -106,7 +108,6 @@ export function chartMarkup(hours, unit, timezone) {
 export function initializeForecast(root, client, timeClient, presentation) {
   const status = root.getElementById('forecast-status'), graph = root.getElementById('forecast-graph');
   const title = root.getElementById('forecast-title');
-  const location = root.getElementById('forecast-location');
   let previous = '';
   const render = () => {
     client.setLocation(presentation.read().forecastLocation);
@@ -119,8 +120,8 @@ export function initializeForecast(root, client, timeClient, presentation) {
       !client.sample ? (client.lastError ? 'Forecast unavailable · retrying automatically' : 'Loading forecast…') :
       !usable ? 'Forecast expired · waiting for an update' : client.lastError || client.now() - client.sample.receivedAt >= HOUR ?
       'Forecast update delayed · showing last available data' : '';
-    title.textContent = `Next 24 hours · °${unit}`;
-    location.textContent = client.location?.displayName ? `${client.location.displayName} · ` : '';
+    const locationPrefix = client.location?.displayName ? `${client.location.displayName} · ` : '';
+    title.textContent = `${locationPrefix}Next 24 hours · °${unit}`;
     const markup = usable ? chartMarkup(hours, unit, client.sample.timezone) : '';
     if (markup !== previous) { graph.innerHTML = markup; previous = markup; }
     graph.toggleAttribute('hidden', !usable);

@@ -3,8 +3,23 @@
 From WSL, run `~/src/denclock/deploy-to-bensclock.sh`. It works from any directory.
 Install the .NET 10 SDK, OpenSSH client and rsync locally. The remote host needs
 rsync and the .NET 10 ASP.NET Core runtime (including the base .NET runtime).
-SSH access to ben@bensclock and sudo permission are required. ssh -t allows sudo
-to prompt for a password without passing passwords through the script.
+SSH access to ben@bensclock and sudo permission are required. By default, SSH
+and sudo prompt interactively.
+
+For password-file use, install `sshpass` locally (`sudo apt-get install sshpass`
+on WSL/Debian). Create `.bensclock-password` beside the scripts with the shared
+SSH/sudo password on one line. The file is excluded from Git. Create it privately:
+
+```bash
+(umask 077; read -rsp 'bensclock password: ' clock_password; printf '\n'; printf '%s\n' "$clock_password" > .bensclock-password)
+chmod 600 .bensclock-password
+```
+
+Both scripts automatically use this file when present. It must be nonempty,
+owned by your user, and mode 600. The password is stored as plaintext locally;
+it is passed to sshpass by file and sudo through SSH standard input, never as a
+command argument. SSH host-key verification remains enabled; establish trust
+with an ordinary SSH connection first. Removing the file restores prompts.
 
 Both projects are published in Release for net10.0/linux-x64, framework-dependent,
 into a unique temporary directory removed on exit. Both publishes must succeed
@@ -32,6 +47,20 @@ explicitly, repeating --restart-unit for each. For example:
 ./deploy-to-bensclock.sh --restart-unit denclock-server.service --restart-unit denclock-lora.service
 ```
 
-These are example names, not installed units. Restarts occur only after both
+These names match the units in the Surface Go installation guide. To deploy and
+restart both with one command, use the wrapper (it works from any directory):
+
+```sh
+./deploy-and-restart-bensclock.sh
+```
+
+The wrapper calls the existing deployment script with both restart units, then
+connects over SSH as ben and sends Ctrl+Shift+R to the visible Chromium kiosk on
+X11 display :0. Install its refresh dependency once on bensclock with
+`sudo apt-get install xdotool`. The graphical session must allow ben to access
+that display. Deployment or restart failure prevents the refresh; a refresh
+failure also returns an error, even though deployment has already succeeded.
+
+Restarts occur only after both
 transfers succeed; restart or active-state verification failures return an error.
 Units are not installed or enabled. Existing Windows helpers remain available.

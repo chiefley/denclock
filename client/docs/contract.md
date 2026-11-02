@@ -5,7 +5,7 @@ or AM/PM, subordinate two-digit seconds, and full weekday, month, and day.
 The normal display includes an unobtrusive lower-left Settings gear with no
 visible button background or border. It targets 1024 × 600, with the canonical
 cabin image filling the viewport behind the clock. The decorative background
-preserves aspect ratio using centered cover scaling and cannot intercept input
+preserves aspect ratio using bottom-right cover scaling offset 1vw right and 3vh down and cannot intercept input
 or alter the clock's layout. Background selection is static.
 
 `TimeClient` requests `/api/time` immediately and approximately every 60 seconds.
@@ -117,7 +117,14 @@ restored on restart through presentation polling, independently of sensor settin
 
 A changed coordinate pair triggers forecast retrieval and clears old-location
 data. Older in-flight results cannot replace the new location's forecast.
-The configured display name appears beside the lower-right Open-Meteo credit;
-the heading remains “Next 24 hours” and the unit. Normal weather failures retain
+The configured display name precedes “Next 24 hours” and the unit in the heading.
+The Open-Meteo credit is centered beneath the forecast time axis. Normal weather failures retain
 usable same-location data and retry automatically. Open-Meteo indexes the default
 area as “Granger, OH”; “Granger Township, OH” does not resolve.
+
+## Display spacing and forecast labels
+
+Date and sensor-detail rows are lifted 4vh without changing layout flow or the
+large values’ positions. Forecast grid lines remain, with no temperature labels
+on the left axis. Temperatures remain labeled along the line; time-axis AM/PM
+suffixes use 65% of the hour size and share its baseline.

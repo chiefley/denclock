@@ -5,8 +5,8 @@ plain HTML, CSS, and JavaScript. The [Time Display story](docs/stories/completed
 is implemented and accepted.
 
 The cabin background uses `images/Denclock-cabin-master.png` in a separate
-decorative layer styled by `background.css`. It fills the viewport with centered
-cropping while preserving aspect ratio; the clock remains overlaid in its
+decorative layer styled by `background.css`. It fills the viewport with cover scaling anchored at the bottom right,
+offset 1vw right and 3vh down to position the embedded logo, while preserving aspect ratio; the clock remains overlaid in its
 existing position. Background selection is static. The image and stylesheet
 are included automatically by the existing recursive publish configuration.
 
@@ -205,7 +205,7 @@ with three-hour labels and blue precipitation-probability bars. Forecast Locatio
 code. Open-Meteo resolves coordinates and a successful forecast is required before
 saving a changed location. Lookup failures retain the draft and previous saved
 settings. Location and coordinates persist with presentation settings and appear
-beside the lower-right Open-Meteo credit; all displays refresh when settings polling detects a
+before “Next 24 hours” and the unit in the forecast heading; all displays refresh when settings polling detects a
 change. Existing installations default to Granger Township, Ohio. Open-Meteo is requested directly over HTTPS
 every 15 minutes, with eight-second timeouts and no overlapping requests.
 See https://open-meteo.com/en/docs. Displayed units follow presentation settings.
@@ -214,3 +214,8 @@ Failed updates retain usable data with a delay message; expired data is hidden.
 Retries recover automatically. Missing temperatures break the line. Ten-day
 forecast and radar remain deferred. The developer has verified and accepted
 [Transparent Hourly Forecast](docs/stories/completed/006-hourly-forecast.md).
+
+Forecast temperature-axis labels are omitted; values remain on the line. AM/PM
+suffixes use 65% of the hour font size on the same baseline. The Open-Meteo
+credit is centered below the time axis, clear of the embedded cabin logo.
+Date and sensor-detail rows are lifted 4vh without moving the main values.
