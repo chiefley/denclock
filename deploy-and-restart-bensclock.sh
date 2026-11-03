@@ -14,5 +14,11 @@ if [[ -e "$SCRIPT_DIR/.bensclock-password" ]]; then
 fi
 "${password_runner[@]}" ssh ben@bensclock 'set -eu
 command -v xdotool >/dev/null || { echo "Install xdotool on bensclock: sudo apt-get install xdotool" >&2; exit 1; }
-DISPLAY=:0 xdotool search --onlyvisible --class chromium windowactivate --sync key --clearmodifiers ctrl+shift+r'
+export DISPLAY=:0
+window=$(xdotool search --onlyvisible --class DenClock 2>/dev/null | head -n 1)
+if [ -z "$window" ]; then
+    window=$(xdotool search --onlyvisible --class chromium | head -n 1)
+fi
+test -n "$window"
+xdotool windowactivate --sync "$window" key --clearmodifiers ctrl+shift+r'
 echo "Deployment, service restarts, and kiosk refresh complete."

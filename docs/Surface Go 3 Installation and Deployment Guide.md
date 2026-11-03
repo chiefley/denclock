@@ -490,6 +490,11 @@ Verify the clock interface and presentation configuration page.
 
 ## 12. Configure Chromium kiosk mode
 
+For a touch-accessible restore/fullscreen button, use the
+[window-control launcher and setup](clock-window-control.md) instead of the locked
+launcher below. The original --kiosk launcher cannot be exited by a webpage.
+
+
 Install Chromium if necessary:
 
 ```bash

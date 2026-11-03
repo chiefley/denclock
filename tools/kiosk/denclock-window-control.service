@@ -1,0 +1,12 @@
+[Unit]
+Description=DenClock local window control
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/.local/lib/denclock/window-control.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

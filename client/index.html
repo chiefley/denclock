@@ -7,10 +7,18 @@
   <title>DenClock</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="clock.css">
+  <link rel="stylesheet" href="window-control.css">
   <link rel="stylesheet" href="background.css">
   <link rel="stylesheet" href="forecast.css?v=2">
 </head>
 <body>
+  <button id="window-button" class="window-button" type="button" aria-label="Full screen" aria-pressed="false" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+      <rect class="maximize-icon" x="3" y="4" width="18" height="16" rx="1"></rect>
+      <g class="restore-icon"><path d="M8 8V3h13v13h-5"></path><rect x="3" y="8" width="13" height="13" rx="1"></rect></g>
+    </svg>
+  </button>
+  <span id="window-status" class="window-status" role="status"></span>
   <div class="display-background" aria-hidden="true"></div>
   <section class="sensors" aria-label="Primary sensor readings">
     <section class="sensor-panel" id="upperLeft" aria-label="Unassigned sensor">
@@ -86,6 +94,9 @@
     </form>
   </dialog>
   <script type="module">
+    import { initializeWindowControl } from './window-control.js';
+    initializeWindowControl(document);
+
     import { ForecastClient, initializeForecast } from './forecast.js';
     import { initializeSettings } from './settings.js';
 

@@ -62,3 +62,10 @@ See [client README](../README.md) for operation and verification, and the
   locations before saving; preserve legacy coordinates when no setting exists.
   Place the location before the forecast heading and center the weather credit
   beneath the time axis to keep it clear of the cabin logo.
+
+- For the Linux XFCE/X11 tablet, use a fullscreen Chromium app window instead
+  of locked kiosk mode so touchscreen and RustDesk users can reach desktop
+  controls. A separate loopback helper reads and changes actual window-manager
+  state for the dedicated DenClock window; browser fullscreen alone cannot
+  restore a locked kiosk window. Keep this platform-specific integration outside
+  the server and restrict it to the local clock page.

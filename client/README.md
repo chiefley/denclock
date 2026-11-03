@@ -219,3 +219,10 @@ Forecast temperature-axis labels are omitted; values remain on the line. AM/PM
 suffixes use 65% of the hour font size on the same baseline. The Open-Meteo
 credit is centered below the time axis, clear of the embedded cabin logo.
 Date and sensor-detail rows are lifted 4vh without moving the main values.
+
+## Window and fullscreen control
+
+For the upper-right restore/fullscreen button, install the
+[XFCE/X11 desktop helper and launcher](../docs/clock-window-control.md).
+The launcher replaces locked kiosk mode with a fullscreen app window so touch
+and RustDesk users can reach normal window controls without a keyboard.

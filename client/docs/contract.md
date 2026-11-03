@@ -128,3 +128,17 @@ Date and sensor-detail rows are lifted 4vh without changing layout flow or the
 large values’ positions. Forecast grid lines remain, with no temperature labels
 on the left axis. Temperatures remain labeled along the line; time-axis AM/PM
 suffixes use 65% of the hour size and share its baseline.
+
+## Local desktop window control
+
+On localhost and 127.0.0.1 pages, an upper-right 48px touch target restores the
+clock to a 900×500 window or returns it to fullscreen. Overlapping rectangles
+indicate fullscreen; a single rectangle indicates windowed mode. The client
+polls observed window-manager state every two seconds. An unavailable helper
+disables the button, displays a status message, and retries automatically.
+The control is hidden on LAN pages; other display activity continues.
+
+The optional XFCE/X11 helper listens on 127.0.0.1:5001, permits only the local
+clock origins on port 5000 with an exact Host check, and controls only a single
+DenClock-class window. The app-window launcher starts fullscreen and relaunches
+Chromium when closed. See the [installation guide](../../docs/clock-window-control.md).
