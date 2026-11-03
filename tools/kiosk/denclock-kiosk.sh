@@ -16,6 +16,7 @@ while true; do
         --app=http://localhost:5000 \
         --class=DenClock \
         --start-fullscreen \
+        --force-renderer-accessibility=complete \
         --window-size=900,500 \
         --window-position=32,32 \
         --no-first-run \

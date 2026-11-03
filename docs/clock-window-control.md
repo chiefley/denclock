@@ -62,3 +62,74 @@ on November 3, 2026. Codex did not independently verify the actual tablet.
 
 Automated checks: node --test client/tests/*.test.js and
 PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tools/kiosk/tests.
+
+## Onboard keyboard accessibility
+
+The launcher passes `--force-renderer-accessibility=complete` to Chromium so
+web fields and focus are exposed to assistive technology throughout its lifetime.
+Chromium normally enables renderer accessibility on demand; see its
+[accessibility overview](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/accessibility/overview.md).
+This uses the existing Onboard and desktop AT-SPI accessibility stack. No new
+packages, services, browser JavaScript, or keyboard-control endpoint were added.
+The dedicated profile and fullscreen/window controls are unchanged.
+
+On bensclock, Onboard was running with auto-show enabled while DenClock fields
+did not summon it. Before this change, an AT-SPI inspection encountered an
+unreadable child of the Chromium frame. After restart with the flag, AT-SPI
+exposed the DenClock web document and Settings button. These observations support
+an accessibility-exposure problem but do not establish the exact cause or prove
+keyboard activation. The developer verified and accepted the Surface Go behavior, including touch,
+editing, focus-loss, fullscreen/windowed operation, and reboot startup in
+[Story 016](stories/completed/016-restore-on-screen-keyboard.md) on November 3, 2026.
+The launcher flag resolves the observed activation problem; the precise reason
+Chromium did not enable sufficient accessibility automatically remains unconfirmed.
+
+### Updating an existing Story 015 installation
+
+Use the established SSH workflow as ben (prefix SSH/SCP with
+`sshpass -f .bensclock-password` from the repository root when using the existing
+private password file). Before replacing the launcher, preserve a rollback copy:
+
+```sh
+ssh ben@bensclock 'test ! -e ~/.local/bin/denclock-kiosk.sh.before-story016 && cp -p ~/.local/bin/denclock-kiosk.sh ~/.local/bin/denclock-kiosk.sh.before-story016'
+scp tools/kiosk/denclock-kiosk.sh ben@bensclock:.local/bin/denclock-kiosk.sh
+```
+
+A page refresh does not apply Chromium startup flags. Restart the launcher and
+its browser, without restarting the server, LoRa service, Onboard, or desktop.
+For the installed launcher, run through SSH as ben:
+
+```sh
+export DISPLAY=:0
+launcher=$(pgrep -f '^bash /home/ben/.local/bin/denclock-kiosk.sh$')
+window=$(wmctrl -lx | awk 'tolower($3) ~ /(^|\.)denclock(\.|$)/ {print $1}')
+test -n "$launcher" && test -n "$window" || exit 1
+kill "$launcher"
+wmctrl -ic "$window"
+sleep 3
+nohup /home/ben/.local/bin/denclock-kiosk.sh > /tmp/denclock-kiosk.log 2>&1 < /dev/null &
+```
+
+The launcher also restarts its existing window-control helper. XFCE autostart
+continues to use the same launcher on reboot. Story 016's deployment saved the
+previous launcher as `~/.local/bin/denclock-kiosk.sh.before-story016`.
+To roll back, copy that file over `~/.local/bin/denclock-kiosk.sh` with `cp -p`
+and repeat the browser/launcher restart above. Do this if touch testing fails;
+report findings before trying a more elaborate solution.
+
+### Verification and diagnosis
+
+On the Surface, open Settings and touch editable fields. Verify Onboard appears,
+can enter/edit text, and behaves appropriately when focus leaves a field. Repeat
+in restored and fullscreen modes, including use of the fullscreen button. Reboot
+and repeat to verify startup. Discard test edits unless deliberately saving them.
+
+If activation fails, check `pgrep -af onboard` and
+`gsettings get org.onboard.auto-show enabled` in ben's graphical session. Check
+`pgrep -af '^/usr/lib/chromium/chromium .*--app=http://localhost:5000'` for the
+accessibility flag and dedicated profile. Inspect `chrome://accessibility` in
+that Chromium instance or its AT-SPI tree using existing desktop accessibility
+tools; compare whether native applications still invoke Onboard. A running
+Onboard process and focused HTML field alone do not prove accessible focus events
+are reaching Onboard. Avoid changing global desktop settings until the minimal
+launcher change has been assessed.

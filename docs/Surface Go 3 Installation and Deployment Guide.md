@@ -179,6 +179,7 @@ onboard
 ```
 
 Because LightDM automatically logs in, Onboard starts without requiring a password.
+For Chromium field activation, see [Onboard keyboard accessibility](clock-window-control.md#onboard-keyboard-accessibility).
 
 ## 6. Configure power management
 
