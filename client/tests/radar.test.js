@@ -59,8 +59,12 @@ test('tile cache deduplicates, throttles starts and respects failure cooldown an
 function fakeRoot() {
  const nodes=new Map();const observer={observe:()=>{},disconnect:()=>{observer.closed=true;}};
  const canvas=()=>({width:0,height:0,hidden:false,getContext:()=>({scale:()=>{},drawImage:()=>{},clearRect:()=>{}})});
- for(const id of ['radar-view','radar-base','radar-image','radar-home','radar-status','radar-time'])
-  nodes.set(id,{...canvas(),textContent:'',clientWidth:930,clientHeight:273});
+ for(const id of ['radar-view','radar-base','radar-image','radar-home','radar-status','radar-time','radar-replay'])
+  nodes.set(id,{...canvas(),textContent:'',clientWidth:930,clientHeight:273,
+   classes:new Set(),handlers:new Map(),
+   classList:{toggle(name,on){const n=nodes.get(id);on?n.classes.add(name):n.classes.delete(name);}},
+   addEventListener:(event,fn)=>nodes.get(id).handlers.set(event,fn),
+   removeEventListener:event=>nodes.get(id).handlers.delete(event)});
  return {hidden:false,getElementById:id=>nodes.get(id),createElement:()=>canvas(),observer};
 }
 function makeView() {
@@ -116,5 +120,51 @@ test('fresh metadata replaces expired imagery; stale frames are identified even 
  await f.view.refresh();await settle();
  assert.equal(f.root.getElementById('radar-image').hidden,false);
  assert.equal(f.view.frames.at(-1).time,latest+1800);
+ f.view.dispose();
+});
+
+test('replay button restarts two cached passes without bubbling, requests, or disappearing when paused',async()=>{
+ const f=makeView();await settle();f.update();await settle();
+ const button=f.root.getElementById('radar-replay');
+ assert.equal(button.disabled,false);
+ while(f.timer.tasks.size)f.timer.next();
+ assert.equal(f.view.displayed.time,latest);
+ const urls=f.urls.length,revision=f.view.revision;
+ let stopped=false;
+ button.handlers.get('click')({stopPropagation:()=>{stopped=true;}});
+ assert.ok(stopped);assert.equal(f.view.displayed.time,latest-7200);
+ const passes=[f.view.displayed.time];
+ while(f.timer.tasks.size){f.timer.next();passes.push(f.view.displayed.time);}
+ const expected=metadata().radar.past.map(frame=>frame.time);
+ assert.deepEqual(passes,[...expected,...expected]);
+ assert.equal(f.view.displayed.time,latest);assert.equal(f.urls.length,urls);assert.equal(f.view.revision,revision);
+ assert.equal(button.hidden,false);assert.equal(button.disabled,false);
+ // Repeated replay while playing restarts rather than adding animation timers.
+ button.handlers.get('click')({stopPropagation:()=>{}});f.timer.next();
+ button.handlers.get('click')({stopPropagation:()=>{}});
+ assert.equal(f.view.displayed.time,expected[0]);assert.equal(f.timer.tasks.size,1);
+ f.update(false);assert.equal(button.disabled,true);assert.equal(f.timer.tasks.size,0);
+ f.view.dispose();assert.equal(button.handlers.size,0);
+});
+
+test('latest frame timestamp and age advance while paused without using download time or playback frame',async()=>{
+ const f=makeView();await settle();f.update();await settle();
+ const timestamp=f.root.getElementById('radar-time');
+ assert.equal(f.view.displayed.time,latest-7200); // Playing the oldest frame.
+ assert.match(timestamp.textContent,/Radar 7:00 AM EST · 0 min old/); // Freshness describes the newest loaded frame.
+ while(f.timer.tasks.size)f.timer.next();
+ f.view.utc=(latest+8*60+59)*1000;f.view.updateStatus();
+ assert.match(timestamp.textContent,/8 min old/);
+ f.view.utc+=1000;f.view.updateStatus();assert.match(timestamp.textContent,/9 min old/);
+ f.state.now=999999;await f.view.refresh();
+ assert.match(timestamp.textContent,/9 min old/); // Downloading the same metadata cannot reset frame age.
+ f.view.utc=(latest+20*60)*1000;f.view.updateStatus();
+ assert.match(timestamp.textContent,/20 min old · stale/);assert.ok(timestamp.classes.has('is-stale'));
+ f.view.utc=(latest+30*60)*1000;f.view.updateStatus();
+ assert.equal(timestamp.hidden,false);assert.match(timestamp.textContent,/30 min old · stale/);
+ assert.equal(f.root.getElementById('radar-replay').disabled,true);
+ f.state.data.radar.past=f.state.data.radar.past.map(frame=>({...frame,time:frame.time+1800,path:frame.path+'-new'}));
+ await f.view.refresh();await settle();
+ assert.match(timestamp.textContent,/7:30 AM EST · 0 min old/);assert.equal(timestamp.classes.has('is-stale'),false);
  f.view.dispose();
 });

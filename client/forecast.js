@@ -224,7 +224,7 @@ export function initializeForecast(root, client, timeClient, presentation, radar
       (h.precipitation === null ? ', precipitation chance unavailable' : `, ${h.precipitation}% precipitation chance`)).join('; '));
   };
   const toggle = () => { view = (view + 1) % 3; render(); };
-  const click = event => { if (!event.target.closest('a')) toggle(); };
+  const click = event => { if (!event.target.closest('a, button')) toggle(); };
   const keydown = event => {
     if (event.target === area && (event.key === 'Enter' || event.key === ' ')) {
       event.preventDefault(); toggle();

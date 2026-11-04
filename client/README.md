@@ -225,8 +225,8 @@ Tap or click anywhere in the forecast area to cycle through the
 24-hour forecast, ten-day forecast, and animated radar, then back to hourly.
 The existing Open-Meteo attribution link still opens
 its source. The forecast is also focusable: Enter or Space advances views. Page
-reload returns to hourly; the view choice is not persisted. No new visible
-navigation controls are added.
+reload returns to hourly; the view choice is not persisted. The radar-only replay button restarts cached animation without advancing views.
+The two forecast charts have no additional visible controls.
 
 The daily chart shows today and nine more calendar days in the forecast location's
 timezone, with gold highs, pale-blue lows, weekday labels and available daily

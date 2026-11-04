@@ -39,11 +39,14 @@
     <div class="forecast-heading"><h2 id="forecast-title">Next 24 hours</h2><span id="forecast-key" class="forecast-key">Blue bars · precipitation chance</span></div>
     <p id="forecast-status" role="status">Loading forecast…</p>
     <svg id="forecast-graph" viewBox="0 0 960 290" role="img" aria-label="Hourly temperature forecast" hidden></svg>
-    <div id="radar-view" role="img" aria-label="Historical precipitation radar centered on the configured weather location" hidden>
+    <div id="radar-view" role="group" aria-label="Historical precipitation radar centered on the configured weather location" hidden>
       <canvas id="radar-base" aria-hidden="true"></canvas>
       <canvas id="radar-image" aria-hidden="true" hidden></canvas>
       <span id="radar-home" aria-hidden="true" hidden></span>
       <span id="radar-time" hidden></span>
+      <button id="radar-replay" type="button" aria-label="Replay radar animation" title="Replay radar animation" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.7 6.4M3 4v7h7"/></svg>
+      </button>
       <p id="radar-status" role="status">Loading radar…</p>
     </div>
     <span id="forecast-radar-credit" class="forecast-credit" hidden><a href="https://www.rainviewer.com/" target="_blank" rel="noopener">Radar by RainViewer</a> · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></span>

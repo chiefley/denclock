@@ -168,9 +168,13 @@ synthesized, and daily selection follows calendar dates across DST and midnight.
 
 The third forecast mode fills the existing forecast rectangle with a responsive,
 fixed regional map centered on configured weather coordinates. A subdued dark
-OSM layer and more opaque RainViewer precipitation preserve photograph visibility.
-There are no map controls or new navigation buttons; attribution links remain
-visible. Historical frames are obtained from dynamic metadata host/path values,
+OSM layer and RainViewer precipitation both render at full opacity over an
+opaque dark backing, obscuring the photograph inside the radar rectangle. The
+existing forecast charts retain their transparency. A lower-left circular-arrow
+replay button has a 48px touch target, stays visible while paused and restarts
+two cached passes without cycling views or fetching data. It is disabled without
+usable frames or when imagery expires. There are no pan/zoom toolbars; attribution
+links remain visible. Historical frames are obtained from dynamic metadata host/path values,
 using zoom 7, Universal Blue (2), and smoothing/snow options `1_1`.
 
 Metadata refreshes every five minutes independently of forecast polling. Tiles
@@ -185,3 +189,13 @@ thirty minutes old is hidden. Time comparisons use synchronized UTC. A location
 change clears the previous map; resize/reveal recomputes the viewport. Leaving
 radar or hiding the page stops animation. Disposal releases requests, timers,
 resize observation and caches. See [radar operation and provider constraints](radar.md).
+
+The radar freshness label shows the newest loaded frame's provider timestamp and
+whole-minute age, including while playback is paused or imagery is expired.
+It describes that newest frame throughout animation. Age is synchronized UTC
+minus frame time, floored and clamped to zero, updated by the existing render
+loop independently of download time. At twenty minutes it adds an amber stale
+warning. The provider timestamp is composite frame-generation time, not an exact
+shared observation time for all contributing radar sources. Forecast timezone
+formatting (or explicit UTC fallback) is retained. Replay handlers are removed
+on disposal.

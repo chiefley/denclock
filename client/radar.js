@@ -139,6 +139,9 @@ export class RadarView {
     this.base = root.getElementById('radar-base'); this.image = root.getElementById('radar-image');
     this.marker = root.getElementById('radar-home'); this.status = root.getElementById('radar-status');
     this.timestamp = root.getElementById('radar-time');
+    this.replayButton = root.getElementById('radar-replay');
+    this.onReplay = event => { event.stopPropagation(); this.replayAnimation(); };
+    this.replayButton.addEventListener('click', this.onReplay);
     this.fetchData = fetchData; this.now = now; this.tiles = tiles;
     this.metadata = null; this.receivedAt = null; this.error = false; this.revision = 0;
     this.frames = []; this.visible = false; this.token = 0; this.disposed = false;
@@ -193,7 +196,9 @@ export class RadarView {
     const oldImagery = this.frames.length > 0 && this.utc !== null &&
       this.utc - this.frames.at(-1).time * 1000 >= 20 * MINUTE;
     this.image.hidden = !show; this.marker.hidden = !show;
-    this.timestamp.hidden = !show;
+    this.timestamp.hidden = !this.frames.length || !Number.isFinite(this.utc);
+    this.replayButton.disabled = !show || !this.visible;
+    this.updateTimestamp();
     if (expired) this.animation.stop();
     this.status.textContent = !this.location ? 'Waiting for forecast settings' : this.utc === null ? 'Waiting for synchronized time' :
       expired ? 'Radar expired · waiting for an update' : !this.metadata ?
@@ -224,9 +229,26 @@ export class RadarView {
   draw(frame) {
     if (this.disposed || !this.visible) return;
     this.copy(frame.canvas, this.image); this.displayed = frame;
-    this.timestamp.textContent = new Intl.DateTimeFormat('en-US', {
+    this.updateTimestamp();
+  }
+  updateTimestamp() {
+    const newest = this.frames.at(-1);
+    if (!newest || !Number.isFinite(this.utc)) {
+      this.timestamp.textContent = '';
+      this.timestamp.classList.toggle('is-stale', false);
+      return;
+    }
+    const age = Math.max(0, Math.floor((this.utc - newest.time * 1000) / MINUTE));
+    const time = new Intl.DateTimeFormat('en-US', {
       hour: 'numeric', minute: '2-digit', timeZone: this.timezone ?? 'UTC', timeZoneName: 'short',
-    }).format(frame.time * 1000);
+    }).format(newest.time * 1000);
+    this.timestamp.textContent = `Radar ${time} · ${age} min old${age >= 20 ? ' · stale' : ''}`;
+    this.timestamp.classList.toggle('is-stale', age >= 20);
+  }
+  replayAnimation() {
+    if (this.disposed || !this.visible || !this.frames.length || this.expired() || !Number.isFinite(this.utc)) return;
+    this.replay = false;
+    this.animation.play(this.frames);
   }
   async prepare() {
     if (this.disposed || !this.visible || !this.metadata || this.utc === null || this.utc - this.metadata.frames.at(-1).time * 1000 >= 30 * MINUTE) return;
@@ -272,6 +294,7 @@ export class RadarView {
   }
   dispose() {
     this.disposed = true; this.token++; clearInterval(this.timer); this.pending?.abort();
+    this.replayButton.removeEventListener('click', this.onReplay);
     this.animation.stop(); this.observer.disconnect(); this.tiles.dispose(); this.frames = []; this.displayed = null; this.metadata = null;
     this.base.width = this.image.width = 0;
   }

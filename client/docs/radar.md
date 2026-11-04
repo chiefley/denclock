@@ -1,7 +1,8 @@
 # Animated radar
 
 The forecast cycles through **24 hours → ten days → radar → 24 hours** using the
-existing whole-area tap/click or Enter/Space interaction. It starts hourly on
+existing whole-area tap/click or Enter/Space interaction, except for the replay
+button and attribution links. It starts hourly on
 page load. Attribution links navigate normally. Clock, sensors, settings, and the
 two forecast charts retain their existing presentation and refresh behavior.
 
@@ -27,11 +28,15 @@ A small canvas renderer supplies a fixed Web Mercator regional map. It uses
 zoom 7 and keeps the longer map edge at 512 map pixels, scaling to the container
 rather than adding tiles for high-DPI screens. Canvas resolution follows display
 pixel ratio up to 2. The map is centered on the configured weather coordinates,
-with a subtle home marker. No gestures, controls, or map framework are needed.
+with a subtle home marker. No pan/zoom gestures, map toolbars, or mapping
+framework are needed.
 
 The geographic layer uses [OpenStreetMap standard tiles](https://tile.openstreetmap.org),
-darkened/desaturated at 65% opacity to make geographic features readable while
-keeping labels and roads subdued and the photograph visible. Precipitation is a separate, more opaque layer. Visible credit
+darkened/desaturated to keep labels and roads subdued. Radar is deliberately
+opaque: a solid dark backing covers the photograph throughout the map rectangle,
+even while tiles are loading or unavailable. Both the geographic and precipitation
+layers have 100% CSS opacity; transparent pixels in precipitation tiles reveal
+the geographic map. This exception does not affect the two forecast charts. Visible credit
 links identify RainViewer and OpenStreetMap contributors. Only the currently
 visible map's tiles are requested; there is no background geographic prefetch.
 Normal browser HTTP caching, User-Agent and Referer are preserved in accordance
@@ -46,7 +51,12 @@ Initial preload may take about a minute (longer for a taller viewport or slow
 network) because requests are deliberately throttled. A loading message remains
 visible. Once ready, complete frames play oldest-to-newest twice at 500 ms per
 frame and hold on the newest successfully loaded frame. Re-entering radar
-replays cached history. Transparent, successfully loaded radar tiles represent a
+replays cached history. The small circular-arrow button at the map's lower-left
+has a 48 × 48 CSS-pixel touch target and stays visible when paused. Tap/click or
+keyboard activation restarts the oldest available cached frame, plays two passes,
+and holds newest. It does not cycle the parent forecast or request data. The
+button is disabled without usable frames, while hidden, or when imagery expires.
+Transparent, successfully loaded radar tiles represent a
 valid quiet map and are not considered failures.
 
 Frames are assembled offscreen before replacing the visible image, so loading
@@ -63,9 +73,20 @@ last usable imagery with an update-delay message. Metadata not successfully
 refreshed for ten minutes or a newest available frame twenty minutes old is also
 marked delayed. Imagery whose newest available
 frame is thirty minutes old relative to synchronized server UTC is hidden as
-expired. Historical animation timestamps are frame-generation times, formatted
-in the configured forecast timezone (explicitly UTC until that timezone is known).
-They are not exact observation times for every radar in the composite.
+expired. The newest loaded frame's timestamp and age remain visible, including
+while paused or expired: for example, `Radar 11:05 AM EST · 8 min old`. Age uses
+synchronized server UTC minus the frame timestamp, rounded down to whole minutes
+and clamped to zero, and updates through the existing forecast render loop. It
+never resets merely because metadata or tiles were downloaded again. During
+animation, this freshness label still describes the newest available frame, not
+the older frame currently being drawn. At twenty minutes, an amber `stale` label
+also warns about age, independently of metadata download freshness.
+
+RainViewer exposes the composite **frame-generation time**, not one exact
+observation time for all underlying radar sources; this is the actual provider
+frame timestamp used for the time and age display. Times are formatted in the
+forecast location timezone, explicitly UTC until that timezone is known. No
+observation time is inferred from metadata generation or download time.
 
 Animation stops when leaving radar or when the page is hidden. Cleanup aborts
 metadata/loading work, clears timers, disconnects resize observation and releases
@@ -84,3 +105,10 @@ behavior. The developer accepted [Animated Weather Radar View](stories/completed
 on November 3, 2026 during a dry-weather interval, following the base-map opacity
 adjustment. Precipitation appearance during rain has not yet been observed by the
 developer; subsequent observations may inform later work.
+
+## Radar refinement review
+
+[Radar Display Refinements](stories/completed/015-radar-display-refinements.md)
+was accepted by the developer on November 4, 2026 after display review.
+The solid radar surface and replay control deliberately supersede the earlier
+transparency and no-controls preferences in the accepted radar story.
