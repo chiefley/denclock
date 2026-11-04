@@ -211,7 +211,9 @@ every 15 minutes, with eight-second timeouts and no overlapping requests.
 See https://open-meteo.com/en/docs. Displayed units follow presentation settings.
 Forecast selection uses synchronized server UTC; labels use the location timezone.
 Failed updates retain usable data with a delay message; expired data is hidden.
-Retries recover automatically. Missing temperatures break the line. Radar remains deferred. The developer has verified and accepted
+Retries recover automatically. Missing temperatures break the line. Animated
+radar is available as the third forecast view; see [radar operation](docs/radar.md).
+The developer has verified and accepted
 [Transparent Hourly Forecast](docs/stories/completed/006-hourly-forecast.md).
 
 Forecast temperature-axis labels are omitted; values remain on the line. AM/PM
@@ -219,9 +221,10 @@ suffixes use 65% of the hour font size on the same baseline. The Open-Meteo
 credit is centered below the time axis, clear of the embedded cabin logo.
 Date and sensor-detail rows are lifted 4vh without moving the main values.
 
-Tap or click anywhere in the forecast area to switch immediately between the
-24-hour and ten-day views. The existing Open-Meteo attribution link still opens
-its source. The forecast is also focusable: Enter or Space switches views. Page
+Tap or click anywhere in the forecast area to cycle through the
+24-hour forecast, ten-day forecast, and animated radar, then back to hourly.
+The existing Open-Meteo attribution link still opens
+its source. The forecast is also focusable: Enter or Space advances views. Page
 reload returns to hourly; the view choice is not persisted. No new visible
 navigation controls are added.
 
@@ -233,8 +236,9 @@ probabilities are omitted. Partial daily data displays an availability message;
 fully unavailable daily temperatures hide that chart while the hourly view remains
 accessible. Condition icons are omitted to keep the graph uncluttered.
 
-Both views share one ten-day API response and the existing 15-minute refresh,
-timeout, location-change and error recovery behavior; taps do not fetch data.
+The two forecast charts share one ten-day API response and the existing 15-minute refresh,
+timeout, location-change and error recovery behavior. Switching views does not
+trigger a forecast API request.
 Daily dates use the provider's documented Unix timestamp offset, while selection
 of today uses synchronized UTC and the location timezone. No host-clock fallback
 or invented forecast values are used.

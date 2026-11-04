@@ -1,3 +1,5 @@
+import { initializeRadar } from './radar.js';
+
 const HOUR = 3_600_000;
 const finite = value => typeof value === 'number' && Number.isFinite(value);
 
@@ -177,12 +179,15 @@ export function dailyChartMarkup(days, unit) {
   return svg;
 }
 
-export function initializeForecast(root, client, timeClient, presentation) {
+export function initializeForecast(root, client, timeClient, presentation, radar = initializeRadar(root)) {
   const status = root.getElementById('forecast-status'), graph = root.getElementById('forecast-graph');
   const title = root.getElementById('forecast-title'), area = root.getElementById('forecast-area');
   const key = root.getElementById('forecast-key');
-  let previous = '', daily = false;
+  const radarArea = root.getElementById('radar-view');
+  const weatherCredit = root.getElementById('forecast-weather-credit'), radarCredit = root.getElementById('forecast-radar-credit');
+  let previous = '', view = 0;
   const render = () => {
+    const daily = view === 1, radarVisible = view === 2;
     client.setLocation(presentation.read().forecastLocation);
     const clock = timeClient.sample;
     const utc = clock ? clock.utcMilliseconds + timeClient.now() - clock.receivedAt : null;
@@ -192,19 +197,23 @@ export function initializeForecast(root, client, timeClient, presentation) {
       hours.length === 24 && hours.some(h => h.temperature !== null);
     const incomplete = daily && usable && days.some(day => day.high === null || day.low === null);
     const unit = presentation.read().temperatureUnit ?? 'F';
+    status.toggleAttribute('hidden', radarVisible);
+    radarArea?.toggleAttribute('hidden', !radarVisible);
+    weatherCredit?.toggleAttribute('hidden', radarVisible);
+    radarCredit?.toggleAttribute('hidden', !radarVisible);
+    radar?.update({ visible: radarVisible, location: presentation.read().forecastLocation, utc, timezone: client.sample?.timezone });
     status.textContent = !client.url ? 'Waiting for forecast settings' : utc === null ? 'Waiting for synchronized time' :
       !client.sample ? (client.lastError ? 'Forecast unavailable · retrying automatically' : 'Loading forecast…') :
       !usable ? (daily ? 'Daily forecast unavailable · waiting for an update' : 'Forecast expired · waiting for an update') :
       client.lastError || client.now() - client.sample.receivedAt >= HOUR ?
       'Forecast update delayed · showing last available data' : incomplete ? 'Some daily forecasts unavailable' : '';
     const locationPrefix = client.location?.displayName ? `${client.location.displayName} · ` : '';
-    title.textContent = `${locationPrefix}${daily ? 'Next 10 days' : 'Next 24 hours'} · °${unit}`;
-    key.textContent = daily ? 'High / low · rain chance' : 'Blue bars · precipitation chance';
-    area.setAttribute('aria-label', `${daily ? 'Ten-day' : 'Hourly'} forecast. Activate to show ${daily ? 'hourly' : 'ten-day'} forecast.`);
-    area.setAttribute('aria-pressed', String(daily));
+    title.textContent = radarVisible ? `${locationPrefix}Weather radar` : `${locationPrefix}${daily ? 'Next 10 days' : 'Next 24 hours'} · °${unit}`;
+    key.textContent = radarVisible ? 'Past two hours' : daily ? 'High / low · rain chance' : 'Blue bars · precipitation chance';
+    area.setAttribute('aria-label', `${['Hourly forecast', 'Ten-day forecast', 'Weather radar'][view]}. Activate to show ${['ten-day forecast', 'weather radar', 'hourly forecast'][view]}.`);
     const markup = usable ? daily ? dailyChartMarkup(days, unit) : chartMarkup(hours, unit, client.sample.timezone) : '';
     if (markup !== previous) { graph.innerHTML = markup; previous = markup; }
-    graph.toggleAttribute('hidden', !usable);
+    graph.toggleAttribute('hidden', radarVisible || !usable);
     const degrees = value => value === null ? 'unavailable' : `${Math.round(unit === 'F' ? value * 1.8 + 32 : value)} degrees`;
     if (usable) graph.setAttribute('aria-label', daily ? `Daily forecast in degrees ${unit}. ` + days.map(day =>
       `${day.date}: high ${degrees(day.high)}, low ${degrees(day.low)}` +
@@ -214,7 +223,7 @@ export function initializeForecast(root, client, timeClient, presentation) {
       (h.temperature === null ? 'temperature unavailable' : degrees(h.temperature)) +
       (h.precipitation === null ? ', precipitation chance unavailable' : `, ${h.precipitation}% precipitation chance`)).join('; '));
   };
-  const toggle = () => { daily = !daily; render(); };
+  const toggle = () => { view = (view + 1) % 3; render(); };
   const click = event => { if (!event.target.closest('a')) toggle(); };
   const keydown = event => {
     if (event.target === area && (event.key === 'Enter' || event.key === ' ')) {
@@ -226,7 +235,7 @@ export function initializeForecast(root, client, timeClient, presentation) {
   client.start(); render();
   const timer = setInterval(render, 1000);
   return () => {
-    clearInterval(timer); client.stop();
+    clearInterval(timer); client.stop(); radar?.dispose();
     area.removeEventListener('click', click); area.removeEventListener('keydown', keydown);
   };
 }

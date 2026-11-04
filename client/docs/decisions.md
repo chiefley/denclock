@@ -77,3 +77,13 @@ See [client README](../README.md) for operation and verification, and the
   timestamps are converted with the provider's response offset; calendar-day
   selection uses synchronized UTC in the forecast timezone, independent of host
   time and of elapsed-hour arithmetic across DST.
+
+- Use a fixed canvas tile map for radar: the display needs a regional overview,
+  not interactive map navigation, so a small Web Mercator renderer avoids a new
+  mapping framework and gesture conflicts with forecast cycling. Keep the base
+  layer translucent and radar independent so geography stays readable and the
+  photograph remains visible. Follow
+  RainViewer's stricter transition limits, serialize and cache tile requests,
+  and preload complete frames before animation to avoid partial-image flicker.
+  Use synchronized time for expiry; radar failures remain isolated from the
+  existing Open-Meteo and clock paths.

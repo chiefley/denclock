@@ -146,8 +146,9 @@ Chromium when closed. See the [installation guide](../../docs/clock-window-contr
 ## Interactive forecast
 
 The forecast initially shows 24 elapsed hours from the synchronized current hour.
-A click or tap across its area toggles a ten-calendar-day view beginning today in
-the configured forecast timezone. Enter/Space also toggles the focused forecast;
+A click or tap across its area cycles a ten-calendar-day view beginning today in
+the configured forecast timezone, then radar, then hourly. Enter/Space also
+advances the focused forecast;
 the attribution link retains normal navigation. Selection remains local to the
 page lifetime. Both views share position, dimensions, transparent background and
 SVG rendering. Hourly styling retains three-hour labels and precipitation bars;
@@ -158,7 +159,29 @@ maximum precipitation percentages, and scales with padding around the data.
 One Open-Meteo request includes hourly temperatures/probabilities and ten daily
 highs/lows/maximum precipitation probabilities. Existing 15-minute refresh,
 eight-second timeout, request serialization, location invalidation and failure
-retention continue; toggling itself never fetches. Missing daily values are gaps,
+retention continue; changing views does not trigger a forecast API request. Missing daily values are gaps,
 missing probabilities are omitted, and partial data is indicated. An unavailable
 daily series does not invalidate valid hourly data. No weather values are
 synthesized, and daily selection follows calendar dates across DST and midnight.
+
+## Historical radar
+
+The third forecast mode fills the existing forecast rectangle with a responsive,
+fixed regional map centered on configured weather coordinates. A subdued dark
+OSM layer and more opaque RainViewer precipitation preserve photograph visibility.
+There are no map controls or new navigation buttons; attribution links remain
+visible. Historical frames are obtained from dynamic metadata host/path values,
+using zoom 7, Universal Blue (2), and smoothing/snow options `1_1`.
+
+Metadata refreshes every five minutes independently of forecast polling. Tiles
+load only while visible, are cached, and start no more frequently than every
+800 ms. Complete frames are assembled before display. Animation plays two
+chronological cycles at 500 ms/frame, then holds newest available; re-entry
+replays cached frames. Missing frames are skipped with an availability message.
+A refresh failure retains usable imagery with a delay indicator; ten minutes
+without refreshed metadata or a newest frame twenty minutes old also marks a
+delay. Imagery with a newest frame
+thirty minutes old is hidden. Time comparisons use synchronized UTC. A location
+change clears the previous map; resize/reveal recomputes the viewport. Leaving
+radar or hiding the page stops animation. Disposal releases requests, timers,
+resize observation and caches. See [radar operation and provider constraints](radar.md).

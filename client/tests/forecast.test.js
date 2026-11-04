@@ -161,17 +161,20 @@ test('whole-area toggles immediately, preserves attribution, renders refreshes a
  assert.match(title.textContent,/Next 24 hours/);
  const hourly=graph.innerHTML;
  area.handlers.get('click')({target:graph});
- assert.match(title.textContent,/Next 10 days/); assert.equal(area.attributes.get('aria-pressed'),'true');
+ assert.match(title.textContent,/Next 10 days/); assert.match(area.attributes.get('aria-label'),/show weather radar/);
  assert.match(graph.innerHTML,/forecast-low/); assert.equal(requests,1);
  client.sample.days[0].high=30; tick(); assert.match(graph.innerHTML,/86°/);
  area.handlers.get('click')({target:{closest:()=>({})}}); // Credit navigates normally.
  assert.match(title.textContent,/Next 10 days/);
  let prevented=false;
  area.handlers.get('keydown')({target:area,key:' ',preventDefault:()=>{prevented=true;}});
- assert.ok(prevented); assert.equal(graph.innerHTML,hourly); assert.equal(requests,1);
+ assert.ok(prevented); assert.match(title.textContent,/Weather radar/);
+ area.handlers.get('click')({target:area});
+ assert.equal(graph.innerHTML,hourly); assert.equal(requests,1);
  area.handlers.get('click')({target:area}); client.sample.days=[]; tick();
  assert.match(root.getElementById('forecast-status').textContent,/Daily forecast unavailable/);
  assert.ok(graph.attributes.has('hidden'));
+ area.handlers.get('click')({target:area}); // Daily -> radar -> hourly.
  area.handlers.get('click')({target:area}); assert.equal(graph.innerHTML,hourly);
  stop(); assert.ok(stopped); assert.equal(area.handlers.size,0);
 });
