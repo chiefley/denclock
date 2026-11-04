@@ -8,6 +8,7 @@ struct SX1262 {
     uint8_t syncWord = 0, controlBits = 0;
     int8_t power = 0;
     unsigned receiveStarts = 0;
+    int16_t readResult = 0;
     uint8_t packet[16]{};
     SX1262(Module*) {}
     int16_t begin(float f,float bandwidth,int sf,int cr,uint8_t,int8_t p,int preamble,float tcxo) {
@@ -20,7 +21,7 @@ struct SX1262 {
     void setPacketReceivedAction(void (*)()) {}
     void standby() {}
     size_t getPacketLength() { return sizeof(packet); }
-    int16_t readData(uint8_t* out, size_t n) { memcpy(out, packet, n); return 0; }
+    int16_t readData(uint8_t* out, size_t n) { memcpy(out, packet, n); return readResult; }
     float getRSSI() { return -60; }
     float getSNR() { return 5; }
 };

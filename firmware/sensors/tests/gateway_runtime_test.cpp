@@ -39,6 +39,7 @@ int main() {
     assert(radio.receiveStarts == starts + 1 && diagnostics.accepted == 1);
     assert(service.frames.size() > hello.size());
     assert(service.frames.find(std::string(reinterpret_cast<char*>(radio.packet), sizeof(radio.packet))) != std::string::npos);
+    commands("exit\n");
     service.stop(); fakeMillis += RetryMs;
     WiFi.resolvedAddress = 0x05060708;
     maintainConnection();

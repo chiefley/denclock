@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include "gateway_serial.h"
 #include <WiFi.h>
 #include <SSD1306Wire.h>
 #include "config.h"
@@ -35,7 +36,7 @@ void updateConnectivity() {
         lastWifiSignalRead = now;
     }
     if (diagnostics.serverConnected && !server)
-        Serial.println("LoRa Service TCP disconnected");
+        GatewaySerial::println("LoRa Service TCP disconnected");
     diagnostics.connectivity(wifi, server, signal);
 }
 
@@ -110,7 +111,7 @@ bool sendFrame(const uint8_t* frame, size_t length) {
         sent += count;
     }
     if (sent == length) return true;
-    Serial.println("TCP write failed; dropping frame and reconnecting");
+    GatewaySerial::println("TCP write failed; dropping frame and reconnecting");
     service.stop(); // Never append a new frame after an incomplete frame.
     lastTcpAttempt = millis();
     return false;
@@ -120,7 +121,7 @@ void maintainConnection() {
     if (provisioning.active) { service.stop(); return; }
     const uint32_t now = millis();
     if (!provisioning.usable()) {
-        if (service.connected()) Serial.println("Wi-Fi lost; closing TCP connection");
+        if (service.connected()) GatewaySerial::println("Wi-Fi lost; closing TCP connection");
         service.stop();
         return;
     }
@@ -128,37 +129,37 @@ void maintainConnection() {
     if (uint32_t(now - lastTcpAttempt) < RetryMs) return;
     lastTcpAttempt = now;
     service.stop();
-    Serial.printf("Connecting to LoRa Service %s:%u\n", activeConfig.host, LORA_SERVICE_PORT);
+    GatewaySerial::printf("Connecting to LoRa Service %s:%u\n", activeConfig.host, LORA_SERVICE_PORT);
     IPAddress address;
     if (!resolveServiceHost(activeConfig.host, address)) {
-        Serial.printf("LoRa Service hostname resolution failed for %s; will retry\n", activeConfig.host);
+        GatewaySerial::printf("LoRa Service hostname resolution failed for %s; will retry\n", activeConfig.host);
         return;
     }
-    Serial.printf("LoRa Service %s resolved to %s\n", activeConfig.host, address.toString().c_str());
+    GatewaySerial::printf("LoRa Service %s resolved to %s\n", activeConfig.host, address.toString().c_str());
     if (!service.connect(address, LORA_SERVICE_PORT, 1000)) {
-        Serial.println("LoRa Service TCP connection attempt failed; will retry");
+        GatewaySerial::println("LoRa Service TCP connection attempt failed; will retry");
         return;
     }
     service.setNoDelay(true);
     service.setTimeout(1); // WiFiClient uses seconds for socket I/O timeout.
     uint8_t hello[4];
     GatewayProtocol::encodeHello(hello, GatewayId);
-    if (sendFrame(hello, sizeof(hello))) Serial.println("Gateway 1 connected; HELLO sent");
+    if (sendFrame(hello, sizeof(hello))) GatewaySerial::println("Gateway 1 connected; HELLO sent");
 }
 
 void onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
     switch (event) {
         case ARDUINO_EVENT_WIFI_STA_CONNECTED:
-            Serial.println("Wi-Fi associated with access point");
+            GatewaySerial::println("Wi-Fi associated with access point");
             break;
 
         case ARDUINO_EVENT_WIFI_STA_GOT_IP:
-            Serial.print("Wi-Fi connected. IP: ");
-            Serial.println(WiFi.localIP());
+            GatewaySerial::print("Wi-Fi connected. IP: ");
+            GatewaySerial::println(WiFi.localIP());
             break;
 
         case ARDUINO_EVENT_WIFI_STA_DISCONNECTED:
-            Serial.printf("Wi-Fi disconnected. Reason: %d\n",
+            GatewaySerial::printf("Wi-Fi disconnected. Reason: %d\n",
                           info.wifi_sta_disconnected.reason);
             break;
 
@@ -170,7 +171,7 @@ void onWiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info) {
 void startRadioReceive() {
     int16_t state = radio.startReceive();
     if (state != RADIOLIB_ERR_NONE) {
-        Serial.printf("Radio receive start failed: %d; reset required\n", state);
+        GatewaySerial::printf("Radio receive start failed: %d; reset required\n", state);
         while (true) delay(1000);
     }
 }
@@ -178,7 +179,8 @@ void startRadioReceive() {
 void setup() {
     Serial.begin(115200);
     activeConfig = GatewayConfiguration::load();
-    console = GatewayConfiguration::Console(activeConfig);
+    console.reset(activeConfig);
+    GatewaySerial::bind(console.active);
     delay(1000);
     pinMode(Vext, OUTPUT);
     digitalWrite(Vext, LOW);
@@ -193,7 +195,7 @@ void setup() {
     updateDisplay();
     int16_t state = initializeRadio(radio, 10, activeConfig.frequencyKhz, activeConfig.sync);
     if (state != RADIOLIB_ERR_NONE) {
-        Serial.printf("Radio initialization failed: %d\n", state);
+        GatewaySerial::printf("Radio initialization failed: %d\n", state);
         while (true) delay(1000);
     }
     radio.setPacketReceivedAction(packetReceived);
@@ -201,9 +203,9 @@ void setup() {
     WiFi.onEvent(onWiFiEvent);
     provisioning.begin();
     lastTcpAttempt = millis() - RetryMs;
-    Serial.printf("Gateway transport: %.3f MHz, sync 0x%04X, CRC on\n",
+    GatewaySerial::printf("Gateway transport: %.3f MHz, sync 0x%04X, CRC on\n",
                   activeConfig.frequencyKhz / 1000.0, unsigned(activeConfig.sync));
-    Serial.println("Enter config to configure the gateway.");
+    GatewaySerial::println("Enter config to configure the gateway.");
 }
 
 void loop() {
@@ -220,23 +222,23 @@ void loop() {
         startRadioReceive();
         if (state != RADIOLIB_ERR_NONE) {
             diagnostics.reject("radio packet failure", state, millis());
-            Serial.printf("RX discarded: radio error %d\n", state);
+            GatewaySerial::printf("RX discarded: radio error %d\n", state);
         } else if (!diagnostics.observe(packet, length, rssi, snr, millis())) {
-            Serial.printf("OLED report rejected: %s\n", diagnostics.lastError);
+            GatewaySerial::printf("OLED report rejected: %s\n", diagnostics.lastError);
         }
         updateDisplay();
         // OLED protocol validation is observational: preserve raw forwarding.
         if (state == RADIOLIB_ERR_NONE) {
             if (provisioning.active || WiFi.status() != WL_CONNECTED || !service.connected()) {
-                Serial.println("RX discarded: service disconnected");
+                GatewaySerial::println("RX discarded: service disconnected");
             } else {
                 uint8_t frame[GatewayProtocol::MaxFrameLength];
                 size_t frameLength = GatewayProtocol::encodeRx(
                     frame, packet, length, rssi, snr);
                 if (frameLength == 0) {
-                    Serial.println("RX discarded: radio metadata outside wire range");
+                    GatewaySerial::println("RX discarded: radio metadata outside wire range");
                 } else if (sendFrame(frame, frameLength)) {
-                    Serial.printf("RX_PACKET forwarded: %u raw LoRa bytes\n", unsigned(length));
+                    GatewaySerial::printf("RX_PACKET forwarded: %u raw LoRa bytes\n", unsigned(length));
                 }
             }
         }

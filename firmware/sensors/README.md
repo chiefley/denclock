@@ -243,7 +243,18 @@ Open the PlatformIO serial monitor at 115200 baud and enter `config` at any time
 no reset or startup window is needed. The console echoes characters, accepts CR,
 LF or CRLF, supports Backspace/Delete, and displays `> ` while accepting commands.
 Disable terminal local echo if characters appear twice. Commands ignore case;
-hostname values retain their entered case. Diagnostics may interleave with input.
+hostname values retain their entered case. While configuration is active, only
+console echoes, prompts, responses, help and command errors appear on serial.
+Unsolicited packet, Wi-Fi, TCP, resolution, retry and provisioning diagnostics
+are discarded, without buffering or later replay. `exit` or the five-minute
+inactivity timeout restores subsequent normal diagnostic output without reboot.
+Radio/network processing, retries, OLED status and counters continue unchanged;
+`save`, `defaults` and `reboot` retain their existing behavior.
+
+This supersedes Story 011's permission for diagnostics to interleave with console
+input; the completed story remains the historical request. The developer verified and
+accepted the [serial diagnostic suppression story](docs/stories/completed/014-suppress-gateway-serial-diagnostics-during-configuration.md)
+on the physical gateway.
 
 | Command | Meaning / range |
 | --- | --- |
@@ -325,6 +336,8 @@ g++ -std=c++11 -Wall -Wextra -Werror -pedantic firmware/sensors/tests/gateway_co
 /tmp/denclock-gateway-config
 g++ -std=c++11 -Wall -Wextra -Werror -pedantic -I firmware/sensors/tests/console_fakes firmware/sensors/tests/gateway_console_test.cpp -o /tmp/denclock-gateway-console
 /tmp/denclock-gateway-console
+g++ -std=c++11 -Wall -Wextra -Werror -pedantic -I firmware/sensors/tests/gateway_fakes -I firmware/sensors/tests/console_fakes -I firmware/sensors/lora-gateway/include firmware/sensors/tests/gateway_serial_test.cpp -o /tmp/denclock-gateway-serial
+/tmp/denclock-gateway-serial
 g++ -std=c++11 -Wall -Wextra -Werror -pedantic -I firmware/sensors/tests/gateway_fakes -I firmware/sensors/tests/console_fakes -I firmware/sensors/lora-gateway/include firmware/sensors/tests/gateway_runtime_test.cpp -o /tmp/denclock-gateway-runtime
 /tmp/denclock-gateway-runtime
 ```

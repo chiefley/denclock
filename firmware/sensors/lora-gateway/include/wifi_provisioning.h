@@ -1,4 +1,5 @@
 #pragma once
+#include "gateway_serial.h"
 #include <WiFi.h>
 #include "setup_dns.h"
 #include <esp_system.h>
@@ -197,13 +198,13 @@ public:
         active=true; testing=success=delivered=false;
         message="Choose your household Wi-Fi network.";
         scan();
-        Serial.println("Wi-Fi setup available; see OLED for access details.");
+        GatewaySerial::println("Wi-Fi setup available; see OLED for access details.");
     }
     void stop() {
         dropBrowser(); server.end(); dns.stop(); WiFi.scanDelete(); scanRunning=false;
         WiFi.softAPdisconnect(true); WiFi.mode(WIFI_STA);
         active=false; success=false; offline=false;
-        Serial.println("Wi-Fi setup complete; temporary access point stopped.");
+        GatewaySerial::println("Wi-Fi setup complete; temporary access point stopped.");
     }
     void tick() {
         const uint32_t now=millis();

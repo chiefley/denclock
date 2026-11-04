@@ -1,4 +1,5 @@
 #pragma once
+#include "gateway_serial.h"
 #include <WiFi.h>
 #include <mdns.h>
 #include "gateway_config.h"
@@ -18,7 +19,7 @@ inline bool resolveServiceHost(const char* host, IPAddress& address) {
         if (!initialized) {
             const esp_err_t error = mdns_init();
             if (error != ESP_OK) {
-                Serial.printf("mDNS client initialization failed (%d); will retry\n", int(error));
+                GatewaySerial::printf("mDNS client initialization failed (%d); will retry\n", int(error));
                 return false;
             }
             // No mdns_hostname_set or service registration: query only.

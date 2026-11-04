@@ -223,7 +223,14 @@ Enter `config` at 115200 baud during operation. Commands are case-insensitive;
 LF and CRLF, echoes characters, handles Backspace/Delete and displays `> `.
 Input is bounded to 287 characters; invalid or oversized lines cannot partially
 modify settings. Each poll consumes at most 64 input characters and contains no
-entry wait. Diagnostic output may interleave with the console.
+entry wait. While configuration is active, unsolicited serial diagnostics are
+discarded, including packet, connection, resolution, retry and provisioning
+messages. Console echo, prompts, command responses, help, validation errors and
+save failures remain visible. `exit` and the five-minute inactivity timeout
+restore subsequent diagnostics without reboot; discarded messages are never
+buffered or replayed. Radio reception, forwarding, retries, error processing and
+OLED state/counters continue. This supersedes the interleaved-output behavior
+originally permitted by completed Story 011.
 
 `set frequency N` accepts 902125–927875 integer kHz. `set sync HHHH` accepts
 exactly four hexadecimal digits with an optional `0x` prefix, using the existing

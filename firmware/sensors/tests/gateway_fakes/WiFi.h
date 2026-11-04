@@ -85,7 +85,7 @@ public:
     explicit operator bool() { return connected(); }
     int available() { int n=0; if (fd()>=0) ioctl(fd(),FIONREAD,&n); return n; }
     int read() { char c; if(recv(fd(),&c,1,MSG_DONTWAIT)!=1) return -1; ++browserReads; return static_cast<unsigned char>(c); }
-    bool connectedValue = false, connectOk = true;
+    bool connectedValue = false, connectOk = true, writeOk = true;
     unsigned connects = 0;
     uint32_t lastAddress = 0;
     std::string frames;
@@ -96,7 +96,7 @@ public:
         ++connects; lastAddress = uint32_t(ip); connectedValue = connectOk;
         return connectedValue;
     }
-    size_t write(const uint8_t* bytes, size_t n) { frames.append(reinterpret_cast<const char*>(bytes), n); return n; }
+    size_t write(const uint8_t* bytes, size_t n) { if (!writeOk) return 0; frames.append(reinterpret_cast<const char*>(bytes), n); return n; }
     void setNoDelay(bool) {}
     void setTimeout(unsigned) {}
 };

@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+#include <atomic>
 #include <Preferences.h>
 #include "gateway_config.h"
 
@@ -25,12 +26,20 @@ inline bool save(const Config& config) {
 }
 struct Console {
     Config working, saved;
-    bool active = false;
+    // Wi-Fi event callbacks read this state from the ESP32 event task.
+    std::atomic<bool> active{false};
     uint32_t lastCommand = 0;
     char line[288]{};
     size_t length = 0;
     bool invalid = false, previousWasCr = false;
     explicit Console(const Config& config) : working(config), saved(config) {}
+    void reset(const Config& config) {
+        working = saved = config;
+        active = false;
+        lastCommand = 0;
+        length = 0; line[0] = 0;
+        invalid = previousWasCr = false;
+    }
     void prompt() { if (active) Serial.printf("> "); }
     void show() {
         Serial.printf("DenClock Gateway Configuration\n\nLoRa Frequency: %.3f MHz\nLoRa Sync:      0x%04X\nService Host:   %s\nService Port:   %u\n\nConfiguration: %s\n",
