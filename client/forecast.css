@@ -1,6 +1,6 @@
 .forecast {
   position: absolute; z-index: 1; top: 41vh; left: 6vw; right: 3vw;
-  height: 57vh; background: transparent; color: #f6f1e6;
+  height: 57vh; user-select: none; -webkit-user-select: none; touch-action: manipulation; cursor: pointer; background: transparent; color: #f6f1e6;
   font-family: var(--display-font); text-shadow: 0 2px 4px #000, 0 0 8px #000;
 }
 .forecast-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
@@ -16,3 +16,11 @@
 .forecast-rain { fill: #9bdbed; opacity: .42; }
 .forecast-credit { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); white-space: nowrap; text-align: center; font-size: 12px; color: #ddd; }
 .forecast-credit a { color: inherit; }
+
+.forecast:focus-visible { outline: 1px solid #bce3ef; outline-offset: 4px; }
+#forecast-graph text.forecast-high { fill: #ffe0a3; }
+#forecast-graph text.forecast-low { fill: #bce3ef; }
+.forecast-line.forecast-low { stroke: #bce3ef; }
+.forecast-point.forecast-high { fill: #ffe0a3; }
+.forecast-point.forecast-low { fill: #bce3ef; }
+#forecast-graph text.forecast-probability { fill: #bce3ef; font-size: 17px; }

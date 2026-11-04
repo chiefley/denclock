@@ -200,25 +200,51 @@ not implemented; enter identifiers manually.
 
 ## Hourly forecast
 
-The lower transparent graph shows 24 hourly temperatures from the current hour,
+The lower transparent graph initially shows 24 hourly temperatures from the current hour,
 with three-hour labels and blue precipitation-probability bars. Forecast Location in the gear settings accepts a city/state or five-digit US ZIP
 code. Open-Meteo resolves coordinates and a successful forecast is required before
 saving a changed location. Lookup failures retain the draft and previous saved
 settings. Location and coordinates persist with presentation settings and appear
-before “Next 24 hours” and the unit in the forecast heading; all displays refresh when settings polling detects a
+before the forecast range and the unit in the forecast heading; all displays refresh when settings polling detects a
 change. Existing installations default to Granger Township, Ohio. Open-Meteo is requested directly over HTTPS
 every 15 minutes, with eight-second timeouts and no overlapping requests.
 See https://open-meteo.com/en/docs. Displayed units follow presentation settings.
 Forecast selection uses synchronized server UTC; labels use the location timezone.
 Failed updates retain usable data with a delay message; expired data is hidden.
-Retries recover automatically. Missing temperatures break the line. Ten-day
-forecast and radar remain deferred. The developer has verified and accepted
+Retries recover automatically. Missing temperatures break the line. Radar remains deferred. The developer has verified and accepted
 [Transparent Hourly Forecast](docs/stories/completed/006-hourly-forecast.md).
 
 Forecast temperature-axis labels are omitted; values remain on the line. AM/PM
 suffixes use 65% of the hour font size on the same baseline. The Open-Meteo
 credit is centered below the time axis, clear of the embedded cabin logo.
 Date and sensor-detail rows are lifted 4vh without moving the main values.
+
+Tap or click anywhere in the forecast area to switch immediately between the
+24-hour and ten-day views. The existing Open-Meteo attribution link still opens
+its source. The forecast is also focusable: Enter or Space switches views. Page
+reload returns to hourly; the view choice is not persisted. No new visible
+navigation controls are added.
+
+The daily chart shows today and nine more calendar days in the forecast location's
+timezone, with gold highs, pale-blue lows, weekday labels and available daily
+maximum rain probabilities. It has no grid or temperature axis, uses the same
+transparent SVG area, and leaves missing temperatures as gaps. Missing rain
+probabilities are omitted. Partial daily data displays an availability message;
+fully unavailable daily temperatures hide that chart while the hourly view remains
+accessible. Condition icons are omitted to keep the graph uncluttered.
+
+Both views share one ten-day API response and the existing 15-minute refresh,
+timeout, location-change and error recovery behavior; taps do not fetch data.
+Daily dates use the provider's documented Unix timestamp offset, while selection
+of today uses synchronized UTC and the location timezone. No host-clock fallback
+or invented forecast values are used.
+
+For [Interactive Forecast Display](docs/stories/completed/013-interactive-forecast-display.md),
+verify both views at 1024 × 600 and on the touchscreen: tap heading, graph and
+empty space, confirm a single transition each time, readable highs/lows, and
+continued background visibility. Check units, partial/unavailable daily data,
+auto-refresh, midnight rollover, location changes and returning to hourly.
+The developer verified and accepted the interactive forecast on November 3, 2026.
 
 ## Window and fullscreen control
 

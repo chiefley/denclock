@@ -35,8 +35,8 @@
     <div id="date" class="date"></div>
     <div id="sync-status" class="sync-status" role="status">Waiting for time</div>
   </main>
-  <section class="forecast" aria-labelledby="forecast-title">
-    <div class="forecast-heading"><h2 id="forecast-title">Next 24 hours</h2><span class="forecast-key">Blue bars · precipitation chance</span></div>
+  <section id="forecast-area" class="forecast" role="button" tabindex="0" aria-label="Hourly forecast. Activate to show ten-day forecast." aria-pressed="false">
+    <div class="forecast-heading"><h2 id="forecast-title">Next 24 hours</h2><span id="forecast-key" class="forecast-key">Blue bars · precipitation chance</span></div>
     <p id="forecast-status" role="status">Loading forecast…</p>
     <svg id="forecast-graph" viewBox="0 0 960 290" role="img" aria-label="Hourly temperature forecast" hidden></svg>
     <span class="forecast-credit"><a href="https://open-meteo.com/" target="_blank" rel="noopener">Weather by Open-Meteo</a></span>

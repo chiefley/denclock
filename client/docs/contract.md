@@ -117,7 +117,7 @@ restored on restart through presentation polling, independently of sensor settin
 
 A changed coordinate pair triggers forecast retrieval and clears old-location
 data. Older in-flight results cannot replace the new location's forecast.
-The configured display name precedes “Next 24 hours” and the unit in the heading.
+The configured display name precedes the forecast range and the unit in the heading.
 The Open-Meteo credit is centered beneath the forecast time axis. Normal weather failures retain
 usable same-location data and retry automatically. Open-Meteo indexes the default
 area as “Granger, OH”; “Granger Township, OH” does not resolve.
@@ -142,3 +142,23 @@ The optional XFCE/X11 helper listens on 127.0.0.1:5001, permits only the local
 clock origins on port 5000 with an exact Host check, and controls only a single
 DenClock-class window. The app-window launcher starts fullscreen and relaunches
 Chromium when closed. See the [installation guide](../../docs/clock-window-control.md).
+
+## Interactive forecast
+
+The forecast initially shows 24 elapsed hours from the synchronized current hour.
+A click or tap across its area toggles a ten-calendar-day view beginning today in
+the configured forecast timezone. Enter/Space also toggles the focused forecast;
+the attribution link retains normal navigation. Selection remains local to the
+page lifetime. Both views share position, dimensions, transparent background and
+SVG rendering. Hourly styling retains three-hour labels and precipitation bars;
+neither view has a vertical temperature axis. The daily graph has no gridlines,
+uses gold highs and pale-blue lows with small values, weekdays and available
+maximum precipitation percentages, and scales with padding around the data.
+
+One Open-Meteo request includes hourly temperatures/probabilities and ten daily
+highs/lows/maximum precipitation probabilities. Existing 15-minute refresh,
+eight-second timeout, request serialization, location invalidation and failure
+retention continue; toggling itself never fetches. Missing daily values are gaps,
+missing probabilities are omitted, and partial data is indicated. An unavailable
+daily series does not invalidate valid hourly data. No weather values are
+synthesized, and daily selection follows calendar dates across DST and midnight.

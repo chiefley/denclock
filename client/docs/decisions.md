@@ -69,3 +69,11 @@ See [client README](../README.md) for operation and verification, and the
   state for the dedicated DenClock window; browser fullscreen alone cannot
   restore a locked kiosk window. Keep this platform-specific integration outside
   the server and restrict it to the local clock page.
+
+- Keep hourly and daily forecasts in one Open-Meteo response and the existing SVG
+  chart area. Changing views only selects cached data, avoiding tap latency and
+  extra requests. Keep the view choice in page memory and omit condition icons
+  to emphasize the temperature trend without adding visual clutter. Daily Unix
+  timestamps are converted with the provider's response offset; calendar-day
+  selection uses synchronized UTC in the forecast timezone, independent of host
+  time and of elapsed-hour arithmetic across DST.

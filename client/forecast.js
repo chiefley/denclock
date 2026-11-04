@@ -6,7 +6,8 @@ export function forecastUrl(location) {
       !finite(location.longitude) || Math.abs(location.longitude) > 180) return null;
   // Unix timestamps keep the hourly sequence unambiguous across DST changes.
   const params = new URLSearchParams({ latitude: location.latitude, longitude: location.longitude,
-    hourly: 'temperature_2m,precipitation_probability', forecast_days: 3,
+    hourly: 'temperature_2m,precipitation_probability',
+    daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max', forecast_days: 10,
     timeformat: 'unixtime', timezone: 'auto', temperature_unit: 'celsius' });
   return 'https://api.open-meteo.com/v1/forecast?' + params;
 }
@@ -29,7 +30,49 @@ export function parseForecast(data) {
       throw new Error('Invalid hourly data');
     return { time: t * 1000, temperature, precipitation };
   });
-  return { hours, timezone: data.timezone };
+  return { hours, days: parseDays(data), timezone: data.timezone };
+}
+
+// Daily Unix timestamps use the response's UTC offset to identify calendar dates,
+// as specified by Open-Meteo. Keep dates separate from elapsed hourly timestamps.
+function parseDays(data) {
+  const d = data.daily, units = data.daily_units;
+  if (!Array.isArray(d?.time) || !finite(data.utc_offset_seconds) ||
+      Math.abs(data.utc_offset_seconds) > 86400 ||
+      units?.temperature_2m_max !== '°C' || units?.temperature_2m_min !== '°C') return [];
+  const temperature = value => finite(value) && Math.abs(value) <= 100 ? value : null;
+  const days = new Map();
+  d.time.forEach((time, i) => {
+    if (!finite(time)) return;
+    const date = new Date((time + data.utc_offset_seconds) * 1000);
+    if (!Number.isFinite(date.getTime())) return;
+    const key = date.toISOString().slice(0, 10);
+    let high = temperature(d.temperature_2m_max?.[i]), low = temperature(d.temperature_2m_min?.[i]);
+    if (high !== null && low !== null && high < low) high = low = null;
+    const rain = d.precipitation_probability_max?.[i];
+    const precipitation = units.precipitation_probability_max === '%' && finite(rain) && rain >= 0 && rain <= 100 ? rain : null;
+    days.set(key, { date: key, high, low, precipitation });
+  });
+  return [...days.values()];
+}
+
+function localDate(utc, timezone) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(utc);
+  const part = type => parts.find(p => p.type === type).value;
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
+export function selectDays(sample, utc) {
+  if (!sample) return [];
+  const today = Date.parse(localDate(utc, sample.timezone) + 'T00:00:00Z');
+  const days = new Map((sample.days ?? []).map(day => [day.date, day]));
+  // Empty calendar slots preserve gaps; no missing forecast values are invented.
+  return Array.from({ length: 10 }, (_, i) => {
+    const date = new Date(today + i * 24 * HOUR).toISOString().slice(0, 10);
+    return days.get(date) ?? { date, high: null, low: null, precipitation: null };
+  });
 }
 
 export function selectHours(sample, utc) {
@@ -105,34 +148,87 @@ export function chartMarkup(hours, unit, timezone) {
   return svg + `<path class="forecast-line" d="${path}"/>`;
 }
 
+export function dailyChartMarkup(days, unit) {
+  const temp = value => value === null ? null : unit === 'F' ? value * 1.8 + 32 : value;
+  const values = days.flatMap(day => [temp(day.high), temp(day.low)]).filter(finite);
+  if (!values.length) return '';
+  const min = Math.min(...values), max = Math.max(...values);
+  const padding = Math.max(3, (max - min) * .15);
+  const low = min - padding, high = max + padding;
+  const x = i => 58 + i * 864 / 9;
+  const y = t => 194 - (t - low) / (high - low) * 150;
+  const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: 'UTC' });
+  let svg = '';
+  for (const series of ['high', 'low']) {
+    let path = '', pen = false;
+    days.forEach((day, i) => {
+      const t = temp(day[series]);
+      if (t === null) { pen = false; return; }
+      path += `${pen ? 'L' : 'M'}${x(i)},${y(t)} `; pen = true;
+      svg += `<circle class="forecast-point forecast-${series}" cx="${x(i)}" cy="${y(t)}" r="2.5"/>`;
+      svg += `<text class="forecast-value forecast-${series}" x="${x(i)}" y="${y(t) + (series === 'high' ? -12 : 24)}" text-anchor="middle">${Math.round(t)}°</text>`;
+    });
+    svg += `<path class="forecast-line forecast-${series}" d="${path}"/>`;
+  }
+  days.forEach((day, i) => {
+    if (day.precipitation !== null) svg += `<text class="forecast-probability" x="${x(i)}" y="242" text-anchor="middle">${Math.round(day.precipitation)}%</text>`;
+    svg += `<text x="${x(i)}" y="270" text-anchor="middle">${weekday.format(new Date(day.date + 'T00:00:00Z'))}</text>`;
+  });
+  return svg;
+}
+
 export function initializeForecast(root, client, timeClient, presentation) {
   const status = root.getElementById('forecast-status'), graph = root.getElementById('forecast-graph');
-  const title = root.getElementById('forecast-title');
-  let previous = '';
+  const title = root.getElementById('forecast-title'), area = root.getElementById('forecast-area');
+  const key = root.getElementById('forecast-key');
+  let previous = '', daily = false;
   const render = () => {
     client.setLocation(presentation.read().forecastLocation);
     const clock = timeClient.sample;
     const utc = clock ? clock.utcMilliseconds + timeClient.now() - clock.receivedAt : null;
     const hours = utc === null ? [] : selectHours(client.sample, utc);
-    const usable = hours.length === 24 && hours.some(h => h.temperature !== null);
+    const days = utc === null ? [] : selectDays(client.sample, utc);
+    const usable = daily ? days.some(day => day.high !== null || day.low !== null) :
+      hours.length === 24 && hours.some(h => h.temperature !== null);
+    const incomplete = daily && usable && days.some(day => day.high === null || day.low === null);
     const unit = presentation.read().temperatureUnit ?? 'F';
     status.textContent = !client.url ? 'Waiting for forecast settings' : utc === null ? 'Waiting for synchronized time' :
       !client.sample ? (client.lastError ? 'Forecast unavailable · retrying automatically' : 'Loading forecast…') :
-      !usable ? 'Forecast expired · waiting for an update' : client.lastError || client.now() - client.sample.receivedAt >= HOUR ?
-      'Forecast update delayed · showing last available data' : '';
+      !usable ? (daily ? 'Daily forecast unavailable · waiting for an update' : 'Forecast expired · waiting for an update') :
+      client.lastError || client.now() - client.sample.receivedAt >= HOUR ?
+      'Forecast update delayed · showing last available data' : incomplete ? 'Some daily forecasts unavailable' : '';
     const locationPrefix = client.location?.displayName ? `${client.location.displayName} · ` : '';
-    title.textContent = `${locationPrefix}Next 24 hours · °${unit}`;
-    const markup = usable ? chartMarkup(hours, unit, client.sample.timezone) : '';
+    title.textContent = `${locationPrefix}${daily ? 'Next 10 days' : 'Next 24 hours'} · °${unit}`;
+    key.textContent = daily ? 'High / low · rain chance' : 'Blue bars · precipitation chance';
+    area.setAttribute('aria-label', `${daily ? 'Ten-day' : 'Hourly'} forecast. Activate to show ${daily ? 'hourly' : 'ten-day'} forecast.`);
+    area.setAttribute('aria-pressed', String(daily));
+    const markup = usable ? daily ? dailyChartMarkup(days, unit) : chartMarkup(hours, unit, client.sample.timezone) : '';
     if (markup !== previous) { graph.innerHTML = markup; previous = markup; }
     graph.toggleAttribute('hidden', !usable);
-    if (usable) graph.setAttribute('aria-label', `Hourly forecast in degrees ${unit}. ` + hours.map(h =>
+    const degrees = value => value === null ? 'unavailable' : `${Math.round(unit === 'F' ? value * 1.8 + 32 : value)} degrees`;
+    if (usable) graph.setAttribute('aria-label', daily ? `Daily forecast in degrees ${unit}. ` + days.map(day =>
+      `${day.date}: high ${degrees(day.high)}, low ${degrees(day.low)}` +
+      (day.precipitation === null ? ', precipitation chance unavailable' : `, ${day.precipitation}% precipitation chance`)).join('; ') :
+      `Hourly forecast in degrees ${unit}. ` + hours.map(h =>
       `${new Intl.DateTimeFormat('en-US', { hour: 'numeric', timeZone: client.sample.timezone }).format(h.time)}: ` +
-      (h.temperature === null ? 'temperature unavailable' : `${Math.round(unit === 'F' ? h.temperature * 1.8 + 32 : h.temperature)} degrees`) +
+      (h.temperature === null ? 'temperature unavailable' : degrees(h.temperature)) +
       (h.precipitation === null ? ', precipitation chance unavailable' : `, ${h.precipitation}% precipitation chance`)).join('; '));
   };
+  const toggle = () => { daily = !daily; render(); };
+  const click = event => { if (!event.target.closest('a')) toggle(); };
+  const keydown = event => {
+    if (event.target === area && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault(); toggle();
+    }
+  };
+  area.addEventListener('click', click);
+  area.addEventListener('keydown', keydown);
   client.start(); render();
   const timer = setInterval(render, 1000);
-  return () => { clearInterval(timer); client.stop(); };
+  return () => {
+    clearInterval(timer); client.stop();
+    area.removeEventListener('click', click); area.removeEventListener('keydown', keydown);
+  };
 }
 
 // Validate before PUT so failed lookups or forecasts leave persisted settings intact.
