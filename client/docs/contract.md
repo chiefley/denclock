@@ -125,7 +125,10 @@ area as “Granger, OH”; “Granger Township, OH” does not resolve.
 ## Display spacing and forecast labels
 
 Date and sensor-detail rows are lifted 4vh without changing layout flow or the
-large values’ positions. Forecast grid lines remain, with no temperature labels
+large values’ positions. The clock group is anchored 5vw from the left, with
+the time line nudged a further .75vw right. Both temperature value lines are
+lifted 1vh for top-row balance. Typography and supporting text vertical offsets
+are preserved. Forecast grid lines remain, with no temperature labels
 on the left axis. Temperatures remain labeled along the line; time-axis AM/PM
 suffixes use 65% of the hour size and share its baseline.
 
