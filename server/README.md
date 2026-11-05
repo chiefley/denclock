@@ -184,6 +184,9 @@ HTTP service operating.
 
 GET /api/presentation supplies both panels in one no-store response; its JSON
 and CORS behavior are documented in [the server contract](docs/contract.md).
+The snapshot includes nullable sensor `batteryVoltage` in volts from the existing
+MQTT measurement; no firmware or LoRaService change is required. Missing or invalid
+voltage stays unknown independently of temperature/humidity.
 No browser MQTT connection or extra broker listener is required.
 
 Verification from the repository root (port 5000 must be free):

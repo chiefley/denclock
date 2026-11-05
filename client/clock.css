@@ -139,3 +139,16 @@ button:disabled { cursor: default; color: #a9b5c5; background: #303945; }
 .mapping-fields { margin: 16px 0; border: 1px solid #71859e; border-radius: 8px; }
 .mapping-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; border-bottom: 1px solid #71859e; padding: 12px 0; margin-bottom: 12px; }
 .mapping-row button { align-self: end; }
+
+/* Overlay the last fractional digit without changing the temperature line's flow. */
+.temperature-tenths { position: relative; display: inline-flex; align-items: baseline; font-size: min(4.2vw, 7.2vh); font-weight: 600; }
+.sensor-battery { position: absolute; right: 0; bottom: calc(100% + 3px); width: 1ch; height: 26px; display: flex; justify-content: center; color: #f1f4f8; opacity: .35; pointer-events: none; }
+.sensor-battery[hidden] { display: none; }
+.sensor-battery svg { width: 13px; height: 26px; fill: currentColor; }
+.sensor-battery .battery-outline { fill: none; stroke: currentColor; stroke-width: 1; }
+.sensor-battery[data-tone="low"] { opacity: .65; color: #e4b96e; }
+.sensor-battery[data-tone="critical"] { opacity: 1; color: #d98181; }
+.sensor-battery[data-level="0"] .battery-segments rect,
+.sensor-battery[data-level="1"] .battery-segments rect:nth-child(n+2),
+.sensor-battery[data-level="2"] .battery-segments rect:nth-child(n+3),
+.sensor-battery[data-level="3"] .battery-segments rect:nth-child(n+4) { display: none; }

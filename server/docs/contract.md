@@ -103,7 +103,8 @@ exact-origin development CORS policy as /api/time. Example:
       "observation": {
         "receivedUtc": "2026-09-22T13:24:24.66779+00:00",
         "temperatureC": 21.86,
-        "relativeHumidity": 52.02
+        "relativeHumidity": 52.02,
+        "batteryVoltage": 3.728
       }
     }
   ]
@@ -112,8 +113,12 @@ exact-origin development CORS policy as /api/time. Example:
 
 There are always two slots in upperLeft/upperRight order. Assigned sensors with
 no report retain their configured identity, label, and age limit but have a null
-observation. Each measurement can independently be null. No secondary view,
-battery/radio diagnostics, or broker configuration is exposed. The snapshot is
+observation. Each measurement can independently be null. Battery voltage is exposed in volts from `measurements.batteryVoltage` with
+canonical units `V`; missing, malformed, nonfinite, negative or out-of-wire-range
+(above 65.535 V) values become null independently of other measurements. A later
+report without battery voltage clears the previous value. Gateway transport
+identity does not represent a battery source. No secondary view, radio diagnostics
+or broker configuration is exposed. The snapshot is
 coherent under concurrent updates; serverUtc is sampled while creating it.
 
 The browser anchors this server timestamp to monotonic elapsed time, converts

@@ -156,6 +156,25 @@ details are readable nearby, and the panels do not collide with the clock/date.
 Check a stale reading, unknown readings, and recovery. The developer verified and accepted story 008 after implementation. Local browser
 checks used fixtures; shelf/NUC verification was performed by the developer.
 
+## Sensor battery status
+
+A small vertical battery icon above each sensor's tenths digit shows its measured
+voltage band: four segments above 3.9 V, three at 3.7–3.9 V, two at 3.5–<3.7 V,
+one at 3.4–<3.5 V, and an empty critical icon below 3.4 V. Full/good is neutral at
+35% opacity; low/very low is amber at 65%; critical is muted red at full opacity.
+The icon is intended for nearby inspection, not an exact state-of-charge reading.
+Missing voltage hides it. Gateway routing IDs do not create gateway battery icons.
+
+Deploy the updated server together with the client to expose the existing sensor
+battery measurement through `/api/presentation`. Firmware and LoRaService already
+provide it; no sensor update or settings change is required. Older server snapshots
+without voltage leave the icon hidden. See the [battery display contract](docs/contract.md#sensor-battery-indicators).
+For [Sensor Battery Status Indicator](../docs/stories/completed/017-sensor-battery-status-indicator.md),
+physical review should check both slots, tenths alignment, close-range contrast
+and low/critical states. The developer confirmed both icons and accepted the
+existing styling on November 4, 2026. Healthy icons are intentionally faint and
+can be harder to see over bright portions of the photograph.
+
 ## Display Settings
 
 The lower-left gear opens settings and fetches actual service configuration on

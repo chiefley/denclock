@@ -201,3 +201,32 @@ try
     Check(store.Read().Configuration.ForecastLocation.Query == "44308", "invalid forecast preserves settings");
 }
 finally { Directory.Delete(forecastDirectory, recursive: true); }
+
+var batteryState = new PresentationState(configuration, NullLogger<PresentationState>.Instance);
+var batteryStamp = stamp;
+void BatteryReport(object measurements)
+{
+    batteryStamp = batteryStamp.AddSeconds(1);
+    Check(batteryState.Receive("lora/sensors/1/1", Encoding.UTF8.GetBytes(Report("den", batteryStamp, measurements))), "battery sensor report accepted");
+}
+BatteryReport(new { temperature = new { value = 22.15, units = "C" }, batteryVoltage = new { value = 3.728, units = "V" } });
+Check(batteryState.Snapshot().Slots[0].Observation is { BatteryVoltage: 3.728, TemperatureC: 22.15 }, "battery volts propagate with temperature");
+Check(batteryState.Snapshot().Slots[0].Observation!.ReceivedUtc == batteryStamp, "battery retains original observation timestamp");
+var batteryJson = JsonSerializer.Serialize(batteryState.Snapshot(), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+Check(JsonDocument.Parse(batteryJson).RootElement.GetProperty("slots")[0].GetProperty("observation").GetProperty("batteryVoltage").GetDouble() == 3.728, "battery exposed as numeric volts");
+foreach (var invalidBattery in new object[] {
+    new { value = -1, units = "V" }, new { value = 65.536, units = "V" },
+    new { value = "3.8", units = "V" }, new { value = 3800, units = "mV" },
+    new { units = "V" }
+})
+{
+    BatteryReport(new { temperature = new { value = 21, units = "C" }, batteryVoltage = invalidBattery });
+    Check(batteryState.Snapshot().Slots[0].Observation is { BatteryVoltage: null, TemperatureC: 21 }, "invalid battery does not discard temperature");
+}
+BatteryReport(new { batteryVoltage = new { value = 0, units = "V" } });
+Check(batteryState.Snapshot().Slots[0].Observation!.BatteryVoltage == 0, "zero volts remains critical rather than unknown");
+BatteryReport(new { batteryVoltage = new { value = 4.1, units = "V" } });
+BatteryReport(new { relativeHumidity = new { value = 52, units = "percent" } });
+Check(batteryState.Snapshot().Slots[0].Observation!.BatteryVoltage is null, "missing battery clears previous value");
+Check(!batteryState.Receive("lora/gateways/1", Encoding.UTF8.GetBytes(Report("den", batteryStamp, new { batteryVoltage = new { value = 4, units = "V" } }))), "gateway data is not a sensor battery source");
+Console.WriteLine("PASS: sensor battery presentation checks");

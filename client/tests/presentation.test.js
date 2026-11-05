@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PresentationClient, SensorDisplay, formatTemperature, validateSnapshot } from '../presentation.js';
+import { PresentationClient, SensorDisplay, formatTemperature, validateSnapshot, batteryState } from '../presentation.js';
 const base = Date.parse('2026-09-22T12:00:00Z');
 const config = { serverAddress: 'http://test/', presentationIntervalMs: 10, requestTimeoutMs: 20 };
 function snapshot({ age = 0, temperatureC = 22.15, relativeHumidity = 52, unit = 'F' } = {}) {
@@ -106,7 +106,7 @@ test('DOM rendering uses unknown, fractional digits, labels, and stale recovery'
   const client = new PresentationClient(config, { now: () => now, fetchSnapshot: async () => response(snapshot()) });
   const panels = new Map(['upperLeft','upperRight'].map(id => [id, {
     elements: new Map(), stale: false, attributes: {},
-    querySelector(key) { if (!this.elements.has(key)) this.elements.set(key, { textContent: '' }); return this.elements.get(key); },
+    querySelector(key) { if (!this.elements.has(key)) this.elements.set(key, { textContent: '', dataset: {}, setAttribute(key, value) { this[key] = value; } }); return this.elements.get(key); },
     classList: { toggle(key, value) { panels.get(id).stale = value; } },
     setAttribute(key, value) { this.attributes[key] = value; },
   }]));
@@ -146,4 +146,38 @@ test('snapshot identity distinguishes matching node numbers across gateways', ()
   assert.equal(validateSnapshot(data).slots.length, 2);
   data.slots[0].gatewayId = 2;
   assert.throws(() => validateSnapshot(data), /identity/);
+});
+
+test('battery voltage bands use explicit boundaries and hide unknown data',()=>{
+ for(const [voltage,bars,tone] of [[4.2,4,'normal'],[3.901,4,'normal'],[3.9,3,'normal'],[3.7,3,'normal'],
+  [3.699,2,'low'],[3.5,2,'low'],[3.499,1,'low'],[3.4,1,'low'],[3.399,0,'critical'],[0,0,'critical']]) {
+  assert.equal(batteryState(voltage).bars,bars);assert.equal(batteryState(voltage).tone,tone);
+ }
+ for(const value of [undefined,null,NaN,Infinity,-1,65.536,'3.8'])assert.equal(batteryState(value),null);
+ const d=snapshot();d.slots[1].observation.batteryVoltage=3.728;
+ assert.equal(validateSnapshot(d).slots[1].observation.batteryVoltage,3.728);
+ for(const value of [undefined,null,'3.8',Infinity,-1,65.536]){
+  d.slots[1].observation.batteryVoltage=value;
+  const observation=validateSnapshot(d).slots[1].observation;
+  assert.equal(observation.batteryVoltage,null);assert.equal(observation.temperatureC,22.15);
+ }
+});
+
+test('battery icon follows its sensor and clears on later missing data',()=>{
+ let data=snapshot();data.slots[1].observation.batteryVoltage=3.6;
+ const panels=new Map(['upperLeft','upperRight'].map(id=>[id,{
+  nodes:new Map(),querySelector(selector){if(!this.nodes.has(selector))this.nodes.set(selector,{textContent:'',dataset:{},setAttribute(k,v){this[k]=v;}});return this.nodes.get(selector);},
+  classList:{toggle:()=>{}},setAttribute:()=>{},
+ }]));
+ const display=new SensorDisplay({read:()=>validateSnapshot(data)}, {getElementById:id=>panels.get(id)});
+ display.render();
+ const left=panels.get('upperLeft').querySelector('.sensor-battery'), right=panels.get('upperRight').querySelector('.sensor-battery');
+ assert.equal(left.hidden,true);assert.equal(right.hidden,false);assert.equal(right.dataset.level,'2');assert.equal(right.dataset.tone,'low');
+ assert.equal(right['aria-label'],'Battery low');
+ data.slots[0]={...data.slots[1],position:'upperLeft',gatewayId:1,name:'den',displayName:'Den'};
+ data.slots[0].observation={...data.slots[1].observation,batteryVoltage:4.1};
+ data.slots[1].observation.batteryVoltage=3.3;display.render();
+ assert.equal(left.dataset.level,'4');assert.equal(right.dataset.level,'0');assert.equal(right.dataset.tone,'critical');
+ delete data.slots[1].observation.batteryVoltage;display.render();assert.equal(right.hidden,true);
+ data.slots[0].observation=null;display.render();assert.equal(left.hidden,true);
 });

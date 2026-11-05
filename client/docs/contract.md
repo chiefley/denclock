@@ -202,3 +202,30 @@ warning. The provider timestamp is composite frame-generation time, not an exact
 shared observation time for all contributing radar sources. Forecast timezone
 formatting (or explicit UTC fallback) is retained. Replay handlers are removed
 on disposal.
+
+## Sensor battery indicators
+
+Each displayed sensor temperature has a compact vertical four-segment battery
+icon over the tenths digit when its observation includes valid `batteryVoltage`
+in volts. The overlay does not move or resize temperature text. Missing/invalid
+voltage, unassigned positions and absent observations hide it, including older
+servers that omit the new field. Later reports without voltage clear it. Only
+sensor observations supply these icons; the USB gateway has no battery display.
+No visible voltage, percentage, panel or surrounding UI border is added.
+
+| Measured voltage | Segments | Appearance |
+| --- | --- | --- |
+| >3.9 V | 4 | Neutral, 35% opacity |
+| 3.7–3.9 V | 3 | Neutral, 35% opacity |
+| 3.5–<3.7 V | 2 | Amber, 65% opacity |
+| 3.4–<3.5 V | 1 | Amber, 65% opacity |
+| <3.4 V | 0 | Muted red, 100% opacity |
+
+Bands are initial operational guidance, not an exact state-of-charge estimate.
+Numeric zero is critical; unknown voltage is never represented as zero or full.
+Icon opacity/color are independent of temperature styling, including stale red
+readings. Battery information retains the observation's timestamp and stale
+status; accessible labels identify the battery band and stale observations.
+Current firmware already reads the Heltec onboard battery circuit and transmits
+millivolts; LoRaService normalizes the existing measurement to volts. No new
+persistent setting, power-source detection, or gateway diagnostic view is added.

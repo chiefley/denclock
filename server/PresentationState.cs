@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace DenClock.Server;
 
-public sealed record SensorObservation(DateTimeOffset ReceivedUtc, double? TemperatureC, double? RelativeHumidity);
+public sealed record SensorObservation(DateTimeOffset ReceivedUtc, double? TemperatureC, double? RelativeHumidity, double? BatteryVoltage);
 public sealed record PresentationSlot(string Position, int? GatewayId, int? NodeId, string? Name, string DisplayName,
     double? MaxAgeSeconds, SensorObservation? Observation);
 public sealed record PresentationSnapshot(DateTimeOffset ServerUtc, string TemperatureUnit, IReadOnlyList<PresentationSlot> Slots)
@@ -58,11 +58,13 @@ public sealed class PresentationState(PresentationConfiguration configuration, I
             if (measurements.ValueKind != JsonValueKind.Object)
                 throw new InvalidDataException("measurements must be an object.");
             var temperature = Measurement(measurements, "temperature", "C");
+            var battery = Measurement(measurements, "batteryVoltage", "V");
+            if (battery is < 0 or > 65.535) battery = null;
             var humidity = Measurement(measurements, "relativeHumidity", "percent");
             if (humidity is < 0 or > 100) humidity = null;
             // Keep the canonical value, but require safe presentation in either unit.
             if (temperature.HasValue && !double.IsFinite(temperature.Value * 1.8 + 32)) temperature = null;
-            var observation = new SensorObservation(received, temperature, humidity);
+            var observation = new SensorObservation(received, temperature, humidity, battery);
             lock (gate)
             {
                 if (!configured.Contains(identity)) return false;

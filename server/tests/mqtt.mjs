@@ -31,7 +31,7 @@ function text(value) {
 const observed = new Date(Date.now() - 120000).toISOString();
 const report = (stamp, value = 22.15) => JSON.stringify({
   messageType: 'sensor-report', gatewayId: 2, nodeId: 1, receivedUtc: stamp,
-  measurements: { temperature: { value, units: 'C' }, relativeHumidity: { value: 52.26, units: 'percent' } },
+  measurements: { temperature: { value, units: 'C' }, relativeHumidity: { value: 52.26, units: 'percent' }, batteryVoltage: { value: 3.728, units: 'V' } },
 });
 let retained = report(observed);
 let id = 0;
@@ -113,6 +113,7 @@ try {
   await waitFor(async () => (await snapshot()).slots[1].observation !== null, 'retained report');
   assert.equal(Date.parse((await snapshot()).slots[1].observation.receivedUtc), Date.parse(observed));
   assert.equal((await snapshot()).slots[1].observation.temperatureC, 22.15);
+  assert.equal((await snapshot()).slots[1].observation.batteryVoltage, 3.728);
   assert.equal((await snapshot()).slots[0].observation, null);
   assert.equal(clientIds[0], 'denclock-integration-test');
   publish('{bad');

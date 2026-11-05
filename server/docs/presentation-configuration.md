@@ -140,6 +140,8 @@ Each panel presents:
 - Temperature, with prominent whole-degree digits and smaller tenths.
 - The configured sensor display name beneath the temperature.
 - A subordinate humidity reading.
+- A compact battery-voltage-band icon above the tenths digit when sensor battery
+  voltage is available; see [client behavior](../../client/docs/contract.md#sensor-battery-indicators).
 
 An unassigned primary position displays unknown readings and no sensor label. An assigned sensor with no available readings retains its configured label.
 
@@ -170,7 +172,7 @@ Before a valid observation is available:
 - Temperature displays `--.-`.
 - Humidity displays `--`.
 
-Missing or invalid measurements must not be replaced with zero or fabricated values. Temperature and humidity availability are evaluated independently.
+Missing or invalid measurements must not be replaced with zero or fabricated values. Temperature, humidity and battery-voltage availability are evaluated independently.
 
 A valid report that omits a measurement leaves that measurement unknown for that report; it must not make an older measurement appear newly received.
 

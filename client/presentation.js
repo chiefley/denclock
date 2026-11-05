@@ -40,7 +40,8 @@ export function validateSnapshot(data) {
         throw new Error('Invalid temperature');
       if (value.relativeHumidity !== null && (!isNumber(value.relativeHumidity) || value.relativeHumidity < 0 || value.relativeHumidity > 100))
         throw new Error('Invalid humidity');
-      observation = { ...value, receivedAt };
+      const batteryVoltage = isNumber(value.batteryVoltage) && value.batteryVoltage >= 0 && value.batteryVoltage <= 65.535 ? value.batteryVoltage : null;
+      observation = { ...value, receivedAt, batteryVoltage };
     }
     return { ...slot, observation };
   });
@@ -123,6 +124,15 @@ export function formatTemperature(celsius, unit) {
   const [whole, fraction] = text.split('.');
   return { whole: (value < 0 && rounded !== 0 ? '−' : '') + whole, fraction: '.' + fraction };
 }
+// Voltage bands are operational guidance, not an exact state-of-charge estimate.
+export function batteryState(voltage) {
+  if (!isNumber(voltage) || voltage < 0 || voltage > 65.535) return null;
+  if (voltage > 3.9) return { bars: 4, label: 'full', tone: 'normal' };
+  if (voltage >= 3.7) return { bars: 3, label: 'good', tone: 'normal' };
+  if (voltage >= 3.5) return { bars: 2, label: 'low', tone: 'low' };
+  if (voltage >= 3.4) return { bars: 1, label: 'very low', tone: 'low' };
+  return { bars: 0, label: 'critical', tone: 'critical' };
+}
 export class SensorDisplay {
   constructor(client, root) {
     this.client = client;
@@ -142,6 +152,14 @@ export class SensorDisplay {
       set('.temperature-unit', temperatureUnit ? '°' + temperatureUnit : '');
       set('.sensor-name', slot.displayName);
       set('.humidity-value', isNumber(slot.observation?.relativeHumidity) ? Math.round(slot.observation.relativeHumidity) + '%' : '--');
+      const battery = panel.querySelector('.sensor-battery');
+      const state = slot.name ? batteryState(slot.observation?.batteryVoltage) : null;
+      battery.hidden = state === null;
+      if (state) {
+        battery.dataset.level = String(state.bars);
+        battery.dataset.tone = state.tone;
+        battery.setAttribute('aria-label', 'Battery ' + state.label + (slot.stale ? ', reading stale' : ''));
+      }
       panel.classList.toggle('stale', slot.stale);
       panel.setAttribute('aria-label', (slot.displayName || 'Unassigned sensor') + ': ' + reading.whole + reading.fraction + (temperatureUnit ? ' degrees ' + temperatureUnit : '') + (slot.stale ? ', stale' : ''));
     }
