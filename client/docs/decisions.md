@@ -94,3 +94,11 @@ See [client README](../README.md) for operation and verification, and the
   in the existing render loop so paused imagery cannot look fresh just because
   it was recently downloaded. Preserve the distinction between RainViewer's
   composite frame-generation timestamp and unavailable exact observation times.
+
+- Prioritize the latest complete precipitation canvas before base-map tiles or
+  historical frames. Keep the shared serialized, throttled tile queue and bounded
+  URL cache: independently addressed frames already support reuse, and ready
+  sequences replay without requesting tiles again. Preserve provider timestamps
+  and existing synchronized-time freshness/expiry checks on every opening.
+  Hold the latest image if history is incomplete rather than playing a partial
+  sequence. Generation tokens prevent obsolete loading from changing the view.

@@ -168,3 +168,65 @@ test('latest frame timestamp and age advance while paused without using download
  assert.match(timestamp.textContent,/7:30 AM EST · 0 min old/);assert.equal(timestamp.classes.has('is-stale'),false);
  f.view.dispose();
 });
+
+function deferred() {
+ let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});
+ return {promise,resolve,reject};
+}
+
+test('newest radar precedes geography and stays visible throughout slow history loading',async()=>{
+ const f=makeView();await settle();
+ const original=f.view.compose.bind(f.view),history=deferred(),requests=[];
+ f.view.compose=async(layout,url,valid)=>{
+  const address=url(layout.tiles[0]);requests.push(address);
+  if(address.includes('hash-11/'))await history.promise;
+  return original(layout,url,valid);
+ };
+ f.update();await settle();
+ assert.match(requests[0],/hash-12\//);
+ assert.equal(f.view.displayed.time,latest);assert.equal(f.view.loading,true);
+ assert.equal(f.root.getElementById('radar-image').hidden,false);
+ assert.equal(f.timer.tasks.size,0);
+ assert.equal(f.root.getElementById('radar-replay').disabled,true);
+ history.resolve();await settle();
+ assert.deepEqual(f.view.frames.map(f=>f.time),metadata().radar.past.map(f=>f.time));
+ assert.equal(f.view.displayed.time,latest-7200);assert.equal(f.timer.tasks.size,1);
+ f.view.dispose();
+});
+
+test('historical failure holds newest frame without starting a partial animation',async()=>{
+ const f=makeView();await settle();const original=f.view.compose.bind(f.view);
+ f.view.compose=(layout,url,valid)=>url(layout.tiles[0]).includes('hash-11/')?
+  Promise.reject(Error('missing history')):original(layout,url,valid);
+ f.update();await settle();
+ assert.equal(f.view.displayed.time,latest);assert.equal(f.view.frames.length,1);
+ assert.equal(f.view.incomplete,true);assert.equal(f.timer.tasks.size,0);
+ assert.equal(f.root.getElementById('radar-image').hidden,false);
+ assert.match(f.root.getElementById('radar-status').textContent,/Some radar frames unavailable/);
+ f.update(false);f.update();await settle();assert.equal(f.timer.tasks.size,0);
+ f.view.dispose();
+});
+
+test('latest failure reports unavailable without loading history',async()=>{
+ const f=makeView();await settle();let attempts=0;
+ f.view.compose=async()=>{attempts++;throw Error('latest unavailable');};
+ f.update();await settle();assert.equal(attempts,1);assert.equal(f.view.frames.length,0);
+ assert.match(f.root.getElementById('radar-status').textContent,/Radar unavailable/);
+ f.view.dispose();
+});
+
+test('closing and rapid reopening invalidate late compositions',async()=>{
+ const f=makeView();await settle();const original=f.view.compose.bind(f.view),late=deferred();
+ let first=true;
+ f.view.compose=async(layout,url,valid)=>{
+  if(first){first=false;await late.promise;return {};}
+  return original(layout,url,valid);
+ };
+ f.update();await settle();f.update(false);
+ assert.equal(f.view.displayed,null);
+ f.update();await settle();const current=f.view.frames,displayed=f.view.displayed;
+ late.resolve();await settle();
+ assert.equal(f.view.frames,current);assert.equal(f.view.displayed,displayed);
+ f.update(false);assert.equal(f.timer.tasks.size,0);
+ f.view.dispose();
+});

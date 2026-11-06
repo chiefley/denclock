@@ -197,7 +197,7 @@ export class RadarView {
       this.utc - this.frames.at(-1).time * 1000 >= 20 * MINUTE;
     this.image.hidden = !show; this.marker.hidden = !show;
     this.timestamp.hidden = !this.frames.length || !Number.isFinite(this.utc);
-    this.replayButton.disabled = !show || !this.visible;
+    this.replayButton.disabled = !show || !this.visible || this.loading || this.incomplete;
     this.updateTimestamp();
     if (expired) this.animation.stop();
     this.status.textContent = !this.location ? 'Waiting for forecast settings' : this.utc === null ? 'Waiting for synchronized time' :
@@ -246,7 +246,7 @@ export class RadarView {
     this.timestamp.classList.toggle('is-stale', age >= 20);
   }
   replayAnimation() {
-    if (this.disposed || !this.visible || !this.frames.length || this.expired() || !Number.isFinite(this.utc)) return;
+    if (this.disposed || !this.visible || this.loading || this.incomplete || !this.frames.length || this.expired() || !Number.isFinite(this.utc)) return;
     this.replay = false;
     this.animation.play(this.frames);
   }
@@ -258,7 +258,7 @@ export class RadarView {
     const sequence = `${layout.key}/${metadata.host}/${metadata.frames.map(f => `${f.time}:${f.path}`).join(',')}`;
     const attempt = `${sequence}/${this.revision}`;
     if (sequence === this.readyKey && (!(this.incomplete || this.baseError) || this.lastAttempt === attempt)) {
-      if (this.replay) { this.replay = false; this.animation.play(this.frames); }
+      if (this.replay && !this.incomplete) { this.replay = false; this.animation.play(this.frames); }
       return;
     }
     if (this.lastAttempt === attempt) return;
@@ -266,6 +266,13 @@ export class RadarView {
     const token = ++this.token, valid = () => !this.disposed && this.visible && this.token === token;
     this.loading = true; this.animation.stop(); this.updateStatus();
     try {
+      const frames = [];
+      // The newest precipitation frame takes priority over geography and history.
+      const newest = metadata.frames.at(-1);
+      const canvas = await this.compose(layout, tile => radarTileUrl(metadata, newest, tile), valid);
+      if (!valid()) return;
+      frames.push({ ...newest, canvas });
+      this.frames = [frames[0]]; this.draw(frames[0]); this.updateStatus();
       if (this.baseKey !== layout.key) {
         try {
           const base = await this.compose(layout, tile => `https://tile.openstreetmap.org/${RADAR_ZOOM}/${tile.x}/${tile.y}.png`, valid);
@@ -273,22 +280,20 @@ export class RadarView {
           this.copy(base, this.base); this.baseKey = layout.key; this.baseError = false;
         } catch { if (!valid()) return; this.baseError = true; }
       }
-      const frames = [];
-      // Show a complete newest frame first, then preload the historical loop.
-      for (const frame of [...metadata.frames].reverse()) {
+      for (const frame of metadata.frames.slice(0, -1).reverse()) {
         try {
           const canvas = await this.compose(layout, tile => radarTileUrl(metadata, frame, tile), valid);
           if (!valid()) return;
           frames.push({ ...frame, canvas });
-          if (frames.length === 1) {
-            this.frames = [frames[0]]; this.draw(frames[0]); this.updateStatus();
-          }
         } catch { if (!valid()) return; }
       }
       if (!frames.length) throw Error('Radar frames unavailable');
-      this.frames = frames.sort((a, b) => a.time - b.time); this.readyKey = sequence;
       this.incomplete = frames.length !== metadata.frames.length;
-      this.replay = false; this.animation.play(this.frames);
+      // A failed history preload leaves the newest complete frame on screen.
+      this.frames = this.incomplete ? [frames[0]] : frames.sort((a, b) => a.time - b.time);
+      this.readyKey = sequence;
+      this.replay = false;
+      if (!this.incomplete) this.animation.play(this.frames);
     } catch { if (valid()) this.error = true; }
     finally { if (valid()) { this.loading = false; this.updateStatus(); } }
   }

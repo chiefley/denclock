@@ -46,7 +46,9 @@ No key, backend proxy or additional runtime package is required.
 ## Loading, playback and recovery
 
 Tiles load only when radar is visible and synchronized time is available.
-The newest complete frame appears first while the rest of the history loads.
+The newest complete precipitation frame is requested before geographic tiles or
+history and displayed as soon as its tiles are ready. It stays visible while
+the geographic map and history load.
 Initial preload may take about a minute (longer for a taller viewport or slow
 network) because requests are deliberately throttled. A loading message remains
 visible. Once ready, complete frames play oldest-to-newest twice at 500 ms per
@@ -60,8 +62,10 @@ Transparent, successfully loaded radar tiles represent a
 valid quiet map and are not considered failures.
 
 Frames are assembled offscreen before replacing the visible image, so loading
-or missing tiles never produce a partially drawn animation frame. Failed frames
-are skipped and identified with an availability message. Tile results are cached
+or missing tiles never produce a partially drawn animation frame. If any historical
+frame fails, the newest image remains static with an availability message; playback
+and replay wait for a complete sequence. A newest-frame failure uses the existing
+unavailable/delayed indication and retains any previously usable imagery. Tile results are cached
 in a bounded 192-entry memory cache in addition to ordinary browser caching;
 failed tiles have a five-minute retry cooldown. Newly published frames are loaded
 on refresh, while cached frames avoid repeat downloads. Resize/reveal redraws
@@ -112,3 +116,8 @@ developer; subsequent observations may inform later work.
 was accepted by the developer on November 4, 2026 after display review.
 The solid radar surface and replay control deliberately supersede the earlier
 transparency and no-controls preferences in the accepted radar story.
+
+[Display Latest Radar Frame Immediately](stories/completed/017-display-latest-radar-frame-immediately.md)
+was accepted by the developer on November 6, 2026. Latest precipitation imagery
+now takes priority over geographic and historical tiles; incomplete history
+retains the latest static frame.

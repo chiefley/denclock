@@ -182,9 +182,11 @@ using zoom 7, Universal Blue (2), and smoothing/snow options `1_1`.
 
 Metadata refreshes every five minutes independently of forecast polling. Tiles
 load only while visible, are cached, and start no more frequently than every
-800 ms. Complete frames are assembled before display. Animation plays two
+800 ms. The newest precipitation frame loads before geography and history and remains
+visible during history loading. Complete frames are assembled before display. Animation plays two
 chronological cycles at 500 ms/frame, then holds newest available; re-entry
-replays cached frames. Missing frames are skipped with an availability message.
+replays cached frames. Historical frame failures retain the newest static image with an availability
+message; playback/replay require the complete sequence.
 A refresh failure retains usable imagery with a delay indicator; ten minutes
 without refreshed metadata or a newest frame twenty minutes old also marks a
 delay. Imagery with a newest frame
