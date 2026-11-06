@@ -134,7 +134,9 @@ suffixes use 65% of the hour size and share its baseline.
 ## Local desktop window control
 
 On localhost and 127.0.0.1 pages, an upper-right 48px touch target restores the
-clock to a 900×500 window or returns it to fullscreen. Overlapping rectangles
+clock to a 900×500 window or returns it to fullscreen. Its top edge is 48 CSS
+pixels below the viewport top to clear the Linux toolbar; status text sits below
+the button. Overlapping rectangles
 indicate fullscreen; a single rectangle indicates windowed mode. The client
 polls observed window-manager state every two seconds. An unavailable helper
 disables the button, displays a status message, and retries automatically.
