@@ -77,12 +77,11 @@ report in a new snapshot does not reset its age.
 
 The lower-left gear opens a full-screen native modal dialog and fetches fresh
 `/api/settings/presentation` from the same configured server as time. Controls
-edit Celsius/Fahrenheit, upper-left/right assignments, display labels, and
-stale limits. Sensor options include all configured identities, including
-secondary entries, plus Unassigned. Unassigned disables label/limit fields.
+edit Celsius/Fahrenheit, upper-left/right assignments, and display labels. Sensor options include all configured identities, including
+secondary entries, plus Unassigned. Unassigned disables the position label field.
 Options show numeric gateway/node pairs and configured names. Sensor mapping rows
 support add/edit/remove, integer gatewayId/nodeId, logical name, display label,
-and stale limit. Gateway rows support numeric IDs and optional logical/display
+and the sole stale-limit field for each sensor (seconds). Gateway rows support numeric IDs and optional logical/display
 names. Changes share the existing revision-protected Save/Cancel workflow.
 No sensor discovery is implemented; numeric identities are entered manually.
 

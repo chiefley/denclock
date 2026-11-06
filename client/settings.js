@@ -40,10 +40,7 @@ export function buildConfiguration(original, temperatureUnit, slots) {
     const sensor = configuration.sensors.find(sensor => sensorKey(sensor) === slot.sensorKey);
     if (!sensor) throw new Error('Choose a configured sensor.');
     if (!slot.displayName.trim()) throw new Error('Each assigned sensor needs a display label.');
-    const age = Number(slot.maxAgeSeconds);
-    if (!String(slot.maxAgeSeconds).trim() || !Number.isFinite(age) || age <= 0)
-      throw new Error('Stale-reading limits must be positive numbers in seconds.');
-    Object.assign(sensor, { position: slot.position, displayName: slot.displayName, maxAgeSeconds: age });
+    Object.assign(sensor, { position: slot.position, displayName: slot.displayName });
   }
   return validateMappings(configuration);
 }
@@ -57,7 +54,7 @@ export function initializeSettings(root, config, refreshPresentation, fetchSetti
   const fields = [...form.querySelectorAll('fieldset')];
   const panels = ['left', 'right'].map((side, index) => ({
     position: positions[index],
-    assignment: get(`settings-${side}-sensor`), label: get(`settings-${side}-label`), age: get(`settings-${side}-age`),
+    assignment: get(`settings-${side}-sensor`), label: get(`settings-${side}-label`),
   }));
   const endpoint = config.serverAddress.replace(/\/$/, '') + '/api/settings/presentation';
   let loaded = null, draftSensors = null, draftGateways = null, saving = false, generation = 0, loadController = null;
@@ -70,7 +67,7 @@ export function initializeSettings(root, config, refreshPresentation, fetchSetti
     unit.disabled = location.disabled = !loaded || saving;
     for (const field of fields) field.disabled = !loaded || saving;
     for (const panel of panels) {
-      panel.label.disabled = panel.age.disabled = !panel.assignment.value || !loaded || saving;
+      panel.label.disabled = !panel.assignment.value || !loaded || saving;
     }
     save.disabled = !loaded || saving;
     cancel.disabled = saving;
@@ -80,7 +77,6 @@ export function initializeSettings(root, config, refreshPresentation, fetchSetti
   function populatePanel(panel) {
     const sensor = draftSensors?.find(sensor => sensorKey(sensor) === panel.assignment.value);
     panel.label.value = sensor?.displayName ?? '';
-    panel.age.value = sensor?.maxAgeSeconds ?? '';
     enableControls();
   }
   async function load() {
@@ -175,9 +171,9 @@ export function initializeSettings(root, config, refreshPresentation, fetchSetti
       }
       populatePanel(panel);
     });
-    for (const input of [panel.label, panel.age]) input.addEventListener('input', () => {
+    panel.label.addEventListener('input', () => {
       const sensor = draftSensors?.find(sensor => sensorKey(sensor) === panel.assignment.value);
-      if (sensor) { sensor.displayName = panel.label.value; sensor.maxAgeSeconds = panel.age.value; renderMappings(); }
+      if (sensor) { sensor.displayName = panel.label.value; renderMappings(); }
     });
   }
   gear.addEventListener('click', () => { dialog.showModal(); dialog.scrollTop = 0; void load(); });
@@ -191,7 +187,7 @@ export function initializeSettings(root, config, refreshPresentation, fetchSetti
     form.reset();
     for (const panel of panels) {
       panel.assignment.replaceChildren(new Option('Unassigned', ''));
-      panel.label.value = panel.age.value = '';
+      panel.label.value = '';
     }
     get('settings-sensors').replaceChildren();
     get('settings-gateways').replaceChildren();
@@ -205,7 +201,7 @@ export function initializeSettings(root, config, refreshPresentation, fetchSetti
     try {
       configuration = buildConfiguration({ ...loaded.configuration, sensors: draftSensors, gateways: draftGateways }, unit.value, panels.map(panel => ({
         position: panel.position, sensorKey: panel.assignment.value,
-        displayName: panel.label.value, maxAgeSeconds: panel.age.value,
+        displayName: panel.label.value,
       })));
     } catch (error) { message(error.message, true); return; }
     saving = true;

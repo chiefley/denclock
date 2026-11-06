@@ -180,8 +180,9 @@ can be harder to see over bright portions of the photograph.
 The lower-left gear opens settings and fetches actual service configuration on
 every open. Loading or load failure keeps Save disabled; reload retries loading.
 Sensor choices come from configured identities, including secondary entries.
-Unassigned disables that position's label and stale-limit inputs. Assignments,
-labels, freshness limits, and temperature units stay in a local draft until Save.
+Unassigned disables that position's label input. Freshness limits are edited only
+in Sensor Mappings, in seconds. Assignments, labels, freshness limits, and
+temperature units stay in a local draft until Save.
 Both positions cannot select the same sensor.
 
 Save applies to all displays without a service restart. It retains secondary

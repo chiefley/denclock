@@ -10,8 +10,8 @@ const original = {
   ],
 };
 const slots = () => [
-  { position: 'upperLeft', sensorKey: '1/1', displayName: 'Living room', maxAgeSeconds: '30' },
-  { position: 'upperRight', sensorKey: '2/1', displayName: 'Outside', maxAgeSeconds: '120' },
+  { position: 'upperLeft', sensorKey: '1/1', displayName: 'Living room' },
+  { position: 'upperRight', sensorKey: '2/1', displayName: 'Outside' },
 ];
 test('primary edits preserve secondary sensors and unknown fields without mutating loaded settings', () => {
   const copy = structuredClone(original);
@@ -28,12 +28,10 @@ test('primary edits preserve secondary sensors and unknown fields without mutati
   assert.equal(unassigned.sensors[0].position, 'secondary');
   assert.deepEqual(unassigned.sensors[2], original.sensors[2]);
 });
-test('duplicate assignments, invalid ages, empty labels, and unknown identities are rejected', () => {
+test('duplicate assignments, empty labels, and unknown identities are rejected', () => {
   for (const mutate of [
     s => s[0].sensorKey = '2/1', s => s[0].sensorKey = 'unknown',
-    s => s[0].displayName = ' ', s => s[0].maxAgeSeconds = '',
-    s => s[0].maxAgeSeconds = 0, s => s[0].maxAgeSeconds = -1,
-    s => s[0].maxAgeSeconds = 'Infinity', s => s[0].maxAgeSeconds = 'bad',
+    s => s[0].displayName = ' ',
   ]) { const draft = slots(); mutate(draft); assert.throws(() => buildConfiguration(original, 'F', draft)); }
 });
 
@@ -68,7 +66,7 @@ const response = (status = 200, body = { revision: 'r1', configuration: structur
 const settle = () => new Promise(resolve => setImmediate(resolve));
 function setup(fetch) {
   const ids = ['button', 'view', 'form', 'location', 'unit', 'save', 'cancel', 'status', 'reload',
-    'left-sensor', 'left-label', 'left-age', 'right-sensor', 'right-label', 'right-age', 'sensors', 'gateways', 'add-sensor', 'add-gateway'];
+    'left-sensor', 'left-label', 'right-sensor', 'right-label', 'sensors', 'gateways', 'add-sensor', 'add-gateway'];
   const elements = new Map(ids.map(id => ['settings-' + id, new Element()]));
   elements.get('settings-form').querySelectorAll = () => [new Element(), new Element()];
   let refreshed = 0;
@@ -98,7 +96,6 @@ test('fresh load each open, cancel discards drafts, and late loads cannot replac
   assert.equal(ui.get('left-sensor').options.length, 4, 'configured identities include secondary');
   ui.get('left-sensor').value = ''; await ui.get('left-sensor').emit('change');
   assert.equal(ui.get('left-label').disabled, true);
-  assert.equal(ui.get('left-age').disabled, true);
 });
 test('load failure leaves Save disabled and provides explicit reload', async () => {
   let fail = true;
@@ -216,4 +213,29 @@ test('Cancel discards added sensor and gateway mappings', async () => {
   await ui.get('button').emit('click'); await settle();
   assert.equal(ui.get('sensors').options.length, 3);
   assert.equal(ui.get('gateways').options.length, 0);
+});
+
+test('mapping stale limits preserve values, validate, save and reload without primary overrides', async () => {
+  let stored = structuredClone(original);
+  const ui = setup(async (_, options) => {
+    if (options.method) stored = JSON.parse(options.body).configuration;
+    return response(200, { revision: 'r1', configuration: structuredClone(stored) });
+  });
+  await ui.get('button').emit('click'); await settle();
+  const age = row => ui.get('sensors').options[row].options[4].options[0];
+  assert.deepEqual([0, 1, 2].map(row => age(row).value), [60, 120, 300]);
+  for (const invalid of ['', '0', '-1', 'Infinity', 'bad']) {
+    age(0).value = invalid; await age(0).emit('input');
+    await ui.get('form').emit('submit');
+    assert.equal(ui.get('view').open, true);
+    assert.match(ui.get('status').textContent, /positive numbers/);
+    assert.equal(stored.sensors[0].maxAgeSeconds, 60);
+  }
+  age(0).value = '90.5'; await age(0).emit('input');
+  ui.get('left-label').value = 'Edited'; await ui.get('left-label').emit('input');
+  await ui.get('form').emit('submit');
+  assert.deepEqual(stored.sensors.map(sensor => sensor.maxAgeSeconds), [90.5, 120, 300]);
+  await ui.get('button').emit('click'); await settle();
+  assert.equal(age(0).value, 90.5);
+  assert.equal(ui.get('left-label').value, 'Edited');
 });
