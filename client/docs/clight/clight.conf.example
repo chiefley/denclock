@@ -1,0 +1,49 @@
+verbose = true;
+
+sensor:
+{
+    devname = "iio:device1";
+
+    ac_regression_points = [
+        0.01, 0.02, 0.03, 0.05, 0.08,
+        0.20, 0.27, 0.35, 0.44, 0.53, 0.60
+    ];
+
+    batt_regression_points = [
+        0.01, 0.02, 0.03, 0.05, 0.08,
+        0.20, 0.27, 0.35, 0.44, 0.53, 0.60
+    ];
+};
+
+backlight:
+{
+    restore_on_exit = true;
+    trans_fixed = 2000;
+    ac_timeouts = [ 10, 10, 10 ];
+    batt_timeouts = [ 10, 10, 10 ];
+};
+
+gamma:
+{
+    disabled = true;
+};
+
+dimmer:
+{
+    disabled = true;
+};
+
+dpms:
+{
+    disabled = true;
+};
+
+screen:
+{
+    disabled = true;
+};
+
+keyboard:
+{
+    disabled = true;
+};

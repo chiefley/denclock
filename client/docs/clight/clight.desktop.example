@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Clight
+Comment=Automatic display brightness
+Exec=/home/ben/.local/bin/start-clight.sh
+Terminal=false
+Hidden=false
+X-XFCE-Autostart-enabled=true
+X-GNOME-Autostart-enabled=true
