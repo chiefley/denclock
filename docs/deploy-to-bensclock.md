@@ -1,5 +1,10 @@
 # Deploy to bensclock
 
+For a new tablet, follow the [master Surface Go provisioning guide](Surface%20Go%203%20Installation%20and%20Deployment%20Guide.md).
+Both deployment scripts hardcode Ben’s account/host and ownership. They cannot
+be retargeted by setting an environment variable. Do not run them for `iansclock`;
+the master guide documents a manual first-install adaptation.
+
 From WSL, run `~/src/denclock/deploy-to-bensclock.sh`. It works from any directory.
 Install the .NET 10 SDK, OpenSSH client and rsync locally. The remote host needs
 rsync and the .NET 10 ASP.NET Core runtime (including the base .NET runtime).

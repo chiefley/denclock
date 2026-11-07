@@ -289,6 +289,25 @@ commit and Clightd full commit were not pasted; their release tags and Clightd's
 short runtime revision were recovered. Do not promote proposed commands or
 successful artifacts into a claim that every original shell invocation is known.
 
+## Later read-only source/cache verification
+
+On November 7, 2026, provisioning research inspected the working tablet without
+building, installing, changing configuration, or restarting it. The checked-out
+source revisions were libmodule `3f60063e98631ce3fd25f70428b67ef15025597f`,
+Clightd `4a3dcde8109c9d789748fe1273593a74319c01c3`, and Clight
+`c304f4a774f5e5533b290fe31f48da3759e95300`. Each CMake cache records Release,
+`CMAKE_INSTALL_PREFIX=/usr`, and `CMAKE_INSTALL_LIBDIR=lib`. Clightd’s cache
+records `ENABLE_DDC`, `ENABLE_GAMMA`, `ENABLE_DPMS`, `ENABLE_SCREEN`,
+`ENABLE_YOCTOLIGHT`, and `ENABLE_PIPEWIRE` as BOOL=0. Installed pkg-config
+reports libmodule 5.0.1.
+
+These observations supplement the original November 5 evidence limits above;
+they do not reconstruct missing shell transcripts or prove installed-binary
+provenance. The current config, launcher, autostart entry, single process,
+selected ALS, and Capture policy were also inspected. See the
+[master Surface provisioning guide](../../../docs/Surface%20Go%203%20Installation%20and%20Deployment%20Guide.md)
+for the broader observed system and first-reproduction checklist.
+
 ## Session authorization: local XFCE versus SSH
 
 The user corrected an earlier diagnosis: the successful manual Bash launch was

@@ -52,5 +52,9 @@ bench path. DenClock's primary sensor panels and MQTT subscription are implement
 
 ## Linux deployment to bensclock
 
+Start a new Surface Go installation with the
+[master provisioning guide](docs/Surface%20Go%203%20Installation%20and%20Deployment%20Guide.md),
+including the `iansclock` trial checklist and observed reference-system limits.
+
 See [the Linux deployment guide](docs/deploy-to-bensclock.md) for the explicitly
 requested Linux target and reusable script. Existing Windows helpers remain available.

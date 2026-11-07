@@ -7,3 +7,10 @@
 # Connections
 SHT40 powered from the HelTek LoRa V3 board Vext Pin.
 SHT40 I2C connected to SDA2 and SCK2 on the LoRa board.
+
+## Surface Go 3 client
+
+The Debian 13 / XFCE Surface Go 3 is an additional deployment, separate from the
+Windows NUC above. Use the [master Surface Go provisioning guide](Surface%20Go%203%20Installation%20and%20Deployment%20Guide.md)
+for hardware preparation, installation, observed reference configuration, and
+first-device acceptance.

@@ -1,4 +1,11 @@
 # DenClock — Automatic Brightness Control
+
+> Historical November 5 implementation record. For current calibrated settings,
+> dynamic ALS discovery, and verified startup/reboot behavior, use the
+> [Clight runbook](../client/docs/clight/Surface%20Go%203%20automatic%20brightness.md).
+> For fresh-device installation, use the [master Surface Go provisioning guide](Surface%20Go%203%20Installation%20and%20Deployment%20Guide.md).
+> The pending tasks and provisional polling below describe that earlier stage.
+
 **Implementation Record — November 5, 2026**
 
 **Status:** Functionally verified; nighttime calibration pending.
