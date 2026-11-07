@@ -35,7 +35,10 @@ See [client README](../README.md) for operation and verification, and the
   Cover scaling fills the display without distorting the image; bottom-right
   anchoring with small offsets keeps the embedded logo positioned on the Surface. Disabled pointer
   events and separate stacking keep it independent of clock layout and input.
-  Dynamic image selection remains deferred.
+  Time-of-day selection reuses the existing forecast response for optional solar
+  times and synchronized server time, avoiding another data source or dependency.
+  Keep the temporary visual-evaluation selector in its own module and stylesheet
+  so it can be removed independently of automatic operation.
 
 - Keep MQTT subscription and canonical latest observations on the server.
   The browser polls one presentation snapshot for both panels; five-second

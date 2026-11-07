@@ -9,7 +9,7 @@ export function forecastUrl(location) {
   // Unix timestamps keep the hourly sequence unambiguous across DST changes.
   const params = new URLSearchParams({ latitude: location.latitude, longitude: location.longitude,
     hourly: 'temperature_2m,precipitation_probability',
-    daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max', forecast_days: 10,
+    daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset', forecast_days: 10,
     timeformat: 'unixtime', timezone: 'auto', temperature_unit: 'celsius' });
   return 'https://api.open-meteo.com/v1/forecast?' + params;
 }
@@ -32,7 +32,23 @@ export function parseForecast(data) {
       throw new Error('Invalid hourly data');
     return { time: t * 1000, temperature, precipitation };
   });
-  return { hours, days: parseDays(data), timezone: data.timezone };
+  return { hours, days: parseDays(data), solar: parseSolar(data), timezone: data.timezone };
+}
+
+// Solar instants are Unix seconds; daily date keys use the provider UTC offset.
+// Missing solar data must never invalidate the existing weather response.
+export function parseSolar(data) {
+  const d = data.daily;
+  if (!Array.isArray(d?.time) || !finite(data.utc_offset_seconds)
+      || Math.abs(data.utc_offset_seconds) > 86400) return [];
+  return d.time.flatMap((time, i) => {
+    const sunrise = d.sunrise?.[i], sunset = d.sunset?.[i];
+    const date = new Date((time + data.utc_offset_seconds) * 1000);
+    if (!finite(time) || !Number.isFinite(date.getTime()) || !finite(sunrise) || !finite(sunset)
+        || sunset <= sunrise || !Number.isFinite(new Date(sunrise * 1000).getTime())
+        || !Number.isFinite(new Date(sunset * 1000).getTime())) return [];
+    return [{ date: date.toISOString().slice(0, 10), sunrise: sunrise * 1000, sunset: sunset * 1000 }];
+  });
 }
 
 // Daily Unix timestamps use the response's UTC offset to identify calendar dates,

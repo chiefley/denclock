@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="clock.css">
   <link rel="stylesheet" href="window-control.css">
   <link rel="stylesheet" href="background.css">
+  <link rel="stylesheet" href="background-preview.css">
   <link rel="stylesheet" href="forecast.css?v=2">
 </head>
 <body>
@@ -19,7 +20,8 @@
     </svg>
   </button>
   <span id="window-status" class="window-status" role="status"></span>
-  <div class="display-background" aria-hidden="true"></div>
+  <div id="background-base" class="display-background" aria-hidden="true"></div>
+  <div id="background-next" class="display-background background-next" aria-hidden="true"></div>
   <section class="sensors" aria-label="Primary sensor readings">
     <section class="sensor-panel" id="upperLeft" aria-label="Unassigned sensor">
       <div class="temperature"><span class="temperature-whole">--</span><span class="temperature-tenths"><span class="temperature-fraction">.-</span><span class="sensor-battery" role="img" aria-label="Battery status" hidden><svg viewBox="0 0 14 28" aria-hidden="true"><rect class="battery-outline" x="2" y="4" width="10" height="22" rx="1"/><rect x="5" y="1" width="4" height="3"/><g class="battery-segments"><rect x="4" y="21" width="6" height="3"/><rect x="4" y="16" width="6" height="3"/><rect x="4" y="11" width="6" height="3"/><rect x="4" y="6" width="6" height="3"/></g></svg></span></span><span class="temperature-unit"></span></div>
@@ -53,6 +55,12 @@
     <span id="forecast-weather-credit" class="forecast-credit"><a href="https://open-meteo.com/" target="_blank" rel="noopener">Weather by Open-Meteo</a></span>
   </section>
   <button id="settings-button" class="settings-button" type="button" aria-label="Settings" aria-haspopup="dialog" aria-controls="settings-view">⚙</button>
+  <label class="background-preview" for="background-preview">Temporary scene test
+    <select id="background-preview">
+      <option value="auto">Auto</option><option value="day">Day</option>
+      <option value="twilight">Twilight</option><option value="night">Night</option>
+    </select>
+  </label>
   <dialog id="settings-view" aria-labelledby="settings-title" aria-describedby="settings-status">
     <form id="settings-form" novalidate>
       <h1 id="settings-title">Display settings</h1>
@@ -105,6 +113,8 @@
     initializeWindowControl(document);
 
     import { ForecastClient, initializeForecast } from './forecast.js';
+    import { initializeBackground } from './background.js';
+    import { initializeBackgroundPreview } from './background-preview.js';
     import { initializeSettings } from './settings.js';
 
     import { config } from './config.js';
@@ -118,7 +128,10 @@
     display.start();
     const presentation = new PresentationClient({ ...config, serverAddress });
     presentation.start();
-    initializeForecast(document, new ForecastClient(null), timeClient, presentation);
+    const forecast = new ForecastClient(null);
+    initializeForecast(document, forecast, timeClient, presentation);
+    const background = initializeBackground(document, timeClient, forecast);
+    initializeBackgroundPreview(document, background);
     new SensorDisplay(presentation, document).start();
     initializeSettings(document, { ...config, serverAddress }, () => presentation.refresh());
   </script>

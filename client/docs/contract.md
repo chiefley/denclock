@@ -6,7 +6,8 @@ The normal display includes an unobtrusive lower-left Settings gear with no
 visible button background or border. It targets 1024 × 600, with the canonical
 cabin image filling the viewport behind the clock. The decorative background
 preserves aspect ratio using bottom-right cover scaling offset 1vw right and 3vh down and cannot intercept input
-or alter the clock's layout. Background selection is static.
+or alter the clock's layout. Background selection follows synchronized time and available forecast solar data;
+see the time-of-day background behavior below.
 
 `TimeClient` requests `/api/time` immediately and approximately every 60 seconds.
 It requires an integer Unix timestamp in the supported JavaScript date range
@@ -232,3 +233,33 @@ status; accessible labels identify the battery band and stale observations.
 Current firmware already reads the Heltec onboard battery circuit and transmits
 millivolts; LoRaService normalizes the existing measurement to volts. No new
 persistent setting, power-source detection, or gateway diagnostic view is added.
+
+## Time-of-day lodge backgrounds
+
+Day and night use the supplied winter lodge images; twilight uses the original
+cabin master. Existing cover scaling, bottom-right offsets, and decorative
+pointer-free layering are retained. Selection is evaluated at startup and every
+second, observing clock synchronization and forecast/location changes without
+additional weather requests. Sunrise/sunset are optional daily fields in the
+existing Open-Meteo forecast request; invalid/missing solar fields do not reject
+otherwise usable weather data.
+
+With a valid solar pair for today's date at the forecast location, twilight is
+within 30 minutes either side of sunrise or sunset (inclusive). Day is between
+those windows; other hours are night. Solar instants use synchronized UTC and
+the forecast timezone identifies today's solar pair. Without today's usable
+solar data, synchronized server civil time selects twilight at 06:00–07:00 and
+18:00–19:00, day at 07:00–18:00, and night otherwise. Before time synchronization,
+the original twilight image remains visible; no browser wall-clock fallback is used.
+
+A destination is decoded before a one-second opacity transition over an opaque
+previous scene. Successful preloads are reused, unchanged scenes do not animate,
+rapid selections skip obsolete pending loads, and transitions are serialized.
+Load failure retains the last good scene and retries on a later evaluation.
+
+A temporary native selector beside the settings gear is labeled “Temporary scene
+test” and offers Auto, Day, Twilight, Night with a minimum 48px touch target.
+It defaults to Auto on reload; overrides exist only in memory. Its markup,
+stylesheet, and `background-preview.js` initialization can be removed independently
+of `background.js` and automatic selection. Weather-driven and seasonal scene
+selection remain deferred.

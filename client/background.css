@@ -7,3 +7,5 @@
   /* Keep the embedded logo at the right, slightly below the forecast. */
   background: #080c12 url("images/Denclock-cabin-master.png") right -1vw bottom -3vh / cover no-repeat;
 }
+
+.background-next { opacity: 0; }

@@ -276,3 +276,19 @@ For the upper-right restore/fullscreen button, install the
 [XFCE/X11 desktop helper and launcher](../docs/clock-window-control.md).
 The launcher replaces locked kiosk mode with a fullscreen app window so touch
 and RustDesk users can reach normal window controls without a keyboard.
+
+## Time-of-day lodge background
+
+The background selects daylight, original twilight, or nighttime winter lodge
+scenes. Twilight covers 30 minutes either side of sunrise/sunset from the existing
+forecast location. Missing solar data uses synchronized local time: twilight
+06:00–07:00 and 18:00–19:00, day 07:00–18:00, night otherwise. Before time sync,
+twilight remains visible. Scenes preload and fade over one second.
+
+For visual evaluation, use **Temporary scene test** beside the settings gear:
+Auto follows time; Day, Twilight, and Night force a scene until changed or reloaded.
+No selection is saved. The isolated preview module/style/markup can be removed
+in a later story. On the Surface Go, verify all three image crops, contrast,
+transition smoothness, selector clearance, touch operation, and Auto recovery.
+The new images have a slightly different aspect ratio from the master and use
+its existing cover positioning. See the [background contract](docs/contract.md#time-of-day-lodge-backgrounds).
