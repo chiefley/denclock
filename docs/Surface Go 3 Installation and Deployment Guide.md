@@ -135,29 +135,151 @@ sudo reboot
 - [ ] Confirm internet/DNS access and the selected system timezone.
 - [ ] **Establish and verify network time before accepting the clock.**
 
-Read-only checks:
+### 2.1 Install and verify OS network time
+
+Run on the **new tablet**, after confirming its hostname. Inspect existing
+services first; do not run competing time daemons:
 
 ```sh
 timedatectl status
 systemctl is-active systemd-timesyncd chrony ntpsec
 ```
 
-**Important O finding:** `bensclock` reported `System clock synchronized: no` and
-`NTP service: n/a`; systemd-timesyncd, chrony, and ntpsec were inactive and not
-installed. This does not rule out every possible external/manual clock-setting
-mechanism, but no working network-time mechanism was established by this audit.
-**D implementation:** `server/Program.cs` uses `DateTimeOffset.UtcNow` and
-`TimeZoneInfo.Local` for `/api/time`; browser synchronization is to this server,
-not directly to an internet time source. A working HTTP response is insufficient.
+Use the Debian 13 implementation verified on `bensclock`:
 
-The original time-service installation commands were not recovered. Select a
-supported Debian time service using [Debian's time guidance](https://wiki.debian.org/DateTime),
-record the actual install/configuration, and verify synchronization after reboot.
-Do not copy the reference's unsynchronized state as a provisioning choice. Do not
-run competing time daemons or assume Tailscale supplies NTP.
+```sh
+sudo apt update
+sudo apt install systemd-timesyncd
+sudo systemctl enable --now systemd-timesyncd
+```
 
-**Expected:** correct timezone and independently checked UTC, backed by a running
-time synchronization service. **Unknown:** exact original timezone/NTP setup.
+Verify both enablement and synchronization, allowing time for initial contact:
+
+```sh
+systemctl is-enabled systemd-timesyncd
+systemctl is-active systemd-timesyncd
+systemctl status systemd-timesyncd --no-pager
+timedatectl status
+timedatectl timesync-status
+journalctl -u systemd-timesyncd -b --no-pager -n 50
+```
+
+Expected: `enabled`, `active`, `System clock synchronized: yes`, and
+`NTP service: active`. Service activity alone does not prove synchronization.
+For failure, inspect the journal and `timesync-status` for server/contact errors;
+check internet connectivity, DNS, and outbound NTP (UDP 123). Inspect
+`/etc/systemd/timesyncd.conf` and its drop-ins if server selection is unexpected.
+Do not hard-code the reference's observed server address. Tailscale provides
+administrative connectivity, not time synchronization.
+
+### 2.2 Choose the deployment timezone
+
+Every installation must explicitly select an IANA timezone for its location.
+List available choices with `timedatectl list-timezones`. For the verified Chicago
+example (choose the appropriate value for Ian's actual location):
+
+```sh
+sudo timedatectl set-timezone America/Chicago
+timedatectl status
+```
+
+The system clock represents UTC; the OS timezone rules convert it to civil time,
+including daylight saving changes. Keep the RTC in UTC (`RTC in local TZ: no`).
+If a new device reports a local-time RTC, configure UTC and recheck:
+
+```sh
+sudo timedatectl set-local-rtc 0
+```
+
+Clock timezone and weather forecast location are independent. Forecast settings
+do not set the OS timezone. Configure the timezone before starting the DenClock
+server; if changing it on an already running new installation, restart
+`denclock-server.service` and verify `/api/time` and the display. .NET caches the
+local timezone; a successful OS change alone does not establish the running
+server's timezone. If `timedatectl` reports a D-Bus activation timeout, inspect
+`timedatectl status` again before assuming failure or repeating the change.
+
+### 2.3 Time architecture and temporary network loss
+
+Source review: [server endpoint](../server/Program.cs),
+[browser clock](../client/clock.js), [timing configuration](../client/config.js),
+and [server contract](../server/docs/contract.md).
+
+`GET /api/time` samples `DateTimeOffset.UtcNow` and derives the current offset
+from `TimeZoneInfo.Local`. It returns UTC, Unix milliseconds, timezone ID, and
+UTC offset with `Cache-Control: no-store`. The browser polls every 60 seconds,
+adds half the request round-trip duration, and advances the sample using
+`performance.now()`. It formats the server's civil time independently of the
+browser's timezone. Requests time out after five seconds; without a sample it
+shows “Waiting for time”; after three minutes without a successful API sample
+it shows “Sync delayed” while continuing to advance.
+
+No application code changes or second NTP client are needed. OS synchronization
+is the accuracy foundation; browser/server synchronization only distributes it.
+The endpoint does not report OS synchronization health. If internet NTP is lost
+but the local API still responds, the browser can remain apparently synchronized
+while the OS clock drifts. “Sync delayed” is not an NTP-health indicator.
+
+During temporary internet loss, the system clock continues running without a
+fresh network correction. Accuracy can drift; after connectivity returns,
+verify a fresh successful time-server contact. The browser receives any corrected
+system time on a later successful poll. Startup is not gated on NTP success,
+so an offline boot is not proof of accurate time. Do not add startup blocking
+or application NTP logic without a demonstrated requirement.
+
+The API supplies the offset at each sampled instant. DST updates therefore
+reach the browser on the next successful poll (normally within one minute),
+not necessarily exactly at the transition. If API access is unavailable across
+a transition, the browser retains the old offset until it reconnects.
+
+### 2.4 November 7 reference evidence and remaining tests
+
+**D, supplied user verification:** the initial `bensclock` audit found
+`System clock synchronized: no`, `NTP service: n/a`, and no active time daemon.
+The user then installed/enabled `systemd-timesyncd` using section 2.1's commands
+and set `America/Chicago`. Subsequent inspection showed:
+
+```text
+Time zone: America/Chicago (CST, -0600)
+System clock synchronized: yes
+NTP service: active
+RTC in local TZ: no
+systemd-timesyncd.service: enabled; active (running)
+Status: Contacted time server [address omitted]:123
+```
+
+An initial timezone-command D-Bus activation timeout occurred; subsequent
+inspection confirmed the change succeeded and synchronization remained operational.
+These are supplied execution results, not a new live inspection by this task.
+No evidence establishes post-install reboot synchronization, network-loss recovery,
+an independent reference comparison, or a DST transition test on `bensclock`.
+
+**Required on `iansclock`; all pending:**
+
+- [ ] Record the chosen timezone and enabled/active service, synchronization status,
+  contacted server and timestamp. Compare OS UTC (`date -u`), `/api/time`, and
+  visible civil time with an independent trusted time reference; record the source,
+  observed difference and acceptance judgment, not merely agreement between two
+  DenClock displays sharing the same source.
+- [ ] After the planned reboot in section 11, repeat section 2.1's checks. Require
+  `System clock synchronized: yes` and evidence of successful contact during the
+  current boot; record how long synchronization took and recheck the display.
+- [ ] With local access available, temporarily disconnect the new tablet's network.
+  Record outage duration, continuing clock display, and any drift. Restore access,
+  confirm new successful NTP contact from diagnostics/journal, and compare OS/API/
+  display against the independent reference again. API success alone is insufficient.
+- [ ] For a timezone with DST, verify the correct offset and display across a real
+  transition, or a controlled isolated test environment. Record before/after UTC,
+  API offset and civil display, including the polling delay. Do not change the
+  working reference's clock to simulate this. Until performed, record DST behavior
+  as source-reviewed rather than hardware-tested.
+
+Command/behavior references: Debian 13
+[`timedatectl`](https://manpages.debian.org/trixie/systemd/timedatectl.1.en.html)
+and
+[`systemd-timesyncd`](https://manpages.debian.org/trixie/systemd-timesyncd/systemd-timesyncd.service.8.en.html).
+These references support operational guidance, not claims that acceptance tests
+were executed.
 
 ## 3. SSH, hostname resolution, and Tailscale
 
@@ -735,8 +857,9 @@ These tests are for the **new tablet**, with the installer present. They were no
 executed on the working reference during this audit.
 
 - [ ] Correct device identity and boot disk; touchscreen/native display work.
-- [ ] Correct timezone, running time-sync service, independent UTC comparison, and
-  time remaining correct after loss/recovery of network access.
+- [ ] Complete every time acceptance check in section 2.4: correct explicit timezone,
+  enabled/active time service, synchronized status, independent reference comparison,
+  reboot synchronization, temporary network-loss/recovery, and DST where applicable.
 - [ ] Wi-Fi, SSH over Tailscale, and RustDesk direct-IP/unattended connection work
   from the development computer and an external/hotspot network.
 - [ ] Three backend units active/enabled: Mosquitto, server, LoRa. Local APIs return
@@ -846,7 +969,7 @@ complete deployed application version cannot be asserted from GitHub HEAD alone.
 
 | Priority | Question/conflict | Evidence and required resolution |
 |---|---|---|
-| P0 | Working internet time | Reference reports unsynchronized; no inspected NTP package active/installed. Establish on Ian and verify after reboot; do not claim the API supplies internet synchronization itself. |
+| P0 | Working internet time | November 7 user verification confirms timesyncd enabled/active, synchronized, and America/Chicago on Ben. Ian setup, reboot/recovery, independent comparison and DST acceptance remain pending (section 2.4). |
 | P0 | Safe Ian deployment target | Existing scripts hardcode Ben and Ben ownership. Use the documented manual adaptation with target checks; generic deployment automation is future work. |
 | P1 | RustDesk exact install and unattended setup | Package/service/direct-IP flag observed; original install/password setup not recovered. Record official artifact and prove direct-IP, external-network and reboot access. |
 | P1 | Firmware/charge policy | Original guide/Microsoft say 50%, later user statement says 80%, current capacity 49%. Inspect new device's firmware setting; do not infer a precise configured threshold from capacity alone. |
@@ -870,7 +993,7 @@ outside Git; use references such as “password manager entry configured.”
 |---|---|---|---|---|---|---|
 | Pending | Hardware/firmware/ISO | Compatible Surface Go 3; verified installer | Not performed | Record ISO/checksum, firmware and boot settings | — | — |
 | Pending | Debian/partitions/drivers | Native touch, Wi-Fi and display | Not performed | Record layout and extra packages | — | — |
-| Pending | Identity/time/network | Ian identity, correct synchronized time | Not performed | Record time-service choice and private address reference | — | — |
+| Pending | Identity/time/network | Ian identity, correct synchronized time | Not performed | Record timezone, timesyncd state/contact, independent comparison and private address reference | — | — |
 | Pending | SSH/Tailscale/RustDesk | Independent remote access | Not performed | Record package/checksum and unattended test | — | — |
 | Pending | Services/deployment/settings | Correct target and persistent settings | Not performed | Record Git commit/artifact hashes | — | — |
 | Pending | Desktop/Onboard/Clight | Touch editing, fullscreen and ALS | Not performed | Record file versions and any deviations | — | — |
