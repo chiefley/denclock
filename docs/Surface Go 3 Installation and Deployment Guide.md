@@ -7,12 +7,16 @@ GitHub baseline: [`b9909482e586ead4d434ff5f9934561a3ef08a0c`](https://github.com
 This is the authoritative Surface Go installation sequence. It replaces the
 earlier version of this same document. Detailed subsystem runbooks remain
 authoritative for their individual procedures. The installed reference works;
-this complete sequence has **not** been reproduced on a fresh tablet.
+the November 9 Ian trial has now reproduced the backend, desktop and brightness
+setup on a fresh tablet, including reboot recovery. Full physical, sensor, remote
+access and power acceptance remains pending; see the trial record below.
 
 **Readiness:** ready for a supervised `iansclock` installation trial, with the
 hold points in section 13 resolved as encountered. It is not an unattended or
 fully validated provisioning recipe. Time synchronization must be established
-before clock acceptance. No provisioning automation is implemented here.
+before clock acceptance. The Ian trial retains a guarded first-install adaptation in
+[its configuration script](installations/iansclock-configure.sh); this is not a
+generic multi-device or unattended provisioning tool.
 
 ## How to use the evidence
 
@@ -43,7 +47,7 @@ excluded from this guide.
 |---|---|---|
 | Hardware/OS | Surface Go 3 x86-64; Debian 13, XFCE/X11, LightDM | Record actual RAM/storage and firmware; no assumption all units are 64 GB |
 | Hostname | Unique per tablet | `iansclock`; reference is `bensclock` |
-| Desktop/admin user | Real login account with sudo | Choose during install; examples below use `ian`, which is a placeholder choice, not a confirmed account |
+| Desktop/admin user | Real login account with sudo | Confirmed `ian` in the November 9 trial; use the chosen account on other tablets |
 | Backend service user | `denclock`, non-login system account | Same role on each tablet; numeric UID/GID are incidental |
 | Application paths | `/opt/denclock/server`, `/opt/denclock/lora-service` | Common |
 | Persistent presentation | `/var/lib/denclock/server/presentation.json` | Household-specific contents |
@@ -439,8 +443,20 @@ Session and Startup → Application Autostart. Avoid creating duplicate entries.
 sudo apt install onboard
 ```
 
-Launch/test it locally, then enable auto-show in its preferences. The precise
-original preference-changing commands were not recovered. Use the existing
+Before Onboard first starts, enable desktop accessibility and auto-show as the
+actual desktop user on their session bus (not with sudo):
+
+```sh
+gsettings set org.gnome.desktop.interface toolkit-accessibility true
+gsettings set org.onboard.auto-show enabled true
+```
+
+This prerequisite was established during the Ian trial: enabling auto-show alone
+caused the GNOME accessibility dialog and failed automatic keyboard appearance.
+If accessibility was enabled after session startup, restart Onboard for a quick
+retest and perform a planned logout/login or reboot for persistence acceptance.
+The namespace is shared with GNOME; a GNOME desktop installation is unnecessary.
+Launch/test it locally and verify actual text entry. Use the existing
 [Onboard troubleshooting and accepted fix](clock-window-control.md#onboard-keyboard-accessibility).
 The current repository launcher includes `--force-renderer-accessibility=complete`;
 install that launcher in section 8 rather than recreating the old command line.
@@ -993,13 +1009,13 @@ outside Git; use references such as “password manager entry configured.”
 
 | Date/time | Step/device | Expected | Observed/error | Correction and exact command/version | Evidence O/D/I | Retest/result |
 |---|---|---|---|---|---|---|
-| Pending | Hardware/firmware/ISO | Compatible Surface Go 3; verified installer | Not performed | Record ISO/checksum, firmware and boot settings | — | — |
-| Pending | Debian/partitions/drivers | Native touch, Wi-Fi and display | Not performed | Record layout and extra packages | — | — |
-| Pending | Identity/time/network | Ian identity, correct synchronized time | Not performed | Record timezone, timesyncd state/contact, independent comparison and private address reference | — | — |
-| Pending | SSH/Tailscale/RustDesk | Independent remote access | Not performed | Record package/checksum and unattended test | — | — |
-| Pending | Services/deployment/settings | Correct target and persistent settings | Not performed | Record Git commit/artifact hashes | — | — |
-| Pending | Desktop/Onboard/Clight | Touch editing, fullscreen and ALS | Not performed | Record file versions and any deviations | — | — |
-| Pending | Power/reboot/hotspot/recovery | Unattended recovery | Not performed | Record dwell duration and outage type | — | — |
+| Nov 9 | Hardware/firmware/ISO | Compatible Surface Go 3; verified installer | Surface Go 3 and Secure Boot disabled supplied by user; exact ISO/firmware unrecorded | Existing Debian retained | D | Physical/firmware acceptance pending |
+| Nov 9 | Debian/partitions/drivers | Native touch, Wi-Fi and display | Debian 13.7, LVM root, Wi-Fi, 1920×1280, ALS/backlight present | Updated kernel 6.12.116; no new Surface drivers | O/D | SSH/display mode verified; touch pending |
+| Nov 9 | Identity/time/network | Ian identity, correct synchronized time | iansclock/ian, Eastern; initially unsynchronized | Installed timesyncd; synchronized after reboot in ~32 seconds; HTTPS Date within 0.81 s | O | Passed OS/API checks; display/outage/DST pending |
+| Nov 9 | SSH/Tailscale/RustDesk | Independent remote access | SSH/Tailscale recovered after reboot; RustDesk service installed | Tailscale 1.104.5; RustDesk 1.5.1 verified package hash in audit | O/D | SSH passed; RustDesk authentication/external network pending |
+| Nov 9 | Services/deployment/settings | Correct target and persistent settings | All backend units active/enabled; settings roundtrip and reboot persistence passed | Source/build hashes in installation manifest; neutral sensor list | O | MQTT and weather fetch passed; real sensors pending |
+| Nov 9 | Desktop/Onboard/Clight | Touch editing, fullscreen and ALS | One fullscreen clock, helper, Onboard and Clight after reboot; captures/backlight updates | Existing assets and documented source builds; ALS rediscovered device2 | O | Process/API/ALS passed; touch and visible response pending |
+| Nov 9 | Power/reboot/hotspot/recovery | Unattended recovery | Reboot recovery passed; DPMS disabled, saver timeout 0 | AC policies applied; no cold-outage test | O | Battery/UEFI/dwell/hotspot/restore pending |
 
 Final sign-off fields: installer, date, hardware identity reference, installed source
 commit/artifact hashes, accepted deviations, remaining limitations, backup location
@@ -1101,3 +1117,113 @@ this task verified installation, uptime history, touch behavior, or reboot recov
 [RustDesk direct IP settings](https://rustdesk.com/docs/en/self-host/client-configuration/advanced-settings/#direct-server)
 were checked against official documentation. No external source was used as proof
 that a proposed command had actually been executed on either tablet.
+
+## IansClock initial installation — November 9, 2026
+
+The supplied installation account confirms Debian 13.7 (reported installer version
+13.7.0), hostname iansclock, login ian, working Wi-Fi and SSH. Secure Boot was
+disabled on this tablet and USB boot selected through Surface UEFI. This records
+Ian's successful choice, not a universal requirement to disable Secure Boot.
+The exact ISO/checksum and complete original installation conversation were not
+supplied to this session; do not reconstruct them as verified history.
+
+### Required access prerequisites
+
+Ensure an Internet APT repository is configured before package installation.
+Ian's initially missing repository was configured for Debian 13 Trixie as:
+
+```text
+deb http://deb.debian.org/debian trixie main contrib non-free-firmware
+```
+
+Run `apt update` as root. Install `openssh-server` and `sudo`, then run
+`usermod -aG sudo ian` as root. Start/enable SSH and sign out/in to acquire the
+sudo group. Verify SSH from the development computer and verify `hostname`
+returns `iansclock` before configuration. These prerequisites are already
+completed on this trial. Security/update repository coverage must be checked
+separately; a working base repository alone does not establish that coverage.
+
+### Troubleshooting and installation-specific observations
+
+The installer requested `iwlwifi-cc-a0-77.ucode`; Wi-Fi ultimately worked without
+manually supplying that file. Do not add drivers solely on this warning when
+Wi-Fi is operational. Record any future actual failure and required firmware.
+For USB boot failures, check UEFI USB boot selection and Secure Boot; Ian disabled
+Secure Boot successfully. Reinstalling Debian or repartitioning is unnecessary.
+
+The live SSH inspection confirmed Debian 13.7, LightDM, ian's sudo membership,
+working SSH, America/New_York, a UTC RTC, and no existing /opt/denclock. Network
+time was not synchronized and no time daemon was active. Root uses LVM with
+about 41 GiB free. These observations do not prove touchscreen or reboot recovery.
+
+The user approved automatic desktop login and disabling screen locking, and
+selected Eastern time for now (America/New_York). Forecast location remains
+unconfirmed. Follow [installation status](installations/iansclock-status.json)
+and [audit](installations/iansclock-installation.md) for execution and tests.
+
+### Complete APT update coverage (Ian trial correction)
+
+A base Trixie line alone allowed packages to install but omitted security and
+stable updates. Inspect all sources before adding anything; avoid duplicate suites.
+Ian retained his base source and added `denclock-updates.sources` with:
+
+```text
+Types: deb
+URIs: https://deb.debian.org/debian
+Suites: trixie-updates
+Components: main contrib non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+Types: deb
+URIs: https://security.debian.org/debian-security
+Suites: trixie-security
+Components: main contrib non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+```
+
+Run `sudo apt-get update`, inspect `sudo apt-get -s full-upgrade`, and apply with
+`sudo apt-get -y --no-remove full-upgrade` when no destructive changes are proposed.
+The no-remove guard stops an unexpected removal. This follows Debian's
+[official Trixie APT source guidance](https://www.debian.org/releases/trixie/release-notes/upgrading.en.html#adding-apt-internet-sources).
+For a clean install, a single deb822 file covering base, updates and security is
+also supported by Debian; do not add another base entry alongside an existing one.
+
+### First-start health check correction
+
+Enabling/starting a unit can return before HTTP binds. After verifying unit states,
+use `curl -fsS --retry 10 --retry-connrefused --retry-delay 1 http://localhost:5000/api/time`.
+A failed immediate connection alone does not establish application failure. Retain
+real errors and inspect the journal if retries do not succeed.
+
+### Ian trial user confirmation after reboot
+
+The user confirmed automatic clock launch and visible weather, and independently
+confirmed SSH over Tailscale. RustDesk functional acceptance remains unverified:
+the response confirmed SSH rather than a RustDesk session. Visible time correctness
+and remaining physical/power/sensor acceptance are still pending in the status record.
+
+### Ian trial RustDesk authentication follow-up
+
+RustDesk connected after local approval while password authentication initially
+failed. Revisit Security settings and configure a permanent RustDesk password;
+the Debian/SSH password is separate. After this guidance, the user confirmed
+RustDesk over Tailscale works. Separate post-reboot unattended and external-network
+acceptance remains pending in the installation record.
+
+### Ian trial correction: initialize accessibility before Onboard
+
+Section 5.2 also requires enabling `org.gnome.desktop.interface toolkit-accessibility`
+before enabling `org.onboard.auto-show enabled`, as the actual desktop user on their
+session bus. The original trial omitted that prerequisite and produced an Onboard
+GNOME accessibility dialog with nonworking automatic keyboard appearance. See the
+[fresh-XFCE prerequisite and verification](clock-window-control.md#fresh-xfce-installation-prerequisite-iansclock-trial).
+The retained Ian configuration script now sets both in the required order.
+The Chromium accessibility flag was already installed and its accessible web
+content was observable; removing that flag or installing GNOME is not the repair.
+
+Ian keyboard correction acceptance: after restarting Onboard the user confirmed
+keyboard appearance; after a planned reboot the user confirmed the accessibility
+dialog stays gone and the keyboard appears and accepts text in client settings.
+The two-setting initialization in section 5.2 and retained script is therefore
+validated on this fresh Surface Go 3 installation. Other pending acceptance checks
+remain tracked separately.

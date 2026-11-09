@@ -11,33 +11,11 @@ requirement, and refactor when experience demonstrates a need.
 
 ## Target Platform
 
-DenClock runs on Windows on a dedicated Beelink Mini 8 NUC.
-
-Development may be performed from other environments, including WSL,
-but production software must run natively on Windows unless explicitly
-decided otherwise.
-
-Do not introduce Linux-specific runtime dependencies, services, paths,
-shell scripts, or assumptions into the DenClock applications.
-
-## Initial Milestone
-
-The first milestone is a useful, working Internet-synchronized clock.
-
-The initial system uses a server/client architecture:
-
-- The server runs natively on Windows on the DenClock NUC.
-- Windows maintains the system clock using its normal network time
-  synchronization.
-- The DenClock server provides time information to the client.
-- The client runs on the same NUC and provides the full-screen
-  touchscreen display.
-- The client should continue displaying time smoothly between server
-  updates.
-
-Weather, LoRa communication, remote sensors, and other features are
-future extensions. Do not implement infrastructure for them until it
-is needed.
+All new DenClock deployments target Surface Go 3 tablets running Debian 13,
+XFCE/X11 and LightDM. The Windows NUC installation is deprecated; preserve its
+historical files but do not use it as the deployment baseline.
+Development takes place in the existing WSL workspace at ~/src/denclock.
+Use the master Surface Go provisioning guide and current subsystem runbooks.
 
 ## Repository Structure
 
@@ -80,7 +58,7 @@ can be easily changed as the design evolves.
 ## Development And Deployment Environment
 
 Development host: your XPS 14, VS Code/WSL
-Deployment target: Beelink NUC, Windows, 1024×600 touchscreen
+Deployment target: Surface Go 3, Debian 13, native 1920×1280 touchscreen
 
 ## Story-Driven Work and Human Acceptance
 

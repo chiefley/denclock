@@ -1,6 +1,22 @@
 # DenClock Architecture and Decisions
 
-## Initial Milestone
+## Current deployment platform
+
+All new deployments use Surface Go 3 tablets running Debian 13 with XFCE/X11 and
+LightDM. The Windows NUC deployment is deprecated; its historical implementation
+notes remain for reference. IansClock is the accepted fresh-device reproduction
+of the [Surface provisioning procedure](Surface%20Go%203%20Installation%20and%20Deployment%20Guide.md).
+
+On the tablet, systemd-timesyncd maintains UTC; an explicitly selected IANA timezone
+controls civil time. Systemd runs the .NET server and LoRa service as the non-login
+denclock account, with local-only Mosquitto. The desktop account runs the Chromium
+app window, window helper, Onboard and Clight. Persistent presentation settings
+remain outside application deployment directories. New installations must enable
+desktop toolkit accessibility before Onboard auto-show; the Chromium accessibility
+flag remains required. These roles preserve the existing time/API and sensor
+boundaries; Surface deployment does not introduce application-level NTP.
+
+## Historical initial milestone
 
 A reliable, always-on Internet-synchronized time display using a Windows server
 and browser client. LoRa environmental sensing has an accepted sensor and
@@ -29,8 +45,9 @@ tested and accepted by the developer; DenClock primary-panel integration is impl
 - Known-good diagnostics in `firmware/bringup/` remain independent and unchanged,
   preserving a hardware troubleshooting baseline.
 
-Build incrementally and avoid speculative infrastructure. Production applications
-run natively on Windows; WSL tooling is for development and deployment only.
+Build incrementally and avoid speculative infrastructure. The original Windows-only
+production constraint is superseded by the Surface Go 3 platform above; WSL remains
+the development and deployment workspace.
 
 The server returns UTC plus the host offset so clients need not interpret Windows
 timezone IDs. It uses the executable directory as content root because Windows

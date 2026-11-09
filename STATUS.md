@@ -1,5 +1,12 @@
 # DenClock Status
 
+All future deployments target Surface Go 3 / Debian 13. The Windows NUC is
+deprecated; observations below about it are historical. IansClock installation is
+accepted, including automatic startup, synchronized time, visible weather,
+RustDesk over Tailscale after reboot, and the corrected Onboard accessibility
+prerequisite. See [accepted story 020](docs/stories/completed/020-complete-iansclock-installation.md)
+and [installation status with remaining checks](docs/installations/iansclock-status.json).
+
 The .NET 10 time server is implemented; repository history reports it deployed
 on the NUC and available on the subnet. These deployment observations have not
 been re-tested during documentation work. Existing notes report the NUC and

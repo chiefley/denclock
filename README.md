@@ -22,7 +22,7 @@ The system will be expanded incrementally as the design develops.
 
 DenClock is expected to consist of:
 
-- Server — background service running on the NUC
+- Server — background service running on the Surface Go 3
 - Client — touchscreen clock/weather display
 - LoRa gateway — interface between remote LoRa devices and the server
 - Sensor nodes — remote temperature/humidity and other sensors
@@ -50,11 +50,11 @@ The initial milestone is a working Internet-synchronized time display.
 LoRa environmental reporting is implemented and accepted on the sensor/gateway
 bench path. DenClock's primary sensor panels and MQTT subscription are implemented in story 008 and verified and accepted by the developer. Broader weather features remain future work.
 
-## Linux deployment to bensclock
+## Surface Go 3 deployment
 
 Start a new Surface Go installation with the
 [master provisioning guide](docs/Surface%20Go%203%20Installation%20and%20Deployment%20Guide.md),
 including the `iansclock` trial checklist and observed reference-system limits.
 
 See [the Linux deployment guide](docs/deploy-to-bensclock.md) for the explicitly
-requested Linux target and reusable script. Existing Windows helpers remain available.
+requested Linux target and reusable script. The Windows NUC installation is deprecated. All future installations target Surface Go 3 tablets. Historical Windows helpers remain for reference.

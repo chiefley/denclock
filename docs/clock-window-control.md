@@ -133,3 +133,37 @@ tools; compare whether native applications still invoke Onboard. A running
 Onboard process and focused HTML field alone do not prove accessible focus events
 are reaching Onboard. Avoid changing global desktop settings until the minimal
 launcher change has been assessed.
+
+### Fresh XFCE installation prerequisite (IansClock trial)
+
+Before Onboard's first start with auto-show enabled, run as the desktop user
+in that user's session (not with sudo):
+
+```sh
+gsettings set org.gnome.desktop.interface toolkit-accessibility true
+gsettings set org.onboard.auto-show enabled true
+```
+
+From SSH, use the actual desktop user's session bus, for example Ian's:
+`export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus` (verify UID first).
+The GSettings namespace says GNOME but the prerequisite also applies to this
+XFCE/Onboard installation; installing the GNOME desktop is unnecessary.
+
+The initial Ian procedure enabled only auto-show. Onboard then displayed
+"Enabling auto-show requires Gnome Accessibility" on startup; accepting it enables
+the toolkit setting, but Onboard recommends logging out and back in for full
+activation. A running Onboard process is insufficient acceptance. Verify both
+settings read true, perform a planned fresh login/reboot, and test editable web
+fields with touch and RustDesk. Keep Chromium's existing accessibility flag.
+If the prerequisite was enabled after startup, restart Onboard for a current-session
+retest, then verify again after reboot. Do not mark the fix passed until the dialog
+is absent and actual keyboard input works.
+
+The installed Debian Onboard 1.4.1-10 `Config.check_gnome_accessibility` and
+`OnboardGtk` startup check establish the dialog/precondition behavior; see
+[Debian's package source](https://sources.debian.org/src/onboard/1.4.1-10/Onboard/Config.py/).
+
+Ian trial validation: the user confirmed keyboard appearance after the Onboard
+restart, then confirmed no accessibility dialog and working keyboard appearance/
+text entry after reboot. This verifies the fresh-install prerequisite correction;
+it does not replace other touchscreen/fullscreen/power acceptance checks.
