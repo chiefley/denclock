@@ -191,6 +191,8 @@ If a new device reports a local-time RTC, configure UTC and recheck:
 sudo timedatectl set-local-rtc 0
 ```
 
+Note: Denclock services has to be restarted after a timezone change.
+
 Clock timezone and weather forecast location are independent. Forecast settings
 do not set the OS timezone. Configure the timezone before starting the DenClock
 server; if changing it on an already running new installation, restart
